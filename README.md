@@ -1,4 +1,4 @@
-# biztrack
+# FinApp
 
 A new Flutter project.
 
