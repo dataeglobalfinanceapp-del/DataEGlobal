@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../auth/services/auth_service.dart';
+import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,7 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BizTrack'),
+        title: const Text('FinApp'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -291,7 +291,7 @@ class CircularProgressPainter extends CustomPainter {
     }
   }
 
-  double _degreesToRadians(double degrees) {
+  double _degreesToRadians(double degrees) { 
     return degrees * (3.14159265359 / 180);
   }
 

@@ -11,7 +11,7 @@ class ConfirmSignUpScreen extends StatefulWidget {
 
 class _ConfirmSignUpScreenState extends State<ConfirmSignUpScreen> {
   final _codeController = TextEditingController();
-  bool _loading  = false;
+  bool _loading = false;
   bool _resending = false;
 
   @override
