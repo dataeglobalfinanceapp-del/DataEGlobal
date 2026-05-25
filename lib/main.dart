@@ -2,13 +2,13 @@ import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:flutter/material.dart';
 import 'amplify_outputs.dart';
-import 'features/auth/screens/splash_screen.dart';
-import 'features/auth/screens/login_screen.dart';
-import 'features/auth/screens/signup_screen.dart';
-import 'features/auth/screens/confirm_signup_screen.dart';
-import 'features/auth/screens/forgot_password_screen.dart';
-import 'features/auth/screens/confirm_reset_screen.dart';
-import 'features/auth/screens/home_screen.dart';
+import 'features/auth/screens/login_screen/confirm_reset_screen.dart';
+import 'features/auth/screens/login_screen/login_screen.dart';
+import 'features/auth/screens/login_screen/signup_screen.dart';
+import 'features/auth/screens/login_screen/confirm_signup_screen.dart';
+import 'features/auth/screens/login_screen/forgot_password_screen.dart';
+import 'features/auth/screens/login_screen/home_screen.dart';
+import 'features/auth/screens/login_screen/splash_screen.dart';
 
 Future<void> main() async {
   try {
