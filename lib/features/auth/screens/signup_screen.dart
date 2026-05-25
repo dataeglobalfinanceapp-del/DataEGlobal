@@ -54,32 +54,84 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   bool _validate() {
     final errors = <String>[];
+
     final name     = _nameController.text.trim();
     final email    = _emailController.text.trim();
     final phone    = _phoneController.text.trim();
     final password = _passwordController.text;
     final confirm  = _confirmController.text;
 
-    final nameOk     = name.isNotEmpty;
-    final emailOk    = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
-    final phoneOk    = phone.isNotEmpty && phone.length >= 7;
-    final passwordOk = password.length >= 8;
-    final confirmOk  = confirm == password;
+    final nameOk  = name.isNotEmpty;
+    final emailOk = RegExp(
+      r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+    ).hasMatch(email);
 
-    if (!nameOk)     errors.add('Username is required');
-    if (!emailOk)    errors.add('A valid email is required');
-    if (!phoneOk)    errors.add('Phone number must be provided');
-    if (!passwordOk) errors.add('Password requirements not met');
-    if (password.isNotEmpty && !confirmOk) errors.add('Passwords do not match');
-    if (!_agreedToTerms) errors.add('Please accept the terms and conditions');
+    final phoneOk = RegExp(r'^\d{9,10}$').hasMatch(phone);
+
+    final hasMinLength = password.length >= 8;
+    final hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+    final hasLowercase = RegExp(r'[a-z]').hasMatch(password);
+    final hasNumber    = RegExp(r'\d').hasMatch(password);
+    final hasSpecial   = RegExp(r'[!@#$%^&*]').hasMatch(password);
+
+    final passwordOk =
+        hasMinLength &&
+        hasUppercase &&
+        hasLowercase &&
+        hasNumber &&
+        hasSpecial;
+
+    final confirmOk = confirm == password;
+
+    if (!nameOk) {
+      errors.add('Username is required');
+    }
+
+    if (!emailOk) {
+      errors.add('A valid email is required');
+    }
+
+    if (!phoneOk) {
+      errors.add('Phone number must be provided');
+    }
+
+    if (!hasMinLength) {
+      errors.add('Password must be at least 8 characters');
+    }
+
+    if (!hasUppercase) {
+      errors.add('Password must contain at least one uppercase letter');
+    }
+
+    if (!hasLowercase) {
+      errors.add('Password must contain at least one lowercase letter');
+    }
+
+    if (!hasNumber) {
+      errors.add('Password must contain at least one number');
+    }
+
+    if (!hasSpecial) {
+      errors.add(
+        'Password must contain at least one special character (!@#\$%^&*)',
+      );
+    }
+
+    if (password.isNotEmpty && !confirmOk) {
+      errors.add('Passwords do not match');
+    }
+
+    if (!_agreedToTerms) {
+      errors.add('Please accept the terms and conditions');
+    }
 
     setState(() {
-      _errors         = errors;
-      _nameInvalid    = !nameOk;
-      _emailInvalid   = !emailOk;
-      _phoneInvalid   = !phoneOk;
+      _errors = errors;
+      _nameInvalid = !nameOk;
+      _emailInvalid = !emailOk;
+      _phoneInvalid = !phoneOk;
       _passwordInvalid = !passwordOk;
-      _confirmInvalid = !confirmOk;
+      _confirmInvalid = password.isNotEmpty && !confirmOk;
     });
 
     return errors.isEmpty;

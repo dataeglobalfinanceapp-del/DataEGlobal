@@ -40,7 +40,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // Amplify Cognito default: min 8 chars
     final passwordOk = password.length >= 8;
-    if (!passwordOk) errors.add('Password requirements not met');
+    if (!passwordOk) {
+      errors.add(
+        'Password must be at least 8 characters and include uppercase, lowercase, number, and special character (!@#\$%^&*)',
+      );
+    }
 
     setState(() {
       _errors          = errors;
