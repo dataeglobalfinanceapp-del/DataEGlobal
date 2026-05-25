@@ -92,7 +92,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     if (!phoneOk) {
-      errors.add('Phone number must be provided');
+      errors.add('A valid phone number is required');
     }
 
     if (!hasMinLength) {
