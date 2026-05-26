@@ -72,10 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 4),
                         const Text(
                           'SURPLUS 10%',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
-                          ),
+                          style: TextStyle(color: Colors.grey, fontSize: 12),
                         ),
                         const SizedBox(height: 12),
                         RichText(
@@ -111,7 +108,11 @@ class _HomeScreenState extends State<HomeScreen> {
             // Date Range
             Row(
               children: [
-                const Icon(Icons.calendar_today, size: 20, color: Color(0xFF1E40AF)),
+                const Icon(
+                  Icons.calendar_today,
+                  size: 20,
+                  color: Color(0xFF1E40AF),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   '${_formatDate(_startDate)} - ${_formatDate(_endDate)}',
@@ -149,12 +150,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.home,
                   label: 'DEPOSIT',
                   color: const Color(0xFFE0F2FE),
+                  onTap: () => Navigator.pushNamed(context, '/scan-deposit'),
                 ),
                 _buildFeatureCard(
                   icon: Icons.shopping_cart,
                   label: 'EXPENSE',
                   color: const Color(0xFFFEF3C7),
+                  onTap: () => Navigator.pushNamed(context, '/scan-expense'),
                 ),
+                // TODO: Route the remaining feature cards when their screens exist.
                 _buildFeatureCard(
                   icon: Icons.trending_up,
                   label: 'INVESTMENTS',
@@ -224,32 +228,34 @@ class _HomeScreenState extends State<HomeScreen> {
     required IconData icon,
     required String label,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    return GestureDetector(
-      onTap: () {},
-      child: Container(
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 32, color: const Color(0xFF1E40AF)),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
+    final card = Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 32, color: const Color(0xFF1E40AF)),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+
+    if (onTap == null) return card;
+
+    return GestureDetector(onTap: onTap, child: card);
   }
 
   String _formatDate(DateTime date) {
@@ -291,7 +297,7 @@ class CircularProgressPainter extends CustomPainter {
     }
   }
 
-  double _degreesToRadians(double degrees) { 
+  double _degreesToRadians(double degrees) {
     return degrees * (3.14159265359 / 180);
   }
 

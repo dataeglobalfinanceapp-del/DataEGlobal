@@ -16,7 +16,13 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuth() async {
-    final signedIn = await AuthService.isSignedIn();
+    bool signedIn;
+    try {
+      signedIn = await AuthService.isSignedIn();
+    } catch (_) {
+      signedIn = false;
+    }
+
     if (!mounted) return;
     if (signedIn) {
       Navigator.pushReplacementNamed(context, '/home');
@@ -27,8 +33,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/auth_widgets.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,16 +10,16 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController    = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _loading       = false;
+  bool _loading = false;
   bool _obscurePassword = true;
 
   // Validation errors shown in the red banner
   List<String> _errors = [];
 
   // Whether a field has been flagged invalid (for red border)
-  bool _emailInvalid    = false;
+  bool _emailInvalid = false;
   bool _passwordInvalid = false;
 
   @override
@@ -47,8 +48,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() {
-      _errors          = errors;
-      _emailInvalid    = !emailOk;
+      _errors = errors;
+      _emailInvalid = !emailOk;
       _passwordInvalid = !passwordOk;
     });
 
@@ -74,36 +75,6 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  // ── Shared input decoration ───────────────────────────────────────────────
-
-  InputDecoration _fieldDecoration({
-    required String hint,
-    bool invalid = false,
-    Widget? suffix,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
-      suffixIcon: suffix,
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(
-          color: invalid ? const Color(0xFFEF4444) : const Color(0xFFE0E0E0),
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(
-          color: invalid ? const Color(0xFFEF4444) : const Color(0xFF1A2340),
-          width: 1.5,
-        ),
-      ),
-    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -140,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Savings Teps',
+                'Fin App',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -155,8 +126,8 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 24),
 
               // ── Tab bar ───────────────────────────────────────────────────
-              _TabBar(
-                activeTab: _ActiveTab.login,
+              AuthTabBar(
+                activeTab: AuthTab.login,
                 onSignUpTap: () =>
                     Navigator.pushReplacementNamed(context, '/signup'),
               ),
@@ -164,18 +135,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // ── Error banner ──────────────────────────────────────────────
               if (_errors.isNotEmpty) ...[
-                _ErrorBanner(errors: _errors),
+                AuthErrorBanner(errors: _errors),
                 const SizedBox(height: 16),
               ],
 
               // ── Email ─────────────────────────────────────────────────────
-              _FieldLabel(text: 'EMAIL', required: true),
+              AuthFieldLabel(text: 'EMAIL', required: true),
               const SizedBox(height: 6),
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 autocorrect: false,
-                decoration: _fieldDecoration(
+                decoration: authFieldDecoration(
                   hint: 'e.g: sunny@gmail.com',
                   invalid: _emailInvalid,
                 ),
@@ -183,12 +154,12 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 16),
 
               // ── Password ──────────────────────────────────────────────────
-              _FieldLabel(text: 'PASSWORD', required: true),
+              AuthFieldLabel(text: 'PASSWORD', required: true),
               const SizedBox(height: 6),
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
-                decoration: _fieldDecoration(
+                decoration: authFieldDecoration(
                   hint: '••••••••••••',
                   invalid: _passwordInvalid,
                   suffix: IconButton(
@@ -263,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 16),
 
               // ── Google ────────────────────────────────────────────────────
-              _SocialButton(
+              AuthSocialButton(
                 onPressed: () {},
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -280,7 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 12),
 
               // ── Apple ─────────────────────────────────────────────────────
-              _SocialButton(
+              AuthSocialButton(
                 onPressed: () {},
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -299,7 +270,10 @@ class _LoginScreenState extends State<LoginScreen> {
               // ── Sign up link ──────────────────────────────────────────────
               RichText(
                 text: TextSpan(
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF555555)),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF555555),
+                  ),
                   children: [
                     const TextSpan(text: "Don't have an account. "),
                     WidgetSpan(
@@ -330,168 +304,8 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared sub-widgets (used by both Login and SignUp screens)
+// Login-only sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
-
-enum _ActiveTab { login, signup }
-
-class _TabBar extends StatelessWidget {
-  final _ActiveTab activeTab;
-  final VoidCallback onSignUpTap;
-
-  const _TabBar({required this.activeTab, required this.onSignUpTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8E8E8),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      padding: const EdgeInsets.all(3),
-      child: Row(
-        children: [
-          _Tab(
-            label: 'Sign Up',
-            isActive: activeTab == _ActiveTab.signup,
-            onTap: activeTab == _ActiveTab.login ? onSignUpTap : null,
-          ),
-          _Tab(
-            label: 'Login',
-            isActive: activeTab == _ActiveTab.login,
-            onTap: null,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Tab extends StatelessWidget {
-  final String label;
-  final bool isActive;
-  final VoidCallback? onTap;
-
-  const _Tab({required this.label, required this.isActive, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF1A2340) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: isActive ? Colors.white : const Color(0xFF555555),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  final String text;
-  final bool required;
-
-  const _FieldLabel({required this.text, this.required = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
-            color: Color(0xFF555555),
-          ),
-          children: [
-            TextSpan(text: text),
-            if (required)
-              const TextSpan(
-                text: ' *',
-                style: TextStyle(color: Color(0xFFEF4444)),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorBanner extends StatelessWidget {
-  final List<String> errors;
-  const _ErrorBanner({required this.errors});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF5F5),
-        border: Border.all(color: const Color(0xFFFCA5A5)),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: const [
-              Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Please review the following:',
-                style: TextStyle(
-                  color: Color(0xFFEF4444),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ...errors.map(
-            (e) => Padding(
-              padding: const EdgeInsets.only(left: 4, top: 3),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '• ',
-                    style: TextStyle(color: Color(0xFFDC2626), fontSize: 13),
-                  ),
-                  Expanded(
-                    child: Text(
-                      e,
-                      style: const TextStyle(
-                        color: Color(0xFFDC2626),
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _OrDivider extends StatelessWidget {
   const _OrDivider();
@@ -503,36 +317,13 @@ class _OrDivider extends StatelessWidget {
         Expanded(child: Divider(color: Color(0xFFD8D8D8))),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text('Or', style: TextStyle(color: Color(0xFF888888), fontSize: 13)),
+          child: Text(
+            'Or',
+            style: TextStyle(color: Color(0xFF888888), fontSize: 13),
+          ),
         ),
         Expanded(child: Divider(color: Color(0xFFD8D8D8))),
       ],
-    );
-  }
-}
-
-class _SocialButton extends StatelessWidget {
-  final VoidCallback onPressed;
-  final Widget child;
-
-  const _SocialButton({required this.onPressed, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFFE0E0E0)),
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-        child: child,
-      ),
     );
   }
 }
