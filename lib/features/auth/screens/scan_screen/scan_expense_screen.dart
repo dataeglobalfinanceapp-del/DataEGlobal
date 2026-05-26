@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
+import '../../../../services/liability_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Models
@@ -29,7 +29,6 @@ class ScannedExpenseData {
   final DateTime transactionDate;
   final ExpenseCategory category;
   final String payee;
-  // Changed: XFile instead of File — works on both mobile and web
   final XFile? receiptImage;
 
   const ScannedExpenseData({
@@ -61,7 +60,13 @@ class ScannedExpenseData {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main Scan Expense Screen
+// Entry mode
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum _EntryMode { none, scan, manual }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ScanExpenseScreen extends StatefulWidget {
@@ -72,10 +77,12 @@ class ScanExpenseScreen extends StatefulWidget {
 }
 
 class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
-  XFile? _scannedImage;
-  Uint8List? _scannedImageBytes; // Used for Image.memory — works on web + mobile
+  _EntryMode _entryMode = _EntryMode.none;
+
+  Uint8List? _scannedImageBytes;
   bool _isScanning = false;
   bool _dataExtracted = false;
+  bool _isSaving = false;
 
   ScannedExpenseData _data = ScannedExpenseData(
     transactionDate: DateTime.now(),
@@ -88,10 +95,10 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
   @override
   void initState() {
     super.initState();
-    _checkNumberController = TextEditingController(text: _data.checkNumber);
-    _totalAmountController = TextEditingController(
-        text: _data.totalAmount > 0 ? _data.totalAmount.toStringAsFixed(2) : '');
-    _payeeController = TextEditingController(text: _data.payee);
+    _checkNumberController = TextEditingController();
+    _totalAmountController = TextEditingController();
+    _payeeController = TextEditingController();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showEntryModeDialog());
   }
 
   @override
@@ -102,7 +109,25 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
     super.dispose();
   }
 
-  // ── Camera permission dialog ──────────────────────────────────────────────
+  // ── Entry mode dialog ─────────────────────────────────────────────────────
+
+  Future<void> _showEntryModeDialog() async {
+    final choice = await showDialog<_EntryMode>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      builder: (_) => const _EntryModeDialog(title: 'Expense'),
+    );
+    if (!mounted) return;
+    if (choice == null) {
+      Navigator.pop(context);
+      return;
+    }
+    setState(() => _entryMode = choice);
+    if (choice == _EntryMode.scan) _showCameraPermissionDialog();
+  }
+
+  // ── Camera picker ─────────────────────────────────────────────────────────
 
   Future<void> _showCameraPermissionDialog() async {
     final choice = await showDialog<String>(
@@ -111,9 +136,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
       builder: (_) => const _CameraPermissionDialog(),
     );
     if (!mounted) return;
-    if (choice == 'while' || choice == 'once') {
-      _pickImage(ImageSource.camera);
-    }
+    if (choice == 'while' || choice == 'once') _pickImage(ImageSource.camera);
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -125,16 +148,10 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
         if (mounted) setState(() => _isScanning = false);
         return;
       }
-
-      // Read bytes — works on both web and mobile (no dart:io needed)
       final bytes = await picked.readAsBytes();
-
       await Future.delayed(const Duration(seconds: 2));
       if (!mounted) return;
-
-      // Mock extracted data — replace with real OCR/ML Kit
       setState(() {
-        _scannedImage = picked;
         _scannedImageBytes = bytes;
         _isScanning = false;
         _dataExtracted = true;
@@ -153,9 +170,9 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isScanning = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to capture image: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to capture image: $e')));
       }
     }
   }
@@ -170,7 +187,6 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
     );
     if (confirmed == true && mounted) {
       setState(() {
-        _scannedImage = null;
         _scannedImageBytes = null;
         _dataExtracted = false;
         _data = ScannedExpenseData(transactionDate: DateTime.now());
@@ -216,19 +232,44 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
     }
   }
 
-  // ── Confirm ───────────────────────────────────────────────────────────────
+  // ── Confirm & Save ────────────────────────────────────────────────────────
 
-  void _confirm() {
+  Future<void> _confirm() async {
     final updatedData = _data.copyWith(
       checkNumber: _checkNumberController.text.trim(),
       totalAmount: double.tryParse(_totalAmountController.text) ?? 0,
       payee: _payeeController.text.trim(),
     );
-    Navigator.pop(context, updatedData);
+
+    setState(() => _isSaving = true);
+    try {
+      await LiabilityService.saveExpense(
+        checkNumber: updatedData.checkNumber,
+        totalAmount: updatedData.totalAmount,
+        transactionDate: updatedData.transactionDate,
+        category: updatedData.category.label,
+        payee: updatedData.payee,
+        isManual: _entryMode == _EntryMode.manual,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Expense saved ✓')));
+      Navigator.pop(context, updatedData);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   String _formatDate(DateTime d) =>
       '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
+
+  bool get _showForm => _entryMode == _EntryMode.manual || _dataExtracted;
 
   // ── Build ─────────────────────────────────────────────────────────────────
 
@@ -253,43 +294,42 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.bolt_outlined, color: Colors.black87),
-            onPressed: _showCameraPermissionDialog,
-            tooltip: 'Scan check',
-          ),
+          if (_entryMode == _EntryMode.scan)
+            IconButton(
+              icon: const Icon(Icons.bolt_outlined, color: Colors.black87),
+              onPressed: _showCameraPermissionDialog,
+              tooltip: 'Scan check',
+            ),
         ],
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Check info bar (shown after scan) ────────────────────
-            if (_dataExtracted) ...[
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
-                child: Text(
-                  'Check number: ${_data.checkNumber}  |  Amount: \$${_data.totalAmount.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF888888),
+            if (_entryMode == _EntryMode.scan) ...[
+              if (_dataExtracted)
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  child: Text(
+                    'Check: ${_data.checkNumber}  |  Amount: \$${_data.totalAmount.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF888888),
+                    ),
                   ),
                 ),
+              _ScannerArea(
+                imageBytes: _scannedImageBytes,
+                isScanning: _isScanning,
+                onTap: _showCameraPermissionDialog,
               ),
             ],
-
-            // ── Scanned check image ───────────────────────────────────
-            _ScannerArea(
-              imageBytes: _scannedImageBytes,
-              isScanning: _isScanning,
-              onTap: _showCameraPermissionDialog,
-            ),
-
             const SizedBox(height: 16),
-
-            if (_dataExtracted) ...[
+            if (_showForm)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
@@ -298,9 +338,11 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                     // Header
                     Row(
                       children: [
-                        const Text(
-                          'DETECTED DATA',
-                          style: TextStyle(
+                        Text(
+                          _entryMode == _EntryMode.manual
+                              ? 'MANUAL ENTRY'
+                              : 'DETECTED DATA',
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.8,
@@ -310,20 +352,31 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1A2340),
+                            color: _entryMode == _EntryMode.manual
+                                ? const Color(0xFF059669)
+                                : const Color(0xFF1A2340),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(Icons.check_circle,
-                                  color: Colors.white, size: 14),
-                              SizedBox(width: 5),
+                            children: [
+                              Icon(
+                                _entryMode == _EntryMode.manual
+                                    ? Icons.edit_outlined
+                                    : Icons.check_circle,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 5),
                               Text(
-                                'LIVE EXTRACTION',
-                                style: TextStyle(
+                                _entryMode == _EntryMode.manual
+                                    ? 'MANUAL'
+                                    : 'LIVE EXTRACTION',
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -335,9 +388,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 16),
-
                     // Data card
                     Container(
                       decoration: BoxDecoration(
@@ -348,7 +399,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         children: [
-                          // CHECK NUMBER row
+                          // CHECK NUMBER
                           Row(
                             children: [
                               const Text(
@@ -361,8 +412,11 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                                 ),
                               ),
                               const Spacer(),
-                              const Icon(Icons.receipt_long_outlined,
-                                  size: 20, color: Color(0xFF888888)),
+                              const Icon(
+                                Icons.receipt_long_outlined,
+                                size: 20,
+                                color: Color(0xFF888888),
+                              ),
                               const SizedBox(width: 8),
                               SizedBox(
                                 width: 60,
@@ -377,7 +431,9 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                                   decoration: const InputDecoration(
                                     isDense: true,
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 4, vertical: 6),
+                                      horizontal: 4,
+                                      vertical: 6,
+                                    ),
                                     border: InputBorder.none,
                                   ),
                                 ),
@@ -391,17 +447,18 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                                     color: const Color(0xFFFEF2F2),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: const Icon(Icons.delete_outline,
-                                      size: 18, color: Color(0xFFEF4444)),
+                                  child: const Icon(
+                                    Icons.delete_outline,
+                                    size: 18,
+                                    color: Color(0xFFEF4444),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 14),
                           const Divider(height: 1, color: Color(0xFFEEEEEE)),
                           const SizedBox(height: 14),
-
                           // TOTAL AMOUNT
                           Row(
                             children: [
@@ -409,11 +466,16 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                                 child: Container(
                                   decoration: BoxDecoration(
                                     border: Border.all(
-                                        color: const Color(0xFFD0D0D0)),
+                                      color: const Color(0xFFD0D0D0),
+                                    ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   padding: const EdgeInsets.fromLTRB(
-                                      12, 6, 12, 8),
+                                    12,
+                                    6,
+                                    12,
+                                    8,
+                                  ),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
@@ -432,10 +494,12 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                                         controller: _totalAmountController,
                                         keyboardType:
                                             const TextInputType.numberWithOptions(
-                                                decimal: true),
+                                              decimal: true,
+                                            ),
                                         inputFormatters: [
                                           FilteringTextInputFormatter.allow(
-                                              RegExp(r'^\d*\.?\d{0,2}')),
+                                            RegExp(r'^\d*\.?\d{0,2}'),
+                                          ),
                                         ],
                                         style: const TextStyle(
                                           fontSize: 18,
@@ -446,7 +510,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                                           isDense: true,
                                           contentPadding: EdgeInsets.zero,
                                           border: InputBorder.none,
-                                          prefixText: '\$',
+                                          prefixText: r'$',
                                           prefixStyle: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.w600,
@@ -462,7 +526,6 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                                 const SizedBox(width: 10),
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
-                                  // Image.memory instead of Image.file — cross-platform safe
                                   child: Image.memory(
                                     _scannedImageBytes!,
                                     width: 48,
@@ -473,9 +536,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                               ],
                             ],
                           ),
-
                           const SizedBox(height: 12),
-
                           // TRANSACTION DATE
                           _InfoRow(
                             label: 'TRANSACTION:',
@@ -483,8 +544,11 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                               onTap: _pickDate,
                               child: Row(
                                 children: [
-                                  const Icon(Icons.calendar_month_outlined,
-                                      size: 20, color: Color(0xFF4A90D9)),
+                                  const Icon(
+                                    Icons.calendar_month_outlined,
+                                    size: 20,
+                                    color: Color(0xFF4A90D9),
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     _formatDate(_data.transactionDate),
@@ -498,11 +562,9 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 12),
                           const Divider(height: 1, color: Color(0xFFEEEEEE)),
                           const SizedBox(height: 12),
-
                           // CATEGORY
                           _InfoRow(
                             label: 'CATEGORY:',
@@ -510,8 +572,11 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                               onTap: _showCategoryPicker,
                               child: Row(
                                 children: [
-                                  Icon(_data.category.icon,
-                                      size: 20, color: const Color(0xFF4A90D9)),
+                                  Icon(
+                                    _data.category.icon,
+                                    size: 20,
+                                    color: const Color(0xFF4A90D9),
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     _data.category.label,
@@ -522,24 +587,28 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Icon(Icons.keyboard_arrow_down,
-                                      size: 18, color: Color(0xFF888888)),
+                                  const Icon(
+                                    Icons.keyboard_arrow_down,
+                                    size: 18,
+                                    color: Color(0xFF888888),
+                                  ),
                                 ],
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 12),
                           const Divider(height: 1, color: Color(0xFFEEEEEE)),
                           const SizedBox(height: 12),
-
                           // PAYEE
                           _InfoRow(
                             label: 'PAYEE:',
                             child: Row(
                               children: [
-                                const Icon(Icons.storefront_outlined,
-                                    size: 20, color: Color(0xFF4A90D9)),
+                                const Icon(
+                                  Icons.storefront_outlined,
+                                  size: 20,
+                                  color: Color(0xFF4A90D9),
+                                ),
                                 const SizedBox(width: 6),
                                 SizedBox(
                                   width: 200,
@@ -566,13 +635,11 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                   ],
                 ),
               ),
-            ],
             const SizedBox(height: 100),
           ],
         ),
       ),
-
-      bottomNavigationBar: _dataExtracted
+      bottomNavigationBar: _showForm
           ? SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -580,7 +647,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: _confirm,
+                    onPressed: _isSaving ? null : _confirm,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1A2340),
                       foregroundColor: Colors.white,
@@ -589,16 +656,180 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'Confirm',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Confirm',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                   ),
                 ),
               ),
             )
           : null,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Entry Mode Dialog
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _EntryModeDialog extends StatelessWidget {
+  final String title;
+  const _EntryModeDialog({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEF2FF),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.add_card_outlined,
+                size: 30,
+                color: Color(0xFF1A2340),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Add $title',
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'How would you like to enter this transaction?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF666666),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            _ModeButton(
+              icon: Icons.document_scanner_outlined,
+              label: 'Scan Check',
+              sublabel: 'Use camera to extract data automatically',
+              color: const Color(0xFF1A2340),
+              textColor: Colors.white,
+              onTap: () => Navigator.pop(context, _EntryMode.scan),
+            ),
+            const SizedBox(height: 12),
+            _ModeButton(
+              icon: Icons.edit_outlined,
+              label: 'Enter Manually',
+              sublabel: 'Type in the details yourself',
+              color: Colors.white,
+              textColor: const Color(0xFF1A2340),
+              borderColor: const Color(0xFFD0D0D0),
+              onTap: () => Navigator.pop(context, _EntryMode.manual),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Color(0xFF888888), fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String sublabel;
+  final Color color;
+  final Color textColor;
+  final Color? borderColor;
+  final VoidCallback onTap;
+
+  const _ModeButton({
+    required this.icon,
+    required this.label,
+    required this.sublabel,
+    required this.color,
+    required this.textColor,
+    this.borderColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(10),
+          border: borderColor != null ? Border.all(color: borderColor!) : null,
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: textColor, size: 24),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    sublabel,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: textColor.withValues(alpha: 0.65),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: textColor.withValues(alpha: 0.5),
+              size: 20,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -610,7 +841,6 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
 class _InfoRow extends StatelessWidget {
   final String label;
   final Widget child;
-
   const _InfoRow({required this.label, required this.child});
 
   @override
@@ -641,7 +871,6 @@ class _ScannerArea extends StatelessWidget {
   final Uint8List? imageBytes;
   final bool isScanning;
   final VoidCallback onTap;
-
   const _ScannerArea({
     required this.imageBytes,
     required this.isScanning,
@@ -650,59 +879,69 @@ class _ScannerArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       height: 180,
-      color: Colors.white,
-      child: isScanning
-          ? const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(color: Color(0xFF1A2340)),
-                  SizedBox(height: 12),
-                  Text('Scanning check...',
-                      style:
-                          TextStyle(color: Colors.black54, fontSize: 14)),
-                ],
-              ),
-            )
-          : imageBytes != null
-              ? Stack(
-                  fit: StackFit.expand,
+      child: ColoredBox(
+        color: Colors.white,
+        child: isScanning
+            ? const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Image.memory instead of Image.file — cross-platform safe
-                    Image.memory(imageBytes!, fit: BoxFit.cover),
-                    Container(color: Colors.black.withOpacity(0.08)),
+                    CircularProgressIndicator(color: Color(0xFF1A2340)),
+                    SizedBox(height: 12),
+                    Text(
+                      'Scanning check...',
+                      style: TextStyle(color: Colors.black54, fontSize: 14),
+                    ),
                   ],
-                )
-              : GestureDetector(
-                  onTap: onTap,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0F0F0),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.document_scanner_outlined,
-                          size: 32,
-                          color: Color(0xFF888888),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'Tap to scan check',
-                        style: TextStyle(
-                            fontSize: 14, color: Color(0xFF888888)),
-                      ),
-                    ],
-                  ),
                 ),
+              )
+            : imageBytes != null
+            ? SizedBox(
+                width: double.infinity,
+                height: 180,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Image.memory(imageBytes!, fit: BoxFit.cover),
+                    ),
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.08),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : GestureDetector(
+                onTap: onTap,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F0F0),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.document_scanner_outlined,
+                        size: 32,
+                        color: Color(0xFF888888),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Tap to scan check',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF888888)),
+                    ),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 }
@@ -714,14 +953,12 @@ class _ScannerArea extends StatelessWidget {
 class _CategoryPickerSheet extends StatefulWidget {
   final ExpenseCategory selected;
   const _CategoryPickerSheet({required this.selected});
-
   @override
   State<_CategoryPickerSheet> createState() => _CategoryPickerSheetState();
 }
 
 class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
   late ExpenseCategory _selected;
-
   @override
   void initState() {
     super.initState();
@@ -751,20 +988,19 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
           ...ExpenseCategory.values.map((cat) {
             final isSelected = _selected == cat;
             return ListTile(
-              leading: Icon(cat.icon,
-                  size: 22,
-                  color: isSelected
-                      ? const Color(0xFF1A2340)
-                      : const Color(0xFF888888)),
+              leading: Icon(
+                cat.icon,
+                size: 22,
+                color: isSelected
+                    ? const Color(0xFF1A2340)
+                    : const Color(0xFF888888),
+              ),
               title: Text(
                 cat.label,
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight:
-                      isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: isSelected
-                      ? const Color(0xFF1A2340)
-                      : Colors.black87,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected ? const Color(0xFF1A2340) : Colors.black87,
                 ),
               ),
               trailing: isSelected
@@ -775,8 +1011,11 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                         color: Color(0xFF1A2340),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.check,
-                          color: Colors.white, size: 14),
+                      child: const Icon(
+                        Icons.check,
+                        color: Colors.white,
+                        size: 14,
+                      ),
                     )
                   : Container(
                       width: 22,
@@ -824,22 +1063,28 @@ class _CameraPermissionDialog extends StatelessWidget {
                 color: const Color(0xFFF0F0F0),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.videocam_outlined,
-                  size: 28, color: Color(0xFF555555)),
+              child: const Icon(
+                Icons.videocam_outlined,
+                size: 28,
+                color: Color(0xFF555555),
+              ),
             ),
             const SizedBox(height: 16),
             RichText(
               textAlign: TextAlign.center,
               text: const TextSpan(
                 style: TextStyle(
-                    fontSize: 14, color: Colors.black87, height: 1.5),
+                  fontSize: 14,
+                  color: Colors.black87,
+                  height: 1.5,
+                ),
                 children: [
                   TextSpan(text: 'Allow '),
                   TextSpan(
-                    text: 'Saving Teps',
+                    text: 'Fin App',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  TextSpan(text: ' to take picture and record video'),
+                  TextSpan(text: ' to take pictures and record video'),
                 ],
               ),
             ),
@@ -868,7 +1113,6 @@ class _CameraPermissionDialog extends StatelessWidget {
 class _PermissionOption extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
-
   const _PermissionOption({required this.label, required this.onTap});
 
   @override
@@ -919,8 +1163,11 @@ class _DeleteConfirmDialog extends StatelessWidget {
                 color: Color(0xFFFEE2E2),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.error_outline,
-                  color: Color(0xFFEF4444), size: 30),
+              child: const Icon(
+                Icons.error_outline,
+                color: Color(0xFFEF4444),
+                size: 30,
+              ),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -934,7 +1181,7 @@ class _DeleteConfirmDialog extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             const Text(
-              'This action will permanently remove this transaction from the ledger and cannot be undone.',
+              'This will permanently remove this expense and cannot be undone.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,

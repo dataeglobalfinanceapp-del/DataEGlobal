@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
+import '../../../../services/liability_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Models
@@ -15,7 +15,6 @@ class ScannedDepositData {
   final double giftCard;
   final double other;
   final DateTime transactionDate;
-  // Changed: XFile instead of File — works on both mobile and web
   final XFile? receiptImage;
 
   const ScannedDepositData({
@@ -53,7 +52,13 @@ class ScannedDepositData {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main Scan Deposit Screen
+// Entry mode
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum _EntryMode { none, scan, manual }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ScanDepositScreen extends StatefulWidget {
@@ -64,17 +69,18 @@ class ScanDepositScreen extends StatefulWidget {
 }
 
 class _ScanDepositScreenState extends State<ScanDepositScreen> {
-  XFile? _scannedImage;
-  Uint8List? _scannedImageBytes; // Used for Image.memory — works on web + mobile
+  _EntryMode _entryMode = _EntryMode.none;
+
+  Uint8List? _scannedImageBytes;
   bool _isScanning = false;
   bool _dataExtracted = false;
   bool _duplicateWarning = false;
+  bool _isSaving = false;
 
   ScannedDepositData _data = ScannedDepositData(
     transactionDate: DateTime.now(),
   );
 
-  // Field controllers
   late TextEditingController _orderNumberController;
   late TextEditingController _totalAmountController;
   late TextEditingController _creditDebtController;
@@ -86,16 +92,12 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
   void initState() {
     super.initState();
     _orderNumberController = TextEditingController(text: _data.orderNumber);
-    _totalAmountController = TextEditingController(
-        text: _data.totalAmount > 0 ? _data.totalAmount.toStringAsFixed(2) : '');
-    _creditDebtController = TextEditingController(
-        text: _data.creditDebt > 0 ? _data.creditDebt.toStringAsFixed(2) : '');
-    _cashController = TextEditingController(
-        text: _data.cash > 0 ? _data.cash.toStringAsFixed(2) : '');
-    _giftCardController = TextEditingController(
-        text: _data.giftCard > 0 ? _data.giftCard.toStringAsFixed(2) : '');
-    _otherController = TextEditingController(
-        text: _data.other > 0 ? _data.other.toStringAsFixed(2) : '');
+    _totalAmountController = TextEditingController();
+    _creditDebtController = TextEditingController();
+    _cashController = TextEditingController();
+    _giftCardController = TextEditingController();
+    _otherController = TextEditingController();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showEntryModeDialog());
   }
 
   @override
@@ -109,7 +111,25 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
     super.dispose();
   }
 
-  // ── Camera / Gallery picker ───────────────────────────────────────────────
+  // ── Entry mode dialog ─────────────────────────────────────────────────────
+
+  Future<void> _showEntryModeDialog() async {
+    final choice = await showDialog<_EntryMode>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      builder: (_) => const _EntryModeDialog(title: 'Deposit'),
+    );
+    if (!mounted) return;
+    if (choice == null) {
+      Navigator.pop(context);
+      return;
+    }
+    setState(() => _entryMode = choice);
+    if (choice == _EntryMode.scan) _showCameraPermissionDialog();
+  }
+
+  // ── Camera picker ─────────────────────────────────────────────────────────
 
   Future<void> _showCameraPermissionDialog() async {
     final choice = await showDialog<String>(
@@ -117,11 +137,8 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
       barrierColor: Colors.black54,
       builder: (_) => const _CameraPermissionDialog(),
     );
-
     if (!mounted) return;
-    if (choice == 'while' || choice == 'once') {
-      _pickImage(ImageSource.camera);
-    }
+    if (choice == 'while' || choice == 'once') _pickImage(ImageSource.camera);
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -133,21 +150,14 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
         if (mounted) setState(() => _isScanning = false);
         return;
       }
-
-      // Read bytes — works on both web and mobile (no dart:io needed)
       final bytes = await picked.readAsBytes();
-
-      // Simulate OCR extraction delay
       await Future.delayed(const Duration(seconds: 2));
       if (!mounted) return;
-
-      // Mock extracted data — replace with real OCR/ML Kit result
       setState(() {
-        _scannedImage = picked;
         _scannedImageBytes = bytes;
         _isScanning = false;
         _dataExtracted = true;
-        _duplicateWarning = true; // simulate duplicate detection
+        _duplicateWarning = true;
         _data = ScannedDepositData(
           orderNumber: '01',
           totalAmount: 1072.00,
@@ -158,21 +168,33 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
           transactionDate: DateTime(2026, 2, 25),
           receiptImage: picked,
         );
-        _orderNumberController.text = _data.orderNumber;
-        _totalAmountController.text = _data.totalAmount.toStringAsFixed(2);
-        _creditDebtController.text = _data.creditDebt.toStringAsFixed(2);
-        _cashController.text = _data.cash.toStringAsFixed(2);
-        _giftCardController.text = _data.giftCard.toStringAsFixed(2);
-        _otherController.text = _data.other.toStringAsFixed(2);
+        _syncControllers();
       });
     } catch (e) {
       if (mounted) {
         setState(() => _isScanning = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to capture image: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to capture image: $e')));
       }
     }
+  }
+
+  void _syncControllers() {
+    _orderNumberController.text = _data.orderNumber;
+    _totalAmountController.text = _data.totalAmount > 0
+        ? _data.totalAmount.toStringAsFixed(2)
+        : '';
+    _creditDebtController.text = _data.creditDebt > 0
+        ? _data.creditDebt.toStringAsFixed(2)
+        : '';
+    _cashController.text = _data.cash > 0 ? _data.cash.toStringAsFixed(2) : '';
+    _giftCardController.text = _data.giftCard > 0
+        ? _data.giftCard.toStringAsFixed(2)
+        : '';
+    _otherController.text = _data.other > 0
+        ? _data.other.toStringAsFixed(2)
+        : '';
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -185,7 +207,6 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
     );
     if (confirmed == true && mounted) {
       setState(() {
-        _scannedImage = null;
         _scannedImageBytes = null;
         _dataExtracted = false;
         _duplicateWarning = false;
@@ -210,9 +231,7 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
       lastDate: DateTime.now(),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: Color(0xFF1A2340),
-          ),
+          colorScheme: const ColorScheme.light(primary: Color(0xFF1A2340)),
         ),
         child: child!,
       ),
@@ -222,9 +241,9 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
     }
   }
 
-  // ── Confirm ───────────────────────────────────────────────────────────────
+  // ── Confirm & Save ────────────────────────────────────────────────────────
 
-  void _confirm() {
+  Future<void> _confirm() async {
     final updatedData = _data.copyWith(
       orderNumber: _orderNumberController.text.trim(),
       totalAmount: double.tryParse(_totalAmountController.text) ?? 0,
@@ -233,9 +252,35 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
       giftCard: double.tryParse(_giftCardController.text) ?? 0,
       other: double.tryParse(_otherController.text) ?? 0,
     );
-    // TODO: pass updatedData to your backend/repository
-    Navigator.pop(context, updatedData);
+
+    setState(() => _isSaving = true);
+    try {
+      await LiabilityService.saveDeposit(
+        orderNumber: updatedData.orderNumber,
+        totalAmount: updatedData.totalAmount,
+        creditDebt: updatedData.creditDebt,
+        cash: updatedData.cash,
+        giftCard: updatedData.giftCard,
+        other: updatedData.other,
+        transactionDate: updatedData.transactionDate,
+        isManual: _entryMode == _EntryMode.manual,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Deposit saved ✓')));
+      Navigator.pop(context, updatedData);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
+
+  bool get _showForm => _entryMode == _EntryMode.manual || _dataExtracted;
 
   // ── Build ─────────────────────────────────────────────────────────────────
 
@@ -260,42 +305,38 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.bolt_outlined, color: Colors.black87),
-            onPressed: _showCameraPermissionDialog,
-            tooltip: 'Scan receipt',
-          ),
+          if (_entryMode == _EntryMode.scan)
+            IconButton(
+              icon: const Icon(Icons.bolt_outlined, color: Colors.black87),
+              onPressed: _showCameraPermissionDialog,
+              tooltip: 'Scan receipt',
+            ),
         ],
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ── Scanner area ─────────────────────────────────────────────
-            _ScannerArea(
-              imageBytes: _scannedImageBytes,
-              isScanning: _isScanning,
-              onTap: _showCameraPermissionDialog,
-            ),
-
+            if (_entryMode == _EntryMode.scan)
+              _ScannerArea(
+                imageBytes: _scannedImageBytes,
+                isScanning: _isScanning,
+                onTap: _showCameraPermissionDialog,
+              ),
             const SizedBox(height: 16),
-
-            // ── Detected data section ────────────────────────────────────
-            if (_dataExtracted) ...[
+            if (_showForm)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
-                    // Header row
-                    _DetectedDataHeader(isDuplicate: _duplicateWarning),
-
+                    _DetectedDataHeader(
+                      isDuplicate: _duplicateWarning,
+                      isManual: _entryMode == _EntryMode.manual,
+                    ),
                     if (_duplicateWarning) ...[
                       const SizedBox(height: 10),
                       const _DuplicateWarning(),
                     ],
-
                     const SizedBox(height: 16),
-
-                    // Data card
                     _DataCard(
                       orderNumberController: _orderNumberController,
                       totalAmountController: _totalAmountController,
@@ -311,15 +352,11 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
                   ],
                 ),
               ),
-            ],
-
             const SizedBox(height: 100),
           ],
         ),
       ),
-
-      // ── Confirm button ─────────────────────────────────────────────────
-      bottomNavigationBar: _dataExtracted
+      bottomNavigationBar: _showForm
           ? SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -327,7 +364,7 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: _confirm,
+                    onPressed: _isSaving ? null : _confirm,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1A2340),
                       foregroundColor: Colors.white,
@@ -336,13 +373,22 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'Confirm',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Confirm',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -353,7 +399,160 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scanner Area Widget
+// Entry Mode Dialog
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _EntryModeDialog extends StatelessWidget {
+  final String title;
+  const _EntryModeDialog({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEF2FF),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.add_card_outlined,
+                size: 30,
+                color: Color(0xFF1A2340),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Add $title',
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'How would you like to enter this transaction?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF666666),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            _ModeButton(
+              icon: Icons.document_scanner_outlined,
+              label: 'Scan Receipt',
+              sublabel: 'Use camera to extract data automatically',
+              color: const Color(0xFF1A2340),
+              textColor: Colors.white,
+              onTap: () => Navigator.pop(context, _EntryMode.scan),
+            ),
+            const SizedBox(height: 12),
+            _ModeButton(
+              icon: Icons.edit_outlined,
+              label: 'Enter Manually',
+              sublabel: 'Type in the details yourself',
+              color: Colors.white,
+              textColor: const Color(0xFF1A2340),
+              borderColor: const Color(0xFFD0D0D0),
+              onTap: () => Navigator.pop(context, _EntryMode.manual),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Color(0xFF888888), fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String sublabel;
+  final Color color;
+  final Color textColor;
+  final Color? borderColor;
+  final VoidCallback onTap;
+
+  const _ModeButton({
+    required this.icon,
+    required this.label,
+    required this.sublabel,
+    required this.color,
+    required this.textColor,
+    this.borderColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(10),
+          border: borderColor != null ? Border.all(color: borderColor!) : null,
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: textColor, size: 24),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    sublabel,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: textColor.withValues(alpha: 0.65),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: textColor.withValues(alpha: 0.5),
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scanner Area
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ScannerArea extends StatelessWidget {
@@ -369,70 +568,74 @@ class _ScannerArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       height: 220,
-      color: Colors.white,
-      child: isScanning
-          ? const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(color: Color(0xFF1A2340)),
-                  SizedBox(height: 12),
-                  Text(
-                    'Extracting data...',
-                    style: TextStyle(color: Colors.black54, fontSize: 14),
-                  ),
-                ],
-              ),
-            )
-          : imageBytes != null
-              ? Stack(
-                  fit: StackFit.expand,
+      child: ColoredBox(
+        color: Colors.white,
+        child: isScanning
+            ? const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Image.memory works on web + mobile; Image.file does not work on web
-                    Image.memory(imageBytes!, fit: BoxFit.cover),
-                    Container(color: Colors.black.withOpacity(0.1)),
+                    CircularProgressIndicator(color: Color(0xFF1A2340)),
+                    SizedBox(height: 12),
+                    Text(
+                      'Extracting data...',
+                      style: TextStyle(color: Colors.black54, fontSize: 14),
+                    ),
                   ],
-                )
-              : GestureDetector(
-                  onTap: onTap,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0F0F0),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.document_scanner_outlined,
-                          size: 36,
-                          color: Color(0xFF888888),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Tap to scan receipt',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFF888888),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Or use the ⚡ icon above',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFFAAAAAA),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
+              )
+            : imageBytes != null
+            ? SizedBox(
+                width: double.infinity,
+                height: 220,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Image.memory(imageBytes!, fit: BoxFit.cover),
+                    ),
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.1),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : GestureDetector(
+                onTap: onTap,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F0F0),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.document_scanner_outlined,
+                        size: 36,
+                        color: Color(0xFF888888),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Tap to scan receipt',
+                      style: TextStyle(fontSize: 15, color: Color(0xFF888888)),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Or use the ⚡ icon above',
+                      style: TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
+                    ),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 }
@@ -443,15 +646,19 @@ class _ScannerArea extends StatelessWidget {
 
 class _DetectedDataHeader extends StatelessWidget {
   final bool isDuplicate;
-  const _DetectedDataHeader({required this.isDuplicate});
+  final bool isManual;
+  const _DetectedDataHeader({
+    required this.isDuplicate,
+    required this.isManual,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Text(
-          'DETECTED DATA',
-          style: TextStyle(
+        Text(
+          isManual ? 'MANUAL ENTRY' : 'DETECTED DATA',
+          style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.8,
@@ -462,17 +669,21 @@ class _DetectedDataHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A2340),
+            color: isManual ? const Color(0xFF059669) : const Color(0xFF1A2340),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.check_circle, color: Colors.white, size: 14),
-              SizedBox(width: 5),
+            children: [
+              Icon(
+                isManual ? Icons.edit_outlined : Icons.check_circle,
+                color: Colors.white,
+                size: 14,
+              ),
+              const SizedBox(width: 5),
               Text(
-                'LIVE EXTRACTION',
-                style: TextStyle(
+                isManual ? 'MANUAL' : 'LIVE EXTRACTION',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -493,7 +704,6 @@ class _DetectedDataHeader extends StatelessWidget {
 
 class _DuplicateWarning extends StatelessWidget {
   const _DuplicateWarning();
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -506,11 +716,7 @@ class _DuplicateWarning extends StatelessWidget {
       ),
       child: const Text(
         'This data already exists in the system (created at 13:00 on 03/20/2026). Do you want to add it again?',
-        style: TextStyle(
-          color: Color(0xFFEF4444),
-          fontSize: 13,
-          height: 1.5,
-        ),
+        style: TextStyle(color: Color(0xFFEF4444), fontSize: 13, height: 1.5),
       ),
     );
   }
@@ -545,7 +751,7 @@ class _DataCard extends StatelessWidget {
     required this.onDateTap,
   });
 
-  String _formatDate(DateTime d) =>
+  String _fmt(DateTime d) =>
       '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
 
   @override
@@ -559,7 +765,6 @@ class _DataCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // ── Order number row ──────────────────────────────────────────
           Row(
             children: [
               const Text(
@@ -572,8 +777,11 @@ class _DataCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              const Icon(Icons.receipt_long_outlined,
-                  size: 20, color: Color(0xFF888888)),
+              const Icon(
+                Icons.receipt_long_outlined,
+                size: 20,
+                color: Color(0xFF888888),
+              ),
               const SizedBox(width: 8),
               SizedBox(
                 width: 40,
@@ -587,7 +795,9 @@ class _DataCard extends StatelessWidget {
                   decoration: const InputDecoration(
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
-                        horizontal: 4, vertical: 6),
+                      horizontal: 4,
+                      vertical: 6,
+                    ),
                     border: InputBorder.none,
                   ),
                 ),
@@ -601,27 +811,24 @@ class _DataCard extends StatelessWidget {
                     color: const Color(0xFFFEF2F2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.delete_outline,
-                      size: 18, color: Color(0xFFEF4444)),
+                  child: const Icon(
+                    Icons.delete_outline,
+                    size: 18,
+                    color: Color(0xFFEF4444),
+                  ),
                 ),
               ),
             ],
           ),
-
           const SizedBox(height: 14),
           const Divider(height: 1, color: Color(0xFFEEEEEE)),
           const SizedBox(height: 14),
-
-          // ── Total amount ──────────────────────────────────────────────
           _AmountFieldRow(
             label: 'TOTAL AMOUNT',
             controller: totalAmountController,
             thumbnailBytes: receiptImageBytes,
           ),
-
           const SizedBox(height: 12),
-
-          // ── Credit/Debt + Cash ────────────────────────────────────────
           Row(
             children: [
               Expanded(
@@ -639,10 +846,7 @@ class _DataCard extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
-          // ── Gift card + Other ─────────────────────────────────────────
           Row(
             children: [
               Expanded(
@@ -660,12 +864,9 @@ class _DataCard extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 14),
           const Divider(height: 1, color: Color(0xFFEEEEEE)),
           const SizedBox(height: 14),
-
-          // ── Transaction date ──────────────────────────────────────────
           Row(
             children: [
               const Text(
@@ -682,11 +883,14 @@ class _DataCard extends StatelessWidget {
                 onTap: onDateTap,
                 child: Row(
                   children: [
-                    const Icon(Icons.calendar_month_outlined,
-                        size: 20, color: Color(0xFF4A90D9)),
+                    const Icon(
+                      Icons.calendar_month_outlined,
+                      size: 20,
+                      color: Color(0xFF4A90D9),
+                    ),
                     const SizedBox(width: 6),
                     Text(
-                      _formatDate(transactionDate),
+                      _fmt(transactionDate),
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -704,15 +908,10 @@ class _DataCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Amount Field Row (with optional thumbnail)
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _AmountFieldRow extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final Uint8List? thumbnailBytes;
-
   const _AmountFieldRow({
     required this.label,
     required this.controller,
@@ -745,10 +944,13 @@ class _AmountFieldRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 TextField(
                   controller: controller,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d*\.?\d{0,2}'),
+                    ),
                   ],
                   style: const TextStyle(
                     fontSize: 18,
@@ -759,7 +961,7 @@ class _AmountFieldRow extends StatelessWidget {
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
                     border: InputBorder.none,
-                    prefixText: '\$',
+                    prefixText: r'$',
                     prefixStyle: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -775,7 +977,6 @@ class _AmountFieldRow extends StatelessWidget {
           const SizedBox(width: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            // Image.memory instead of Image.file — cross-platform safe
             child: Image.memory(
               thumbnailBytes!,
               width: 48,
@@ -789,18 +990,10 @@ class _AmountFieldRow extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Small Amount Field (for 2-column grid)
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _SmallAmountField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
-
-  const _SmallAmountField({
-    required this.label,
-    required this.controller,
-  });
+  const _SmallAmountField({required this.label, required this.controller});
 
   @override
   Widget build(BuildContext context) {
@@ -825,8 +1018,7 @@ class _SmallAmountField extends StatelessWidget {
           const SizedBox(height: 2),
           TextField(
             controller: controller,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
             ],
@@ -839,7 +1031,7 @@ class _SmallAmountField extends StatelessWidget {
               isDense: true,
               contentPadding: EdgeInsets.zero,
               border: InputBorder.none,
-              prefixText: '\$',
+              prefixText: r'$',
               prefixStyle: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -869,7 +1061,6 @@ class _CameraPermissionDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Camera icon
             Container(
               width: 48,
               height: 48,
@@ -877,23 +1068,28 @@ class _CameraPermissionDialog extends StatelessWidget {
                 color: const Color(0xFFF0F0F0),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.videocam_outlined,
-                  size: 28, color: Color(0xFF555555)),
+              child: const Icon(
+                Icons.videocam_outlined,
+                size: 28,
+                color: Color(0xFF555555),
+              ),
             ),
             const SizedBox(height: 16),
             RichText(
               textAlign: TextAlign.center,
               text: const TextSpan(
-                style: TextStyle(fontSize: 14, color: Colors.black87, height: 1.5),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black87,
+                  height: 1.5,
+                ),
                 children: [
                   TextSpan(text: 'Allow '),
                   TextSpan(
-                    text: 'Saving Teps',
+                    text: 'Fin App',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  TextSpan(
-                      text:
-                          ' to take picture and record video'),
+                  TextSpan(text: ' to take pictures and record video'),
                 ],
               ),
             ),
@@ -922,7 +1118,6 @@ class _CameraPermissionDialog extends StatelessWidget {
 class _PermissionOption extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
-
   const _PermissionOption({required this.label, required this.onTap});
 
   @override
@@ -966,7 +1161,6 @@ class _DeleteConfirmDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Red warning icon
             Container(
               width: 52,
               height: 52,
@@ -974,12 +1168,15 @@ class _DeleteConfirmDialog extends StatelessWidget {
                 color: Color(0xFFFEE2E2),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.error_outline,
-                  color: Color(0xFFEF4444), size: 30),
+              child: const Icon(
+                Icons.error_outline,
+                color: Color(0xFFEF4444),
+                size: 30,
+              ),
             ),
             const SizedBox(height: 16),
             const Text(
-              'DELETE EXPENSE?',
+              'DELETE DEPOSIT?',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -989,7 +1186,7 @@ class _DeleteConfirmDialog extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             const Text(
-              'This action will permanently remove this transaction from the ledger and cannot be undone.',
+              'This will permanently remove this deposit and cannot be undone.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,

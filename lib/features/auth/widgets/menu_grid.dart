@@ -1,18 +1,75 @@
 import 'package:flutter/material.dart';
 
 class MenuGrid extends StatelessWidget {
+  const MenuGrid({super.key});
+
   final List<Map<String, dynamic>> items = const [
-    {'label': 'DEPOSIT',     'icon': Icons.home,         'badge': 4,  'color': Color(0xFFEFF6FF)},
-    {'label': 'EXPENSE',     'icon': Icons.bar_chart,    'badge': 0,  'color': Color(0xFFFFFBEB)},
-    {'label': 'INVESTMENTS', 'icon': Icons.trending_up,  'badge': 0,  'color': Color(0xFFF5F3FF)},
-    {'label': 'RESERVES',    'icon': Icons.savings,      'badge': 0,  'color': Color(0xFFECFDF5)},
-    {'label': 'LIABILITIES', 'icon': Icons.credit_card,  'badge': 0,  'color': Color(0xFFFEF2F2)},
-    {'label': 'PAYROLL',     'icon': Icons.people,       'badge': 4,  'color': Color(0xFFEFF6FF)},
-    {'label': 'GOAL',        'icon': Icons.flag,         'badge': 0,  'color': Color(0xFFFFF7ED)},
-    {'label': 'MARKETING',   'icon': Icons.campaign,     'badge': 0,  'color': Color(0xFFF0FDF4)},
-    {'label': 'REMINDER',    'icon': Icons.alarm,        'badge': 0,  'color': Color(0xFFFDF4FF)},
-    {'label': 'PERSONAL',    'icon': Icons.person,       'badge': 0,  'color': Color(0xFFF0F9FF)},
-    {'label': 'SHOPPING',    'icon': Icons.shopping_bag, 'badge': 0,  'color': Color(0xFFFFF1F2)},
+    {
+      'label': 'DEPOSIT',
+      'icon': Icons.home,
+      'badge': 4,
+      'color': Color(0xFFEFF6FF),
+    },
+    {
+      'label': 'EXPENSE',
+      'icon': Icons.bar_chart,
+      'badge': 0,
+      'color': Color(0xFFFFFBEB),
+    },
+    {
+      'label': 'INVESTMENTS',
+      'icon': Icons.trending_up,
+      'badge': 0,
+      'color': Color(0xFFF5F3FF),
+    },
+    {
+      'label': 'RESERVES',
+      'icon': Icons.savings,
+      'badge': 0,
+      'color': Color(0xFFECFDF5),
+    },
+    {
+      'label': 'LIABILITIES',
+      'icon': Icons.credit_card,
+      'badge': 0,
+      'color': Color(0xFFFEF2F2),
+    },
+    {
+      'label': 'PAYROLL',
+      'icon': Icons.people,
+      'badge': 4,
+      'color': Color(0xFFEFF6FF),
+    },
+    {
+      'label': 'GOAL',
+      'icon': Icons.flag,
+      'badge': 0,
+      'color': Color(0xFFFFF7ED),
+    },
+    {
+      'label': 'MARKETING',
+      'icon': Icons.campaign,
+      'badge': 0,
+      'color': Color(0xFFF0FDF4),
+    },
+    {
+      'label': 'REMINDER',
+      'icon': Icons.alarm,
+      'badge': 0,
+      'color': Color(0xFFFDF4FF),
+    },
+    {
+      'label': 'PERSONAL',
+      'icon': Icons.person,
+      'badge': 0,
+      'color': Color(0xFFF0F9FF),
+    },
+    {
+      'label': 'SHOPPING',
+      'icon': Icons.shopping_bag,
+      'badge': 0,
+      'color': Color(0xFFFFF1F2),
+    },
   ];
 
   @override
@@ -52,18 +109,26 @@ class _MenuTile extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 item['label'],
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
               ),
             ],
           ),
         ),
         if (item['badge'] > 0)
           Positioned(
-            top: 6, right: 6,
+            top: 6,
+            right: 6,
             child: CircleAvatar(
               radius: 9,
               backgroundColor: Colors.red,
-              child: Text('${item['badge']}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+              child: Text(
+                '${item['badge']}',
+                style: const TextStyle(color: Colors.white, fontSize: 10),
+              ),
             ),
           ),
       ],

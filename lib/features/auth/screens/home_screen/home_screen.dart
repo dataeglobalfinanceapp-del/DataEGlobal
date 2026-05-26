@@ -166,18 +166,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 _buildFeatureCard(
                   icon: Icons.savings,
-                  label: 'RESERVES',
+                  label: 'SCAN',
                   color: const Color(0xFFDEFACF),
+                  onTap: () => Navigator.pushNamed(context, '/scan'),
                 ),
                 _buildFeatureCard(
                   icon: Icons.receipt,
                   label: 'LIABILITIES',
                   color: const Color(0xFFFED7AA),
+                  onTap: () => Navigator.pushNamed(context, '/liabilities'),
                 ),
                 _buildFeatureCard(
                   icon: Icons.people,
                   label: 'PAYROLL',
                   color: const Color(0xFFFECDD3),
+                  onTap: () => Navigator.pushNamed(context, '/payroll'),
                 ),
                 _buildFeatureCard(
                   icon: Icons.flag,
