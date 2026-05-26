@@ -734,7 +734,7 @@ class _EntryModeDialog extends StatelessWidget {
             _ModeButton(
               icon: Icons.document_scanner_outlined,
               label: 'Scan Check',
-              sublabel: 'Use camera to extract data automatically',
+              subLabel: 'Use camera to extract data automatically',
               color: const Color(0xFF1A2340),
               textColor: Colors.white,
               onTap: () => Navigator.pop(context, _EntryMode.scan),
@@ -743,7 +743,7 @@ class _EntryModeDialog extends StatelessWidget {
             _ModeButton(
               icon: Icons.edit_outlined,
               label: 'Enter Manually',
-              sublabel: 'Type in the details yourself',
+              subLabel: 'Type in the details yourself',
               color: Colors.white,
               textColor: const Color(0xFF1A2340),
               borderColor: const Color(0xFFD0D0D0),
@@ -767,7 +767,7 @@ class _EntryModeDialog extends StatelessWidget {
 class _ModeButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String sublabel;
+  final String subLabel;
   final Color color;
   final Color textColor;
   final Color? borderColor;
@@ -776,7 +776,7 @@ class _ModeButton extends StatelessWidget {
   const _ModeButton({
     required this.icon,
     required this.label,
-    required this.sublabel,
+    required this.subLabel,
     required this.color,
     required this.textColor,
     this.borderColor,
@@ -813,7 +813,7 @@ class _ModeButton extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    sublabel,
+                    subLabel,
                     style: TextStyle(
                       fontSize: 11,
                       color: textColor.withValues(alpha: 0.65),
