@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../services/excel_transaction_report.dart';
 import '../../../../services/file_exporter.dart';
 import '../../../../services/liability_service.dart';
+import '../../../../services/money_formatter.dart';
 import '../../../../services/pdf_exporter.dart';
 import '../../../../services/yearly_pdf_report.dart';
 
@@ -169,16 +170,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
       records: records,
       dateOf: (record) => record.transactionDate,
       amountOf: (record) => record.totalAmount,
-      itemBuilder: (record) => _TransactionItem(
-        id: record.id,
-        kind: _TransactionKind.deposit,
-        title: 'Order #${record.orderNumber}',
-        subtitle: record.isManual ? 'Manual entry' : 'Scanned receipt',
-        date: record.transactionDate,
-        amount: record.totalAmount,
-        detail:
-            'Cash ${_fmtMoney(record.cash)}  Credit ${_fmtMoney(record.creditDebt)}',
-      ),
+      itemBuilder: _depositItems,
     );
   }
 
@@ -187,24 +179,102 @@ class _TransactionScreenState extends State<TransactionScreen> {
       records: records,
       dateOf: (record) => record.transactionDate,
       amountOf: (record) => record.totalAmount,
-      itemBuilder: (record) => _TransactionItem(
-        id: record.id,
-        kind: _TransactionKind.expense,
-        title: record.payee.isEmpty ? record.category : record.payee,
-        subtitle: record.category,
-        date: record.transactionDate,
-        amount: record.totalAmount,
-        detail:
-            'Check #${record.checkNumber.isEmpty ? '-' : record.checkNumber}',
-      ),
+      itemBuilder: (record) => [
+        _TransactionItem(
+          id: record.id,
+          kind: _TransactionKind.expense,
+          title: record.payee.isEmpty ? record.category : record.payee,
+          subtitle: record.category,
+          date: record.transactionDate,
+          amount: record.totalAmount,
+          detail:
+              'Check #${record.checkNumber.isEmpty ? '-' : record.checkNumber}',
+          icon: Icons.receipt_long_outlined,
+          iconColor: const Color(0xFFEF4444),
+        ),
+      ],
     );
+  }
+
+  List<_TransactionItem> _depositItems(DepositRecord record) {
+    final items = <_TransactionItem>[];
+    void addMethod({
+      required String label,
+      required double amount,
+      required IconData icon,
+      required Color color,
+    }) {
+      if (amount <= 0) return;
+      items.add(
+        _TransactionItem(
+          id: record.id,
+          kind: _TransactionKind.deposit,
+          title: label,
+          subtitle: record.orderNumber.isEmpty
+              ? record.isManual
+                    ? 'Manual entry'
+                    : 'Scanned receipt'
+              : 'Order #${record.orderNumber}',
+          date: record.transactionDate,
+          amount: amount,
+          detail: record.isManual ? 'Manual entry' : 'Scanned receipt',
+          icon: icon,
+          iconColor: color,
+        ),
+      );
+    }
+
+    addMethod(
+      label: 'Credit/Debit',
+      amount: record.creditDebt,
+      icon: Icons.credit_card,
+      color: const Color(0xFF2563EB),
+    );
+    addMethod(
+      label: 'Cash',
+      amount: record.cash,
+      icon: Icons.payments_outlined,
+      color: const Color(0xFF16A34A),
+    );
+    addMethod(
+      label: 'Gift Card',
+      amount: record.giftCard,
+      icon: Icons.card_giftcard,
+      color: const Color(0xFF0EA5E9),
+    );
+    addMethod(
+      label: 'Other',
+      amount: record.other,
+      icon: Icons.account_balance_wallet_outlined,
+      color: const Color(0xFFF59E0B),
+    );
+
+    if (items.isEmpty) {
+      items.add(
+        _TransactionItem(
+          id: record.id,
+          kind: _TransactionKind.deposit,
+          title: 'Deposit',
+          subtitle: record.orderNumber.isEmpty
+              ? '-'
+              : 'Order #${record.orderNumber}',
+          date: record.transactionDate,
+          amount: record.totalAmount,
+          detail: record.isManual ? 'Manual entry' : 'Scanned receipt',
+          icon: Icons.account_balance_wallet_outlined,
+          iconColor: const Color(0xFF16A34A),
+        ),
+      );
+    }
+
+    return items;
   }
 
   List<_TransactionGroup> _groupRecords<T>({
     required List<T> records,
     required DateTime Function(T record) dateOf,
     required double Function(T record) amountOf,
-    required _TransactionItem Function(T record) itemBuilder,
+    required List<_TransactionItem> Function(T record) itemBuilder,
   }) {
     final buckets = <String, _MutableGroup<T>>{};
 
@@ -225,7 +295,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
         key: bucket.key,
         title: bucket.title,
         total: bucket.total,
-        items: bucket.records.map(itemBuilder).toList(),
+        items: bucket.records.expand(itemBuilder).toList(),
       );
     }).toList();
 
@@ -263,7 +333,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
     return ((date.difference(firstDay).inDays + firstDay.weekday) / 7).ceil();
   }
 
-  String _fmtMoney(double value) => '\$${value.toStringAsFixed(2)}';
+  String _fmtMoney(double value) => formatMoney(value);
 
   Future<void> _confirmDeleteItem(_TransactionItem item) async {
     final kindLabel = item.kind == _TransactionKind.deposit
@@ -906,7 +976,7 @@ class _SummaryLabel extends StatelessWidget {
       label,
       style: const TextStyle(
         color: Colors.white70,
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: FontWeight.w700,
         letterSpacing: 1,
       ),
@@ -941,7 +1011,7 @@ class _SummaryValue extends StatelessWidget {
           textAlign: alignRight ? TextAlign.right : TextAlign.left,
           style: TextStyle(
             color: color,
-            fontSize: 16,
+            fontSize: 20,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -1238,16 +1308,82 @@ class _TransactionGroupTile extends StatelessWidget {
           ),
           if (isExpanded) ...[
             const Divider(height: 1, color: Color(0xFFE5E7EB)),
+            const _TransactionTableHeader(),
             ...group.items.map(
-              (item) => _TransactionItemRow(
-                item: item,
-                isExpense: isExpense,
-                fmtMoney: fmtMoney,
-                onDelete: () => onDelete(item),
+              (item) => Column(
+                children: [
+                  _TransactionItemRow(
+                    item: item,
+                    isExpense: isExpense,
+                    fmtMoney: fmtMoney,
+                    onDelete: () => onDelete(item),
+                  ),
+                  const Divider(height: 1, color: Color(0xFFF3F4F6)),
+                ],
               ),
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _TransactionTableHeader extends StatelessWidget {
+  const _TransactionTableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(12, 9, 10, 7),
+      child: Row(
+        children: [
+          SizedBox(width: 42, child: _TableHeaderText('DATE')),
+          SizedBox(width: 8),
+          Expanded(child: _TableHeaderText('DESCRIPTION')),
+          SizedBox(width: 8),
+          SizedBox(
+            width: 70,
+            child: _TableHeaderText('AMOUNT', textAlign: TextAlign.right),
+          ),
+          SizedBox(width: 8),
+          SizedBox(
+            width: 34,
+            child: _TableHeaderText('METHOD', textAlign: TextAlign.center),
+          ),
+          SizedBox(width: 4),
+          SizedBox(
+            width: 30,
+            child: Icon(
+              Icons.delete_outline,
+              size: 14,
+              color: Color(0xFF9CA3AF),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TableHeaderText extends StatelessWidget {
+  final String label;
+  final TextAlign textAlign;
+
+  const _TableHeaderText(this.label, {this.textAlign = TextAlign.left});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: textAlign,
+      style: const TextStyle(
+        color: Color(0xFF6B7280),
+        fontSize: 8,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.3,
       ),
     );
   }
@@ -1269,89 +1405,74 @@ class _TransactionItemRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 10, 14, 10),
+      padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            margin: const EdgeInsets.only(top: 6),
-            decoration: BoxDecoration(
-              color: isExpense
-                  ? const Color(0xFFEF4444)
-                  : const Color(0xFF16A34A),
-              shape: BoxShape.circle,
+          SizedBox(
+            width: 42,
+            child: Text(
+              _shortDate(item.date),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF111827),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '${_shortDate(item.date)}  |  ${item.subtitle}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
-                if (item.detail.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    item.detail,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF9CA3AF),
-                    ),
-                  ),
-                ],
-              ],
+            child: Text(
+              item.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF111827),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          const SizedBox(width: 10),
-          ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 76, maxWidth: 116),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    fmtMoney(item.amount),
-                    style: TextStyle(
-                      color: isExpense
-                          ? const Color(0xFFEF4444)
-                          : const Color(0xFF16A34A),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 70,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                fmtMoney(item.amount),
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: isExpense
+                      ? const Color(0xFFEF4444)
+                      : const Color(0xFF111827),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
                 ),
-                const SizedBox(height: 2),
-                SizedBox.square(
-                  dimension: 30,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    tooltip: 'Delete',
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      size: 18,
-                      color: Color(0xFFDC2626),
-                    ),
-                    onPressed: onDelete,
-                  ),
-                ),
-              ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox.square(
+            dimension: 34,
+            child: Center(
+              child: Icon(item.icon, size: 18, color: item.iconColor),
+            ),
+          ),
+          const SizedBox(width: 4),
+          SizedBox.square(
+            dimension: 30,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              tooltip: 'Delete',
+              icon: const Icon(
+                Icons.delete_outline,
+                size: 18,
+                color: Color(0xFFDC2626),
+              ),
+              onPressed: onDelete,
             ),
           ),
         ],
@@ -1360,7 +1481,8 @@ class _TransactionItemRow extends StatelessWidget {
   }
 
   static String _shortDate(DateTime date) =>
-      '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
+      '${date.month.toString().padLeft(2, '0')}/'
+      '${date.day.toString().padLeft(2, '0')}';
 }
 
 class _EmptyTransactions extends StatelessWidget {
@@ -1495,6 +1617,8 @@ class _TransactionItem {
   final DateTime date;
   final double amount;
   final String detail;
+  final IconData icon;
+  final Color iconColor;
 
   const _TransactionItem({
     required this.id,
@@ -1504,6 +1628,8 @@ class _TransactionItem {
     required this.date,
     required this.amount,
     required this.detail,
+    required this.icon,
+    required this.iconColor,
   });
 }
 

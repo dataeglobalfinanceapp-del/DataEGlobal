@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/budget_data.dart';
+import '../../../services/money_formatter.dart';
 
 class BudgetSumChart extends StatelessWidget {
   final BudgetData data;
@@ -350,18 +351,4 @@ class _BudgetSegment {
   });
 }
 
-String _fmtMoney(double value) {
-  final sign = value < 0 ? '-' : '';
-  final fixed = value.abs().toStringAsFixed(2);
-  final parts = fixed.split('.');
-  final whole = parts.first;
-  final reversed = whole.split('').reversed.toList();
-  final formatted = <String>[];
-
-  for (var index = 0; index < reversed.length; index++) {
-    if (index > 0 && index % 3 == 0) formatted.add(',');
-    formatted.add(reversed[index]);
-  }
-
-  return '$sign\$${formatted.reversed.join()}.${parts.last}';
-}
+String _fmtMoney(double value) => formatMoney(value);

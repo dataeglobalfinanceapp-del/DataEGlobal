@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'money_formatter.dart';
 import 'yearly_pdf_report.dart';
 
 class ExcelTransactionReport {
@@ -36,7 +37,7 @@ class ExcelTransactionReport {
         '<td>${_escape(row.title)}</td>'
         '<td>${_escape(row.category)}</td>'
         '<td>${_escape(row.detail)}</td>'
-        '<td>${row.amount.toStringAsFixed(2)}</td>'
+        '<td>${formatMoney(row.amount, symbol: false)}</td>'
         '</tr>',
       );
     }
@@ -45,7 +46,7 @@ class ExcelTransactionReport {
       ..writeln(
         '<tr>'
         '<td colspan="4"><b>Total</b></td>'
-        '<td><b>${total.toStringAsFixed(2)}</b></td>'
+        '<td><b>${formatMoney(total, symbol: false)}</b></td>'
         '</tr>',
       )
       ..writeln('</table>')

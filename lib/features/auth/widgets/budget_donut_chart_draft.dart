@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../models/budget_data.dart';
+import '../../../services/money_formatter.dart';
 
 class BudgetDonutChart extends StatelessWidget {
   final BudgetData data;
@@ -140,7 +141,7 @@ class _CenterBudgetText extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              '\$${data.available.toStringAsFixed(2)} available',
+              '${formatMoney(data.available)} available',
               style: TextStyle(
                 color: data.available >= 0
                     ? const Color(0xFF16A34A)
@@ -162,7 +163,7 @@ class _CenterBudgetText extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '\$${data.spent.toStringAsFixed(2)} /',
+            '${formatMoney(data.spent)} /',
             style: const TextStyle(
               color: Color(0xFF111827),
               fontSize: 13,
@@ -172,7 +173,7 @@ class _CenterBudgetText extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              '\$${data.total.toStringAsFixed(2)}',
+              formatMoney(data.total),
               style: const TextStyle(
                 color: Color(0xFF2563EB),
                 fontWeight: FontWeight.w800,

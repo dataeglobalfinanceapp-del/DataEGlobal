@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../services/liability_service.dart';
+import '../../../../services/money_formatter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Models
@@ -204,7 +205,7 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
   }
 
   double _parseAmount(TextEditingController controller) {
-    return double.tryParse(controller.text.trim()) ?? 0;
+    return parseMoney(controller.text);
   }
 
   double get _paymentTotal =>
@@ -215,7 +216,7 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
 
   void _updateTotalAmount() {
     final total = _paymentTotal;
-    final nextText = total > 0 ? total.toStringAsFixed(2) : '';
+    final nextText = total > 0 ? formatMoney(total, symbol: false) : '';
     if (_totalAmountController.text == nextText) return;
 
     _totalAmountController.value = TextEditingValue(
@@ -274,10 +275,10 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
     final updatedData = _data.copyWith(
       orderNumber: _orderNumberController.text.trim(),
       totalAmount: _paymentTotal,
-      creditDebt: double.tryParse(_creditDebtController.text) ?? 0,
-      cash: double.tryParse(_cashController.text) ?? 0,
-      giftCard: double.tryParse(_giftCardController.text) ?? 0,
-      other: double.tryParse(_otherController.text) ?? 0,
+      creditDebt: parseMoney(_creditDebtController.text),
+      cash: parseMoney(_cashController.text),
+      giftCard: parseMoney(_giftCardController.text),
+      other: parseMoney(_otherController.text),
     );
 
     final shouldSave = await showDialog<bool>(
@@ -1175,7 +1176,7 @@ class _DepositReviewDialog extends StatelessWidget {
 
   const _DepositReviewDialog({required this.data, required this.isManual});
 
-  String _fmtCurrency(double value) => '\$${value.toStringAsFixed(2)}';
+  String _fmtCurrency(double value) => formatMoney(value);
 
   String _fmtDate(DateTime d) =>
       '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';

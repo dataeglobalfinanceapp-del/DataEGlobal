@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'money_formatter.dart';
+
 class TransactionReportRow {
   final DateTime date;
   final String title;
@@ -90,7 +92,7 @@ class YearlyTransactionPdfReport {
     return pages.isEmpty ? [[]] : pages;
   }
 
-  static String _fmtMoney(double value) => '\$${value.toStringAsFixed(2)}';
+  static String _fmtMoney(double value) => formatMoney(value);
 
   static String _fmtDate(DateTime date) =>
       '${date.month.toString().padLeft(2, '0')}/'

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../services/liability_service.dart';
+import '../../../../services/money_formatter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Models
@@ -237,7 +238,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
   Future<void> _confirm() async {
     final updatedData = _data.copyWith(
       checkNumber: _checkNumberController.text.trim(),
-      totalAmount: double.tryParse(_totalAmountController.text) ?? 0,
+      totalAmount: parseMoney(_totalAmountController.text),
       payee: _payeeController.text.trim(),
     );
 
@@ -315,7 +316,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                     vertical: 10,
                   ),
                   child: Text(
-                    'Check: ${_data.checkNumber}  |  Amount: \$${_data.totalAmount.toStringAsFixed(2)}',
+                    'Check: ${_data.checkNumber}  |  Amount: ${formatMoney(_data.totalAmount)}',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Color(0xFF888888),

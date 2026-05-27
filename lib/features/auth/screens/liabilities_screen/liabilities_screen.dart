@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../services/liability_service.dart';
+import '../../../../services/money_formatter.dart';
 import '../../models/liability_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -63,8 +64,7 @@ class _LiabilitiesScreenState extends State<LiabilitiesScreen> {
     setState(() => _months[index].isExpanded = !_months[index].isExpanded);
   }
 
-  String _fmt(double v) =>
-      '\$${v.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
+  String _fmt(double v) => formatMoney(v);
 
   @override
   Widget build(BuildContext context) {
@@ -700,8 +700,8 @@ class _AddLiabilityDialogState extends State<_AddLiabilityDialog> {
 
   Future<void> _save() async {
     final name = _nameController.text.trim();
-    final starting = double.tryParse(_startingController.text.trim()) ?? 0;
-    final minimum = double.tryParse(_minimumController.text.trim()) ?? 0;
+    final starting = parseMoney(_startingController.text);
+    final minimum = parseMoney(_minimumController.text);
     final percent = int.tryParse(_percentController.text.trim()) ?? 0;
 
     if (name.isEmpty || starting <= 0) {
