@@ -9,6 +9,7 @@ import 'features/auth/screens/login_screen/confirm_signup_screen.dart';
 import 'features/auth/screens/login_screen/forgot_password_screen.dart';
 import 'features/auth/screens/home_screen/home_screen.dart';
 import 'features/auth/screens/login_screen/splash_screen.dart';
+import 'features/auth/screens/scan_screen/scan.dart';
 import 'features/auth/screens/scan_screen/scan_deposit_screen.dart';
 import 'features/auth/screens/scan_screen/scan_expense_screen.dart';
 import 'features/auth/screens/liabilities_screen/liabilities_screen.dart';
@@ -90,6 +91,7 @@ class BizTrackApp extends StatelessWidget {
           return ConfirmResetScreen(email: email);
         },
         '/home': (context) => const HomeScreen(),
+        '/scan': (context) => const ScanScreen(),
         '/scan-deposit': (context) => const ScanDepositScreen(),
         '/scan-expense': (context) => const ScanExpenseScreen(),
         '/liabilities': (context) => const LiabilitiesScreen(),

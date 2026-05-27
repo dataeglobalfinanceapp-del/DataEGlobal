@@ -97,11 +97,19 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
     _cashController = TextEditingController();
     _giftCardController = TextEditingController();
     _otherController = TextEditingController();
+    _creditDebtController.addListener(_updateTotalAmount);
+    _cashController.addListener(_updateTotalAmount);
+    _giftCardController.addListener(_updateTotalAmount);
+    _otherController.addListener(_updateTotalAmount);
     WidgetsBinding.instance.addPostFrameCallback((_) => _showEntryModeDialog());
   }
 
   @override
   void dispose() {
+    _creditDebtController.removeListener(_updateTotalAmount);
+    _cashController.removeListener(_updateTotalAmount);
+    _giftCardController.removeListener(_updateTotalAmount);
+    _otherController.removeListener(_updateTotalAmount);
     _orderNumberController.dispose();
     _totalAmountController.dispose();
     _creditDebtController.dispose();
@@ -182,9 +190,6 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
 
   void _syncControllers() {
     _orderNumberController.text = _data.orderNumber;
-    _totalAmountController.text = _data.totalAmount > 0
-        ? _data.totalAmount.toStringAsFixed(2)
-        : '';
     _creditDebtController.text = _data.creditDebt > 0
         ? _data.creditDebt.toStringAsFixed(2)
         : '';
@@ -195,6 +200,28 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
     _otherController.text = _data.other > 0
         ? _data.other.toStringAsFixed(2)
         : '';
+    _updateTotalAmount();
+  }
+
+  double _parseAmount(TextEditingController controller) {
+    return double.tryParse(controller.text.trim()) ?? 0;
+  }
+
+  double get _paymentTotal =>
+      _parseAmount(_creditDebtController) +
+      _parseAmount(_cashController) +
+      _parseAmount(_giftCardController) +
+      _parseAmount(_otherController);
+
+  void _updateTotalAmount() {
+    final total = _paymentTotal;
+    final nextText = total > 0 ? total.toStringAsFixed(2) : '';
+    if (_totalAmountController.text == nextText) return;
+
+    _totalAmountController.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: nextText.length),
+    );
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -246,12 +273,22 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
   Future<void> _confirm() async {
     final updatedData = _data.copyWith(
       orderNumber: _orderNumberController.text.trim(),
-      totalAmount: double.tryParse(_totalAmountController.text) ?? 0,
+      totalAmount: _paymentTotal,
       creditDebt: double.tryParse(_creditDebtController.text) ?? 0,
       cash: double.tryParse(_cashController.text) ?? 0,
       giftCard: double.tryParse(_giftCardController.text) ?? 0,
       other: double.tryParse(_otherController.text) ?? 0,
     );
+
+    final shouldSave = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (_) => _DepositReviewDialog(
+        data: updatedData,
+        isManual: _entryMode == _EntryMode.manual,
+      ),
+    );
+    if (shouldSave != true || !mounted) return;
 
     setState(() => _isSaving = true);
     try {
@@ -823,7 +860,7 @@ class _DataCard extends StatelessWidget {
           const SizedBox(height: 14),
           const Divider(height: 1, color: Color(0xFFEEEEEE)),
           const SizedBox(height: 14),
-          _AmountFieldRow(
+          _TotalAmountDisplay(
             label: 'TOTAL AMOUNT',
             controller: totalAmountController,
             thumbnailBytes: receiptImageBytes,
@@ -908,11 +945,11 @@ class _DataCard extends StatelessWidget {
   }
 }
 
-class _AmountFieldRow extends StatelessWidget {
+class _TotalAmountDisplay extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final Uint8List? thumbnailBytes;
-  const _AmountFieldRow({
+  const _TotalAmountDisplay({
     required this.label,
     required this.controller,
     this.thumbnailBytes,
@@ -923,11 +960,7 @@ class _AmountFieldRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFD0D0D0)),
-              borderRadius: BorderRadius.circular(8),
-            ),
+          child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -941,33 +974,20 @@ class _AmountFieldRow extends StatelessWidget {
                     color: Color(0xFF888888),
                   ),
                 ),
-                const SizedBox(height: 2),
-                TextField(
-                  controller: controller,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(
-                      RegExp(r'^\d*\.?\d{0,2}'),
-                    ),
-                  ],
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A2340),
-                  ),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                    border: InputBorder.none,
-                    prefixText: r'$',
-                    prefixStyle: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1A2340),
-                    ),
-                  ),
+                const SizedBox(height: 4),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: controller,
+                  builder: (context, value, _) {
+                    final amount = value.text.isEmpty ? '0.00' : value.text;
+                    return Text(
+                      '\$$amount',
+                      style: const TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A2340),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -1148,6 +1168,180 @@ class _PermissionOption extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Delete Confirm Dialog
 // ─────────────────────────────────────────────────────────────────────────────
+
+class _DepositReviewDialog extends StatelessWidget {
+  final ScannedDepositData data;
+  final bool isManual;
+
+  const _DepositReviewDialog({required this.data, required this.isManual});
+
+  String _fmtCurrency(double value) => '\$${value.toStringAsFixed(2)}';
+
+  String _fmtDate(DateTime d) =>
+      '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE0F2FE),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.fact_check_outlined,
+                color: Color(0xFF1A2340),
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Review Deposit',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Make sure everything is correct before saving.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF666666),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 18),
+            _ReviewRow(
+              label: 'Entry Type',
+              value: isManual ? 'Manual' : 'Scan',
+            ),
+            _ReviewRow(label: 'Order Number', value: data.orderNumber),
+            _ReviewRow(
+              label: 'Transaction Date',
+              value: _fmtDate(data.transactionDate),
+            ),
+            _ReviewRow(
+              label: 'Total Amount',
+              value: _fmtCurrency(data.totalAmount),
+              isEmphasis: true,
+            ),
+            const Divider(height: 22, color: Color(0xFFE5E7EB)),
+            _ReviewRow(
+              label: 'Credit/Debt',
+              value: _fmtCurrency(data.creditDebt),
+            ),
+            _ReviewRow(label: 'Cash', value: _fmtCurrency(data.cash)),
+            _ReviewRow(label: 'Gift Card', value: _fmtCurrency(data.giftCard)),
+            _ReviewRow(label: 'Other', value: _fmtCurrency(data.other)),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFD0D0D0)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Edit',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A2340),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Save',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReviewRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool isEmphasis;
+
+  const _ReviewRow({
+    required this.label,
+    required this.value,
+    this.isEmphasis = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label.toUpperCase(),
+              style: const TextStyle(
+                color: Color(0xFF6B7280),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value.isEmpty ? '-' : value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: isEmphasis
+                    ? const Color(0xFF1A2340)
+                    : const Color(0xFF111827),
+                fontSize: isEmphasis ? 18 : 14,
+                fontWeight: isEmphasis ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _DeleteConfirmDialog extends StatelessWidget {
   const _DeleteConfirmDialog();

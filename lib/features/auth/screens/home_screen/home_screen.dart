@@ -141,26 +141,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 childAspectRatio: 0.95,
                 children: [
                   _buildFeatureCard(
-                    icon: Icons.home,
-                    label: 'DEPOSIT',
-                    color: const Color(0xFFE0F2FE),
-                    onTap: () => _openAndRefresh('/scan-deposit'),
-                  ),
-                  _buildFeatureCard(
-                    icon: Icons.shopping_cart,
-                    label: 'EXPENSE',
-                    color: const Color(0xFFFEF3C7),
-                    onTap: () => _openAndRefresh('/scan-expense'),
+                    icon: Icons.document_scanner_outlined,
+                    label: 'SCAN',
+                    color: const Color(0xFFDEFACF),
+                    onTap: () => _openAndRefresh('/scan'),
                   ),
                   _buildFeatureCard(
                     icon: Icons.trending_up,
                     label: 'INVESTMENTS',
                     color: const Color(0xFFFCE7F3),
-                  ),
-                  _buildFeatureCard(
-                    icon: Icons.savings,
-                    label: 'SCAN',
-                    color: const Color(0xFFDEFACF),
                   ),
                   _buildFeatureCard(
                     icon: Icons.receipt,
