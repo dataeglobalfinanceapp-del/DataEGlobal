@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/liability_service.dart';
 import '../../models/liability_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -16,9 +17,11 @@ class LiabilitiesScreen extends StatefulWidget {
 
 class _LiabilitiesScreenState extends State<LiabilitiesScreen> {
   LiabilityTab _activeTab = LiabilityTab.loan;
-  int _year = 2025;
+  int _year = DateTime.now().year;
 
-  late List<MonthlyLiability> _months;
+  List<MonthlyLiability> _months = [];
+  LiabilitySummary _summary = LiabilitySummary.empty;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -26,24 +29,34 @@ class _LiabilitiesScreenState extends State<LiabilitiesScreen> {
     _loadData();
   }
 
-  void _loadData() {
-    _months = _activeTab == LiabilityTab.loan
-        ? LiabilityData.loanMonths(_year)
-        : LiabilityData.debtMonths(_year);
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    final months = await LiabilityService.loadMonthlyLiabilities(
+      tab: _activeTab,
+      year: _year,
+    );
+    final summary = await LiabilityService.loadLiabilitySummary(_activeTab);
+
+    if (!mounted) return;
+    setState(() {
+      _months = months;
+      _summary = summary;
+      _isLoading = false;
+    });
   }
 
-  void _switchTab(LiabilityTab tab) {
+  Future<void> _switchTab(LiabilityTab tab) async {
     setState(() {
       _activeTab = tab;
-      _loadData();
     });
+    await _loadData();
   }
 
-  void _changeYear(int delta) {
+  Future<void> _changeYear(int delta) async {
     setState(() {
       _year += delta;
-      _loadData();
     });
+    await _loadData();
   }
 
   void _toggleMonth(int index) {
@@ -92,10 +105,10 @@ class _LiabilitiesScreenState extends State<LiabilitiesScreen> {
         children: [
           // ── Summary card ───────────────────────────────────────────────
           _SummaryCard(
-            totalOwn: LiabilityData.totalOwn,
-            percent: LiabilityData.percent,
-            totalPayOff: LiabilityData.totalPayOff,
-            balance: LiabilityData.balance,
+            totalOwn: _summary.totalOwed,
+            percent: _summary.percent,
+            totalPayOff: _summary.totalPayoff,
+            balance: _summary.balance,
             fmt: _fmt,
           ),
 
@@ -119,15 +132,17 @@ class _LiabilitiesScreenState extends State<LiabilitiesScreen> {
 
           // ── Month accordion list ───────────────────────────────────────
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              itemCount: _months.length,
-              itemBuilder: (_, i) => _MonthTile(
-                monthly: _months[i],
-                onToggle: () => _toggleMonth(i),
-                fmt: _fmt,
-              ),
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    itemCount: _months.length,
+                    itemBuilder: (_, i) => _MonthTile(
+                      monthly: _months[i],
+                      onToggle: () => _toggleMonth(i),
+                      fmt: _fmt,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -136,11 +151,11 @@ class _LiabilitiesScreenState extends State<LiabilitiesScreen> {
 
   // ── Add dialog ─────────────────────────────────────────────────────────────
   Future<void> _showAddDialog() async {
-    await showDialog(
+    final saved = await showDialog<bool>(
       context: context,
       builder: (_) => _AddLiabilityDialog(tab: _activeTab),
     );
-    // TODO: refresh data after add
+    if (saved == true) await _loadData();
   }
 }
 
@@ -379,7 +394,11 @@ class _YearSelector extends StatelessWidget {
       children: [
         IconButton(
           onPressed: onPrev,
-          icon: const Icon(Icons.chevron_left, size: 22, color: Color(0xFF1A2340)),
+          icon: const Icon(
+            Icons.chevron_left,
+            size: 22,
+            color: Color(0xFF1A2340),
+          ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
         ),
@@ -395,7 +414,11 @@ class _YearSelector extends StatelessWidget {
         const SizedBox(width: 12),
         IconButton(
           onPressed: onNext,
-          icon: const Icon(Icons.chevron_right, size: 22, color: Color(0xFF1A2340)),
+          icon: const Icon(
+            Icons.chevron_right,
+            size: 22,
+            color: Color(0xFF1A2340),
+          ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
         ),
@@ -477,10 +500,7 @@ class _MonthTile extends StatelessWidget {
                 children: const [
                   Expanded(
                     flex: 3,
-                    child: Text(
-                      'TRANSACTION',
-                      style: _kColHeader,
-                    ),
+                    child: Text('TRANSACTION', style: _kColHeader),
                   ),
                   Expanded(
                     flex: 2,
@@ -512,9 +532,7 @@ class _MonthTile extends StatelessWidget {
             const Divider(height: 1, color: Color(0xFFEEEEEE)),
 
             // Entry rows
-            ...monthly.entries.map(
-              (e) => _EntryRow(entry: e, fmt: fmt),
-            ),
+            ...monthly.entries.map((e) => _EntryRow(entry: e, fmt: fmt)),
 
             const Divider(height: 1, color: Color(0xFFEEEEEE)),
 
@@ -606,10 +624,7 @@ class _EntryRow extends StatelessWidget {
             child: Text(
               fmt(entry.starting),
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.black87,
-              ),
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
             ),
           ),
           // Minimum
@@ -618,10 +633,7 @@ class _EntryRow extends StatelessWidget {
             child: Text(
               fmt(entry.minimum),
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.black87,
-              ),
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
             ),
           ),
           // Percent
@@ -630,10 +642,7 @@ class _EntryRow extends StatelessWidget {
             child: Text(
               '${entry.percent}%',
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.black87,
-              ),
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
             ),
           ),
         ],
@@ -654,11 +663,12 @@ class _AddLiabilityDialog extends StatefulWidget {
 }
 
 class _AddLiabilityDialogState extends State<_AddLiabilityDialog> {
-  final _nameController     = TextEditingController();
+  final _nameController = TextEditingController();
   final _startingController = TextEditingController();
-  final _minimumController  = TextEditingController();
-  final _percentController  = TextEditingController();
+  final _minimumController = TextEditingController();
+  final _percentController = TextEditingController();
   DateTime _date = DateTime.now();
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -687,6 +697,41 @@ class _AddLiabilityDialogState extends State<_AddLiabilityDialog> {
 
   String _fmtDate(DateTime d) =>
       '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
+
+  Future<void> _save() async {
+    final name = _nameController.text.trim();
+    final starting = double.tryParse(_startingController.text.trim()) ?? 0;
+    final minimum = double.tryParse(_minimumController.text.trim()) ?? 0;
+    final percent = int.tryParse(_percentController.text.trim()) ?? 0;
+
+    if (name.isEmpty || starting <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a name and starting amount.')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      await LiabilityService.saveLiability(
+        tab: widget.tab,
+        name: name,
+        date: _date,
+        starting: starting,
+        minimum: minimum,
+        percent: percent,
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -721,7 +766,9 @@ class _AddLiabilityDialogState extends State<_AddLiabilityDialog> {
               label: 'Starting Amount',
               controller: _startingController,
               hint: '0.00',
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               prefix: '\$',
             ),
             const SizedBox(height: 12),
@@ -730,7 +777,9 @@ class _AddLiabilityDialogState extends State<_AddLiabilityDialog> {
               label: 'Minimum Payment',
               controller: _minimumController,
               hint: '0.00',
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               prefix: '\$',
             ),
             const SizedBox(height: 12),
@@ -748,31 +797,41 @@ class _AddLiabilityDialogState extends State<_AddLiabilityDialog> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Date',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                        color: Color(0xFF555555))),
+                const Text(
+                  'Date',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                    color: Color(0xFF555555),
+                  ),
+                ),
                 const SizedBox(height: 5),
                 GestureDetector(
                   onTap: _pickDate,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 13),
+                      horizontal: 12,
+                      vertical: 13,
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(color: const Color(0xFFD0D0D0)),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_month_outlined,
-                            size: 18, color: Color(0xFF4A90D9)),
+                        const Icon(
+                          Icons.calendar_month_outlined,
+                          size: 18,
+                          color: Color(0xFF4A90D9),
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           _fmtDate(_date),
                           style: const TextStyle(
-                              fontSize: 14, color: Color(0xFF1A2340)),
+                            fontSize: 14,
+                            color: Color(0xFF1A2340),
+                          ),
                         ),
                       ],
                     ),
@@ -792,28 +851,38 @@ class _AddLiabilityDialogState extends State<_AddLiabilityDialog> {
                       side: const BorderSide(color: Color(0xFFD0D0D0)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    child: const Text('Cancel',
-                        style: TextStyle(color: Colors.black54)),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.black54),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: save to repository / Bloc
-                      Navigator.pop(context);
-                    },
+                    onPressed: _isSaving ? null : _save,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1A2340),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       elevation: 0,
                     ),
-                    child: const Text('Save'),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Save'),
                   ),
                 ),
               ],
@@ -867,16 +936,20 @@ class _DialogField extends StatelessWidget {
             suffixText: suffix,
             filled: true,
             fillColor: Colors.white,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFFD0D0D0)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide:
-                  const BorderSide(color: Color(0xFF1A2340), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color(0xFF1A2340),
+                width: 1.5,
+              ),
             ),
           ),
         ),

@@ -1,6 +1,19 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+
+import '../features/auth/models/budget_data.dart';
+import '../features/auth/models/liability_model.dart';
+import 'local_store.dart';
+
 class LiabilityService {
+  static const _storageKey = 'biztrack_local_data_v1';
+
   static final List<DepositRecord> _deposits = [];
   static final List<ExpenseRecord> _expenses = [];
+  static final List<LiabilityRecord> _liabilities = [];
+
+  static bool _loaded = false;
 
   static Future<void> saveDeposit({
     required String orderNumber,
@@ -12,8 +25,10 @@ class LiabilityService {
     required DateTime transactionDate,
     required bool isManual,
   }) async {
+    await _ensureLoaded();
     _deposits.add(
       DepositRecord(
+        id: _newId('deposit'),
         orderNumber: orderNumber,
         totalAmount: totalAmount,
         creditDebt: creditDebt,
@@ -24,9 +39,8 @@ class LiabilityService {
         isManual: isManual,
       ),
     );
+    await _persist();
   }
-
-  static List<DepositRecord> get deposits => List.unmodifiable(_deposits);
 
   static Future<void> saveExpense({
     required String checkNumber,
@@ -36,8 +50,10 @@ class LiabilityService {
     required String payee,
     required bool isManual,
   }) async {
+    await _ensureLoaded();
     _expenses.add(
       ExpenseRecord(
+        id: _newId('expense'),
         checkNumber: checkNumber,
         totalAmount: totalAmount,
         transactionDate: transactionDate,
@@ -46,12 +62,259 @@ class LiabilityService {
         isManual: isManual,
       ),
     );
+
+    if (category == 'Loan Obligation') {
+      _liabilities.add(
+        LiabilityRecord(
+          id: _newId('liability'),
+          tab: LiabilityTab.debt,
+          name: payee.isEmpty ? 'Loan obligation' : payee,
+          date: transactionDate,
+          starting: totalAmount,
+          minimum: totalAmount,
+          percent: 0,
+          source: 'expense',
+        ),
+      );
+    }
+
+    await _persist();
   }
 
-  static List<ExpenseRecord> get expenses => List.unmodifiable(_expenses);
+  static Future<void> saveLiability({
+    required LiabilityTab tab,
+    required String name,
+    required DateTime date,
+    required double starting,
+    required double minimum,
+    required int percent,
+  }) async {
+    await _ensureLoaded();
+    _liabilities.add(
+      LiabilityRecord(
+        id: _newId('liability'),
+        tab: tab,
+        name: name,
+        date: date,
+        starting: starting,
+        minimum: minimum,
+        percent: percent,
+        source: 'manual',
+      ),
+    );
+    await _persist();
+  }
+
+  static Future<List<DepositRecord>> loadDeposits() async {
+    await _ensureLoaded();
+    return List.unmodifiable(_deposits);
+  }
+
+  static Future<List<ExpenseRecord>> loadExpenses() async {
+    await _ensureLoaded();
+    return List.unmodifiable(_expenses);
+  }
+
+  static Future<List<LiabilityRecord>> loadLiabilities() async {
+    await _ensureLoaded();
+    return List.unmodifiable(_liabilities);
+  }
+
+  static Future<BudgetData> loadBudgetData({
+    required DateTime startDate,
+    required DateTime endDate,
+    required String period,
+  }) async {
+    await _ensureLoaded();
+
+    final deposits = _deposits.where(
+      (record) => _isInRange(record.transactionDate, startDate, endDate),
+    );
+    final expenses = _expenses.where(
+      (record) => _isInRange(record.transactionDate, startDate, endDate),
+    );
+
+    final income = deposits.fold<double>(
+      0,
+      (total, record) => total + record.totalAmount,
+    );
+    final spent = expenses.fold<double>(
+      0,
+      (total, record) => total + record.totalAmount,
+    );
+    final available = income - spent;
+    final total = income > 0 ? income : spent;
+    final utilization = income > 0 ? (spent / income * 100).round() : 0;
+    final surplus = income > 0 ? (available / income * 100).round() : 0;
+
+    final categoryTotals = <String, double>{};
+    for (final expense in expenses) {
+      categoryTotals.update(
+        expense.category,
+        (value) => value + expense.totalAmount,
+        ifAbsent: () => expense.totalAmount,
+      );
+    }
+
+    final categories = categoryTotals.entries
+        .where((entry) => entry.value > 0 && spent > 0)
+        .map(
+          (entry) => BudgetCategory(
+            label: entry.key,
+            percentage: entry.value / spent * 100,
+            color: _categoryColor(entry.key),
+          ),
+        )
+        .toList();
+
+    return BudgetData(
+      available: available,
+      spent: spent,
+      total: total,
+      period: period,
+      surplusPercent: surplus,
+      utilizationPercent: utilization,
+      categories: categories,
+    );
+  }
+
+  static Future<List<MonthlyLiability>> loadMonthlyLiabilities({
+    required LiabilityTab tab,
+    required int year,
+  }) async {
+    await _ensureLoaded();
+
+    final monthEntries = <int, List<LiabilityEntry>>{
+      for (var month = 1; month <= 12; month++) month: <LiabilityEntry>[],
+    };
+
+    for (final record in _liabilities.where(
+      (record) => record.tab == tab && record.date.year == year,
+    )) {
+      monthEntries[record.date.month]!.add(record.toEntry());
+    }
+
+    return List.generate(12, (index) {
+      final month = index + 1;
+      final entries = monthEntries[month]!;
+      final total = entries.fold<double>(
+        0,
+        (sum, entry) => sum + entry.starting,
+      );
+
+      return MonthlyLiability(
+        month: month,
+        total: total,
+        entries: entries,
+        isExpanded: entries.isNotEmpty && month == DateTime.now().month,
+      );
+    });
+  }
+
+  static Future<LiabilitySummary> loadLiabilitySummary(LiabilityTab tab) async {
+    await _ensureLoaded();
+
+    final records = _liabilities.where((record) => record.tab == tab);
+    final totalOwed = records.fold<double>(
+      0,
+      (sum, record) => sum + record.starting,
+    );
+    final totalPayoff = records.fold<double>(
+      0,
+      (sum, record) => sum + record.minimum,
+    );
+    final balance = (totalOwed - totalPayoff).clamp(0, double.infinity);
+    final percent = totalOwed == 0 ? 0.0 : totalPayoff / totalOwed * 100;
+
+    return LiabilitySummary(
+      totalOwed: totalOwed,
+      percent: percent,
+      totalPayoff: totalPayoff,
+      balance: balance.toDouble(),
+    );
+  }
+
+  static Future<void> _ensureLoaded() async {
+    if (_loaded) return;
+
+    final raw = await LocalStore.read(_storageKey);
+    if (raw == null || raw.trim().isEmpty) {
+      _loaded = true;
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      _deposits
+        ..clear()
+        ..addAll(
+          _listFromJson(decoded['deposits']).map(DepositRecord.fromJson),
+        );
+      _expenses
+        ..clear()
+        ..addAll(
+          _listFromJson(decoded['expenses']).map(ExpenseRecord.fromJson),
+        );
+      _liabilities
+        ..clear()
+        ..addAll(
+          _listFromJson(decoded['liabilities']).map(LiabilityRecord.fromJson),
+        );
+    } catch (_) {
+      _deposits.clear();
+      _expenses.clear();
+      _liabilities.clear();
+    }
+
+    _loaded = true;
+  }
+
+  static Future<void> _persist() async {
+    final payload = jsonEncode({
+      'deposits': _deposits.map((record) => record.toJson()).toList(),
+      'expenses': _expenses.map((record) => record.toJson()).toList(),
+      'liabilities': _liabilities.map((record) => record.toJson()).toList(),
+    });
+
+    await LocalStore.write(_storageKey, payload);
+  }
+
+  static List<Map<String, dynamic>> _listFromJson(Object? value) {
+    if (value is! List) return [];
+    return value
+        .whereType<Map>()
+        .map((entry) => Map<String, dynamic>.from(entry))
+        .toList();
+  }
+
+  static bool _isInRange(DateTime value, DateTime start, DateTime end) {
+    final date = DateTime(value.year, value.month, value.day);
+    final first = DateTime(start.year, start.month, start.day);
+    final last = DateTime(end.year, end.month, end.day);
+    return !date.isBefore(first) && !date.isAfter(last);
+  }
+
+  static String _newId(String prefix) =>
+      '$prefix-${DateTime.now().microsecondsSinceEpoch}';
+
+  static Color _categoryColor(String category) {
+    return switch (category) {
+      'Payroll' => const Color(0xFF2563EB),
+      'Rent' => const Color(0xFF3B82F6),
+      'Insurance' => const Color(0xFF60A5FA),
+      'Consumable Supplies' => const Color(0xFF93C5FD),
+      'Utilities' => const Color(0xFFBFDBFE),
+      'Fuel' => const Color(0xFFEF4444),
+      'COGS' => const Color(0xFF1E3A5F),
+      'Loan Obligation' => const Color(0xFFDC2626),
+      'Equipment' => const Color(0xFF1D4ED8),
+      _ => const Color(0xFF374151),
+    };
+  }
 }
 
 class DepositRecord {
+  final String id;
   final String orderNumber;
   final double totalAmount;
   final double creditDebt;
@@ -62,6 +325,7 @@ class DepositRecord {
   final bool isManual;
 
   const DepositRecord({
+    required this.id,
     required this.orderNumber,
     required this.totalAmount,
     required this.creditDebt,
@@ -71,9 +335,36 @@ class DepositRecord {
     required this.transactionDate,
     required this.isManual,
   });
+
+  factory DepositRecord.fromJson(Map<String, dynamic> json) {
+    return DepositRecord(
+      id: _asString(json['id'], fallback: _fallbackId('deposit')),
+      orderNumber: _asString(json['orderNumber']),
+      totalAmount: _asDouble(json['totalAmount']),
+      creditDebt: _asDouble(json['creditDebt']),
+      cash: _asDouble(json['cash']),
+      giftCard: _asDouble(json['giftCard']),
+      other: _asDouble(json['other']),
+      transactionDate: _asDate(json['transactionDate']),
+      isManual: json['isManual'] == true,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'orderNumber': orderNumber,
+    'totalAmount': totalAmount,
+    'creditDebt': creditDebt,
+    'cash': cash,
+    'giftCard': giftCard,
+    'other': other,
+    'transactionDate': transactionDate.toIso8601String(),
+    'isManual': isManual,
+  };
 }
 
 class ExpenseRecord {
+  final String id;
   final String checkNumber;
   final double totalAmount;
   final DateTime transactionDate;
@@ -82,6 +373,7 @@ class ExpenseRecord {
   final bool isManual;
 
   const ExpenseRecord({
+    required this.id,
     required this.checkNumber,
     required this.totalAmount,
     required this.transactionDate,
@@ -89,4 +381,131 @@ class ExpenseRecord {
     required this.payee,
     required this.isManual,
   });
+
+  factory ExpenseRecord.fromJson(Map<String, dynamic> json) {
+    return ExpenseRecord(
+      id: _asString(json['id'], fallback: _fallbackId('expense')),
+      checkNumber: _asString(json['checkNumber']),
+      totalAmount: _asDouble(json['totalAmount']),
+      transactionDate: _asDate(json['transactionDate']),
+      category: _asString(json['category'], fallback: 'Other'),
+      payee: _asString(json['payee']),
+      isManual: json['isManual'] == true,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'checkNumber': checkNumber,
+    'totalAmount': totalAmount,
+    'transactionDate': transactionDate.toIso8601String(),
+    'category': category,
+    'payee': payee,
+    'isManual': isManual,
+  };
+}
+
+class LiabilityRecord {
+  final String id;
+  final LiabilityTab tab;
+  final String name;
+  final DateTime date;
+  final double starting;
+  final double minimum;
+  final int percent;
+  final String source;
+
+  const LiabilityRecord({
+    required this.id,
+    required this.tab,
+    required this.name,
+    required this.date,
+    required this.starting,
+    required this.minimum,
+    required this.percent,
+    required this.source,
+  });
+
+  factory LiabilityRecord.fromJson(Map<String, dynamic> json) {
+    return LiabilityRecord(
+      id: _asString(json['id'], fallback: _fallbackId('liability')),
+      tab: _asString(json['tab']) == 'debt'
+          ? LiabilityTab.debt
+          : LiabilityTab.loan,
+      name: _asString(json['name'], fallback: 'Liability'),
+      date: _asDate(json['date']),
+      starting: _asDouble(json['starting']),
+      minimum: _asDouble(json['minimum']),
+      percent: _asInt(json['percent']),
+      source: _asString(json['source'], fallback: 'manual'),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'tab': tab.name,
+    'name': name,
+    'date': date.toIso8601String(),
+    'starting': starting,
+    'minimum': minimum,
+    'percent': percent,
+    'source': source,
+  };
+
+  LiabilityEntry toEntry() {
+    return LiabilityEntry(
+      name: name,
+      date:
+          '${date.month.toString().padLeft(2, '0')}/'
+          '${date.day.toString().padLeft(2, '0')}',
+      starting: starting,
+      minimum: minimum,
+      percent: percent,
+    );
+  }
+}
+
+class LiabilitySummary {
+  final double totalOwed;
+  final double percent;
+  final double totalPayoff;
+  final double balance;
+
+  const LiabilitySummary({
+    required this.totalOwed,
+    required this.percent,
+    required this.totalPayoff,
+    required this.balance,
+  });
+
+  static const empty = LiabilitySummary(
+    totalOwed: 0,
+    percent: 0,
+    totalPayoff: 0,
+    balance: 0,
+  );
+}
+
+String _fallbackId(String prefix) =>
+    '$prefix-imported-${DateTime.now().microsecondsSinceEpoch}';
+
+String _asString(Object? value, {String fallback = ''}) {
+  if (value == null) return fallback;
+  final text = value.toString();
+  return text.isEmpty ? fallback : text;
+}
+
+double _asDouble(Object? value) {
+  if (value is num) return value.toDouble();
+  return double.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+int _asInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+DateTime _asDate(Object? value) {
+  return DateTime.tryParse(value?.toString() ?? '') ?? DateTime.now();
 }

@@ -8,6 +8,19 @@ class BudgetDonutChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final positiveCategories = data.categories
+        .where((category) => category.percentage > 0)
+        .toList();
+    final sections = positiveCategories.isEmpty
+        ? const [
+            BudgetCategory(
+              label: 'No activity',
+              percentage: 1,
+              color: Color(0xFFE5E7EB),
+            ),
+          ]
+        : positiveCategories;
+
     return SizedBox(
       height: 280,
       child: Stack(
@@ -17,7 +30,7 @@ class BudgetDonutChart extends StatelessWidget {
             PieChartData(
               sectionsSpace: 2,
               centerSpaceRadius: 80,
-              sections: data.categories.map((cat) {
+              sections: sections.map((cat) {
                 return PieChartSectionData(
                   value: cat.percentage,
                   color: cat.color,
@@ -33,19 +46,21 @@ class BudgetDonutChart extends StatelessWidget {
             children: [
               Text(
                 '\$${data.available.toStringAsFixed(2)} available',
-                style: const TextStyle(
-                  color: Color(0xFFEF4444),
+                style: TextStyle(
+                  color: data.available >= 0
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFFEF4444),
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
               ),
-              const Text(
-                'SURPLUS 10%',
-                style: TextStyle(color: Colors.grey, fontSize: 10),
+              Text(
+                'SURPLUS ${data.surplusPercent}%',
+                style: const TextStyle(color: Colors.grey, fontSize: 10),
               ),
               const SizedBox(height: 6),
               Text(
-                '\$${data.spent.toStringAsFixed(2)}M /',
+                '\$${data.spent.toStringAsFixed(2)} /',
                 style: const TextStyle(fontSize: 13, color: Colors.black87),
               ),
               Text(
@@ -56,9 +71,9 @@ class BudgetDonutChart extends StatelessWidget {
                   fontSize: 20,
                 ),
               ),
-              const Text(
-                '96% Utilization',
-                style: TextStyle(color: Colors.grey, fontSize: 10),
+              Text(
+                '${data.utilizationPercent}% Utilization',
+                style: const TextStyle(color: Colors.grey, fontSize: 10),
               ),
             ],
           ),
