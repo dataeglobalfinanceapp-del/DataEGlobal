@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../services/liability_service.dart';
 import '../../models/budget_data.dart';
 import '../../services/auth_service.dart';
-import '../../widgets/budget_donut_chart.dart';
+import '../../widgets/budget_sum_chart.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -99,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         height: 250,
                         child: Center(child: CircularProgressIndicator()),
                       )
-                    : BudgetDonutChart(data: _budgetData),
+                    : BudgetSumChart(data: _budgetData),
               ),
               const SizedBox(height: 28),
               Row(
@@ -153,6 +153,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   _buildFeatureCard(
                     icon: Icons.receipt,
+                    label: 'TRANSACTION',
+                    color: const Color(0xFFE0F2FE),
+                    onTap: () => _openAndRefresh('/transactions'),
+                  ),
+                  _buildFeatureCard(
+                    icon: Icons.credit_card,
                     label: 'LIABILITIES',
                     color: const Color(0xFFFED7AA),
                     onTap: () => _openAndRefresh('/liabilities'),

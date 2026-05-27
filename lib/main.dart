@@ -12,6 +12,7 @@ import 'features/auth/screens/login_screen/splash_screen.dart';
 import 'features/auth/screens/scan_screen/scan.dart';
 import 'features/auth/screens/scan_screen/scan_deposit_screen.dart';
 import 'features/auth/screens/scan_screen/scan_expense_screen.dart';
+import 'features/auth/screens/transaction_screen/transaction_screen.dart';
 import 'features/auth/screens/liabilities_screen/liabilities_screen.dart';
 
 Future<void> main() async {
@@ -94,6 +95,7 @@ class BizTrackApp extends StatelessWidget {
         '/scan': (context) => const ScanScreen(),
         '/scan-deposit': (context) => const ScanDepositScreen(),
         '/scan-expense': (context) => const ScanExpenseScreen(),
+        '/transactions': (context) => const TransactionScreen(),
         '/liabilities': (context) => const LiabilitiesScreen(),
       },
     );

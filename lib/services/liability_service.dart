@@ -51,17 +51,16 @@ class LiabilityService {
     required bool isManual,
   }) async {
     await _ensureLoaded();
-    _expenses.add(
-      ExpenseRecord(
-        id: _newId('expense'),
-        checkNumber: checkNumber,
-        totalAmount: totalAmount,
-        transactionDate: transactionDate,
-        category: category,
-        payee: payee,
-        isManual: isManual,
-      ),
+    final expense = ExpenseRecord(
+      id: _newId('expense'),
+      checkNumber: checkNumber,
+      totalAmount: totalAmount,
+      transactionDate: transactionDate,
+      category: category,
+      payee: payee,
+      isManual: isManual,
     );
+    _expenses.add(expense);
 
     if (category == 'Loan Obligation') {
       _liabilities.add(
@@ -73,12 +72,37 @@ class LiabilityService {
           starting: totalAmount,
           minimum: totalAmount,
           percent: 0,
-          source: 'expense',
+          source: 'expense:${expense.id}',
         ),
       );
     }
 
     await _persist();
+  }
+
+  static Future<bool> deleteDeposit(String id) async {
+    await _ensureLoaded();
+    final before = _deposits.length;
+    _deposits.removeWhere((record) => record.id == id);
+    final removed = _deposits.length != before;
+    if (removed) await _persist();
+    return removed;
+  }
+
+  static Future<bool> deleteExpense(String id) async {
+    await _ensureLoaded();
+    final matching = _expenses.where((record) => record.id == id).toList();
+    if (matching.isEmpty) return false;
+
+    final expense = matching.first;
+    _expenses.removeWhere((record) => record.id == id);
+    _liabilities.removeWhere(
+      (record) =>
+          record.source == 'expense:$id' ||
+          _isLegacyExpenseLiability(record, expense),
+    );
+    await _persist();
+    return true;
   }
 
   static Future<void> saveLiability({
@@ -296,6 +320,20 @@ class LiabilityService {
 
   static String _newId(String prefix) =>
       '$prefix-${DateTime.now().microsecondsSinceEpoch}';
+
+  static bool _isLegacyExpenseLiability(
+    LiabilityRecord liability,
+    ExpenseRecord expense,
+  ) {
+    if (liability.source != 'expense') return false;
+    if (expense.category != 'Loan Obligation') return false;
+    final name = expense.payee.isEmpty ? 'Loan obligation' : expense.payee;
+    return liability.name == name &&
+        liability.date.year == expense.transactionDate.year &&
+        liability.date.month == expense.transactionDate.month &&
+        liability.date.day == expense.transactionDate.day &&
+        liability.starting == expense.totalAmount;
+  }
 
   static Color _categoryColor(String category) {
     return switch (category) {
