@@ -928,12 +928,12 @@ class _SummaryPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Expanded(child: _SummaryLabel(label: 'TOTAL DEPOSIT')),
+              const Expanded(child: _SummaryLabel(label: 'TOTAL RESERVES')),
               Text(
-                fmtMoney(totalDeposits),
+                fmtMoney(totalReserves),
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 20,
+                  fontSize: 25,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -951,8 +951,8 @@ class _SummaryPanel extends StatelessWidget {
               ),
               Expanded(
                 child: _SummaryValue(
-                  label: 'TOTAL RESERVES',
-                  value: fmtMoney(totalReserves),
+                  label: 'TOTAL DEPOSIT',
+                  value: fmtMoney(totalDeposits),
                   color: const Color(0xFF00D26A),
                   alignRight: true,
                 ),
