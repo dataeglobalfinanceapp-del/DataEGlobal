@@ -158,6 +158,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () => _openAndRefresh('/transactions'),
                   ),
                   _buildFeatureCard(
+                    icon: Icons.savings_outlined,
+                    label: 'RESERVES',
+                    color: const Color(0xFFDCFCE7),
+                    onTap: () => _openAndRefresh('/reserves'),
+                  ),
+                  _buildFeatureCard(
                     icon: Icons.credit_card,
                     label: 'LIABILITIES',
                     color: const Color(0xFFFED7AA),
