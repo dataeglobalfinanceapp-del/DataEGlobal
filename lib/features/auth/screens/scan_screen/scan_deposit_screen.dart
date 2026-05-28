@@ -1107,7 +1107,7 @@ class _CameraPermissionDialog extends StatelessWidget {
                 children: [
                   TextSpan(text: 'Allow '),
                   TextSpan(
-                    text: 'Fin App',
+                    text: 'Save Tep',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   TextSpan(text: ' to take pictures and record video'),

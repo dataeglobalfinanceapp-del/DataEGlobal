@@ -973,69 +973,78 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFFDDDDDD),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...ExpenseCategory.values.map((cat) {
-            final isSelected = _selected == cat;
-            return ListTile(
-              leading: Icon(
-                cat.icon,
-                size: 22,
-                color: isSelected
-                    ? const Color(0xFF1A2340)
-                    : const Color(0xFF888888),
-              ),
-              title: Text(
-                cat.label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: isSelected ? const Color(0xFF1A2340) : Colors.black87,
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDDDDDD),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              trailing: isSelected
-                  ? Container(
-                      width: 22,
-                      height: 22,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF1A2340),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                    )
-                  : Container(
-                      width: 22,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFCCCCCC)),
-                      ),
+              const SizedBox(height: 12),
+              ...ExpenseCategory.values.map((cat) {
+                final isSelected = _selected == cat;
+                return ListTile(
+                  leading: Icon(
+                    cat.icon,
+                    size: 22,
+                    color: isSelected
+                        ? const Color(0xFF1A2340)
+                        : const Color(0xFF888888),
+                  ),
+                  title: Text(
+                    cat.label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                      color: isSelected
+                          ? const Color(0xFF1A2340)
+                          : Colors.black87,
                     ),
-              onTap: () {
-                setState(() => _selected = cat);
-                Future.delayed(const Duration(milliseconds: 200), () {
-                  if (context.mounted) Navigator.pop(context, cat);
-                });
-              },
-            );
-          }),
-          const SizedBox(height: 16),
-        ],
+                  ),
+                  trailing: isSelected
+                      ? Container(
+                          width: 22,
+                          height: 22,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF1A2340),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                        )
+                      : Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFCCCCCC)),
+                          ),
+                        ),
+                  onTap: () {
+                    setState(() => _selected = cat);
+                    Future.delayed(const Duration(milliseconds: 200), () {
+                      if (context.mounted) Navigator.pop(context, cat);
+                    });
+                  },
+                );
+              }),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1082,7 +1091,7 @@ class _CameraPermissionDialog extends StatelessWidget {
                 children: [
                   TextSpan(text: 'Allow '),
                   TextSpan(
-                    text: 'Fin App',
+                    text: 'Save Tep',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   TextSpan(text: ' to take pictures and record video'),

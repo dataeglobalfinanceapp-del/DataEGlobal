@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../../../services/excel_transaction_report.dart';
@@ -5,6 +7,7 @@ import '../../../../services/file_exporter.dart';
 import '../../../../services/liability_service.dart';
 import '../../../../services/money_formatter.dart';
 import '../../../../services/pdf_exporter.dart';
+import '../../../../services/pdf_printer.dart';
 import '../../../../services/yearly_pdf_report.dart';
 
 enum _TransactionKind { deposit, expense }
@@ -402,9 +405,46 @@ class _TransactionScreenState extends State<TransactionScreen> {
   }
 
   Future<void> _exportPdf() async {
-    final range = await _chooseExportRange('PDF');
+    final range = await _chooseExportRange('Export PDF');
     if (range == null) return;
 
+    final pdf = _buildTransactionPdf(range);
+    final savedTo = await PdfExporter.savePdf(
+      fileName: pdf.fileName,
+      bytes: pdf.bytes,
+    );
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('PDF exported: $savedTo')));
+  }
+
+  Future<void> _printPdf() async {
+    final range = await _chooseExportRange('Print PDF');
+    if (range == null) return;
+
+    final pdf = _buildTransactionPdf(range);
+    try {
+      final status = await PdfPrinter.printPdf(
+        fileName: pdf.fileName,
+        bytes: pdf.bytes,
+      );
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('PDF print: $status')));
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not print PDF: $error')));
+    }
+  }
+
+  _TransactionPdfPayload _buildTransactionPdf(_ExportRange range) {
     final isDeposit = _kind == _TransactionKind.deposit;
     final rows = _reportRows(range);
     final total = rows.fold<double>(0, (sum, row) => sum + row.amount);
@@ -424,16 +464,11 @@ class _TransactionScreenState extends State<TransactionScreen> {
     final fileName =
         'FinApp-${typeLabel.toLowerCase()}s-${range.fileToken}$categoryPart.pdf';
 
-    final savedTo = await PdfExporter.savePdf(fileName: fileName, bytes: bytes);
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('PDF exported: $savedTo')));
+    return _TransactionPdfPayload(fileName: fileName, bytes: bytes);
   }
 
   Future<void> _exportExcel() async {
-    final range = await _chooseExportRange('Excel');
+    final range = await _chooseExportRange('Export Excel');
     if (range == null) return;
 
     final isDeposit = _kind == _TransactionKind.deposit;
@@ -468,7 +503,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
     ).showSnackBar(SnackBar(content: Text('Excel exported: $savedTo')));
   }
 
-  Future<_ExportRange?> _chooseExportRange(String format) async {
+  Future<_ExportRange?> _chooseExportRange(String actionLabel) async {
     final period = await showModalBottomSheet<_ExportPeriod>(
       context: context,
       backgroundColor: Colors.white,
@@ -490,7 +525,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Export $format by',
+              '$actionLabel by',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
@@ -623,7 +658,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     context,
                     _MonthYear(month: selectedMonth, year: selectedYear),
                   ),
-                  child: const Text('Export'),
+                  child: const Text('Continue'),
                 ),
               ],
             );
@@ -665,7 +700,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                 ),
                 FilledButton(
                   onPressed: () => Navigator.pop(context, selectedYear),
-                  child: const Text('Export'),
+                  child: const Text('Continue'),
                 ),
               ],
             );
@@ -879,7 +914,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                       Expanded(
                         child: _ExportButton(
                           icon: Icons.picture_as_pdf,
-                          label: 'Export to PDF',
+                          label: 'PDF',
                           color: const Color(0xFFEF4444),
                           onTap: _exportPdf,
                         ),
@@ -887,8 +922,17 @@ class _TransactionScreenState extends State<TransactionScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: _ExportButton(
+                          icon: Icons.print_outlined,
+                          label: 'Print',
+                          color: const Color(0xFF1E40AF),
+                          onTap: _printPdf,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _ExportButton(
                           icon: Icons.table_chart,
-                          label: 'Export to Excel',
+                          label: 'Excel',
                           color: const Color(0xFF16A34A),
                           onTap: _exportExcel,
                         ),
@@ -1568,19 +1612,30 @@ class _ExportButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
+    return OutlinedButton(
       onPressed: onTap,
-      icon: Icon(icon, color: color, size: 18),
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-      ),
       style: OutlinedButton.styleFrom(
         foregroundColor: Colors.black87,
         backgroundColor: Colors.white,
         side: const BorderSide(color: Color(0xFFE5E7EB)),
+        minimumSize: const Size(0, 44),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              maxLines: 1,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1631,6 +1686,13 @@ class _TransactionItem {
     required this.icon,
     required this.iconColor,
   });
+}
+
+class _TransactionPdfPayload {
+  final String fileName;
+  final Uint8List bytes;
+
+  const _TransactionPdfPayload({required this.fileName, required this.bytes});
 }
 
 class _ExportRange {

@@ -99,7 +99,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         height: 250,
                         child: Center(child: CircularProgressIndicator()),
                       )
-                    : BudgetSumChart(data: _budgetData),
+                    : BudgetSumChart(
+                        data: _budgetData,
+                        periodKey: _selectedPeriod,
+                      ),
               ),
               const SizedBox(height: 28),
               Row(
@@ -176,8 +179,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   _buildFeatureCard(
                     icon: Icons.flag,
-                    label: 'GOAL',
+                    label: 'TAX',
                     color: const Color(0xFFE0F2FE),
+                    onTap: () => _openAndRefresh('/tax'),
                   ),
                   _buildFeatureCard(
                     icon: Icons.campaign,
@@ -188,6 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: Icons.notifications,
                     label: 'REMINDER',
                     color: const Color(0xFFFCE7F3),
+                    onTap: () => _openAndRefresh('/reminders'),
                   ),
                 ],
               ),

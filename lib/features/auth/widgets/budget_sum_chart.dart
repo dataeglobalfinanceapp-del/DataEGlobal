@@ -1,18 +1,109 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/budget_data.dart';
+import '../../../services/local_store.dart';
 import '../../../services/money_formatter.dart';
 
-class BudgetSumChart extends StatelessWidget {
+class BudgetSumChart extends StatefulWidget {
   final BudgetData data;
+  final String periodKey;
 
-  const BudgetSumChart({super.key, required this.data});
+  const BudgetSumChart({super.key, required this.data, this.periodKey = ''});
+
+  @override
+  State<BudgetSumChart> createState() => _BudgetSumChartState();
+}
+
+class _BudgetSumChartState extends State<BudgetSumChart> {
+  static const _targetStorageKey = 'biztrack_budget_target_percentages_v1';
+
+  final Map<String, Map<String, double>> _targetPercentagesByPeriod = {};
+  bool _isEditingTargets = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadTargets());
+  }
+
+  String get _periodKey {
+    final key = widget.periodKey.trim();
+    final rawKey = key.isNotEmpty
+        ? key
+        : widget.data.period.trim().isEmpty
+        ? 'Week'
+        : widget.data.period;
+
+    return rawKey == 'Year' ? 'Month' : rawKey;
+  }
+
+  void _updateTarget(String label, String value) {
+    final target = double.tryParse(value.trim());
+    final periodTargets = _targetPercentagesByPeriod.putIfAbsent(
+      _periodKey,
+      () => <String, double>{},
+    );
+
+    setState(() {
+      if (target == null) {
+        periodTargets.remove(label);
+      } else {
+        periodTargets[label] = target.clamp(0, 100).toDouble();
+      }
+    });
+
+    unawaited(_saveTargets());
+  }
+
+  Future<void> _loadTargets() async {
+    final raw = await LocalStore.read(_targetStorageKey);
+    if (raw == null || raw.trim().isEmpty) return;
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+
+      final targets = <String, Map<String, double>>{};
+      for (final entry in decoded.entries) {
+        final value = entry.value;
+        if (value is! Map) continue;
+        targets[entry.key.toString()] = {
+          for (final targetEntry in value.entries)
+            targetEntry.key.toString(): (targetEntry.value is num)
+                ? (targetEntry.value as num).toDouble()
+                : double.tryParse(targetEntry.value.toString()) ?? 0,
+        };
+      }
+      targets.putIfAbsent('Month', () => targets['Year'] ?? <String, double>{});
+
+      if (!mounted) return;
+      setState(() {
+        _targetPercentagesByPeriod
+          ..clear()
+          ..addAll(targets);
+      });
+    } catch (_) {
+      return;
+    }
+  }
+
+  Future<void> _saveTargets() async {
+    await LocalStore.write(
+      _targetStorageKey,
+      jsonEncode(_targetPercentagesByPeriod),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final segments = _budgetSegments(data);
+    final segments = _budgetSegments(widget.data);
+    final targetPercentages =
+        _targetPercentagesByPeriod[_periodKey] ?? const <String, double>{};
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 390),
@@ -35,14 +126,14 @@ class BudgetSumChart extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _BudgetMetrics(data: data),
+            _BudgetMetrics(data: widget.data),
             const SizedBox(height: 16),
             _StackedBudgetBar(segments: segments),
             const SizedBox(height: 12),
             Row(
               children: [
                 Text(
-                  '${data.utilizationPercent}% used',
+                  '${widget.data.utilizationPercent}% used',
                   style: const TextStyle(
                     color: Color(0xFF2563EB),
                     fontSize: 12,
@@ -51,7 +142,7 @@ class BudgetSumChart extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  'Surplus ${data.surplusPercent}%',
+                  'Surplus ${widget.data.surplusPercent}%',
                   style: const TextStyle(
                     color: Color(0xFF6B7280),
                     fontSize: 12,
@@ -60,17 +151,52 @@ class BudgetSumChart extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Breakdown',
-              style: TextStyle(
-                color: Color(0xFF111827),
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                const Text(
+                  'Breakdown',
+                  style: TextStyle(
+                    color: Color(0xFF111827),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () =>
+                      setState(() => _isEditingTargets = !_isEditingTargets),
+                  icon: Icon(
+                    _isEditingTargets
+                        ? Icons.check_circle_outline
+                        : Icons.edit_outlined,
+                    size: 18,
+                  ),
+                  label: Text(_isEditingTargets ? 'Done' : 'Edit target'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF2563EB),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const _BreakdownHeader(),
+            ...segments.map(
+              (segment) => _BreakdownRow(
+                segment: segment,
+                targetPercentage:
+                    targetPercentages[segment.label] ?? segment.percentage,
+                periodKey: _periodKey,
+                isEditingTarget: _isEditingTargets,
+                onTargetChanged: (value) => _updateTarget(segment.label, value),
               ),
             ),
-            const SizedBox(height: 8),
-            ...segments.map((segment) => _BreakdownRow(segment: segment)),
             const SizedBox(height: 10),
           ],
         ),
@@ -79,8 +205,7 @@ class BudgetSumChart extends StatelessWidget {
   }
 
   List<_BudgetSegment> _budgetSegments(BudgetData data) {
-    final denominator = math.max(data.total, data.spent);
-    if (denominator <= 0) {
+    if (data.spent <= 0) {
       return const [
         _BudgetSegment(
           label: 'No activity',
@@ -99,7 +224,7 @@ class BudgetSumChart extends StatelessWidget {
         _BudgetSegment(
           label: 'Expenses',
           amount: data.spent,
-          percentage: data.spent / denominator * 100,
+          percentage: 100,
           color: const Color(0xFF2563EB),
         ),
       );
@@ -111,22 +236,11 @@ class BudgetSumChart extends StatelessWidget {
           _BudgetSegment(
             label: category.label,
             amount: amount,
-            percentage: amount / denominator * 100,
+            percentage: category.percentage,
             color: category.color,
           ),
         );
       }
-    }
-
-    if (data.available > 0) {
-      segments.add(
-        _BudgetSegment(
-          label: 'Available',
-          amount: data.available,
-          percentage: data.available / denominator * 100,
-          color: const Color(0xFF16A34A),
-        ),
-      );
     }
 
     if (segments.isEmpty) {
@@ -271,13 +385,82 @@ class _StackedBudgetBar extends StatelessWidget {
   }
 }
 
-class _BreakdownRow extends StatelessWidget {
-  final _BudgetSegment segment;
-
-  const _BreakdownRow({required this.segment});
+class _BreakdownHeader extends StatelessWidget {
+  const _BreakdownHeader();
 
   @override
   Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          SizedBox(width: 20),
+          Expanded(child: Text('Category', style: _headerStyle)),
+          SizedBox(width: 6),
+          SizedBox(
+            width: 44,
+            child: Text(
+              'Actual',
+              textAlign: TextAlign.right,
+              style: _headerStyle,
+            ),
+          ),
+          SizedBox(width: 6),
+          SizedBox(
+            width: 58,
+            child: Text(
+              'Target',
+              textAlign: TextAlign.right,
+              style: _headerStyle,
+            ),
+          ),
+          SizedBox(width: 6),
+          SizedBox(
+            width: 76,
+            child: Text(
+              'Amount',
+              textAlign: TextAlign.right,
+              style: _headerStyle,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static const _headerStyle = TextStyle(
+    color: Color(0xFF9CA3AF),
+    fontSize: 10,
+    fontWeight: FontWeight.w800,
+    letterSpacing: 0.4,
+  );
+}
+
+class _BreakdownRow extends StatelessWidget {
+  final _BudgetSegment segment;
+  final double targetPercentage;
+  final String periodKey;
+  final bool isEditingTarget;
+  final ValueChanged<String> onTargetChanged;
+
+  const _BreakdownRow({
+    required this.segment,
+    required this.targetPercentage,
+    required this.periodKey,
+    required this.isEditingTarget,
+    required this.onTargetChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isOverTarget = segment.percentage > targetPercentage;
+    final alertColor = isOverTarget
+        ? const Color(0xFFDC2626)
+        : const Color(0xFF111827);
+    final mutedColor = isOverTarget
+        ? const Color(0xFFDC2626)
+        : const Color(0xFF6B7280);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -295,8 +478,8 @@ class _BreakdownRow extends StatelessWidget {
             child: Text(
               segment.label,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF111827),
+              style: TextStyle(
+                color: alertColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -308,16 +491,79 @@ class _BreakdownRow extends StatelessWidget {
             child: Text(
               '${segment.percentage.round()}%',
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: Color(0xFF6B7280),
+              style: TextStyle(
+                color: mutedColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           SizedBox(
-            width: 88,
+            width: 58,
+            height: 32,
+            child: isEditingTarget
+                ? TextFormField(
+                    key: ValueKey('$periodKey-${segment.label}'),
+                    initialValue: _fmtPercent(targetPercentage),
+                    enabled: segment.amount > 0,
+                    textAlign: TextAlign.right,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d{0,3}\.?\d?'),
+                      ),
+                    ],
+                    style: TextStyle(
+                      color: mutedColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      suffixText: '%',
+                      suffixStyle: TextStyle(
+                        color: mutedColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 8,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: mutedColor),
+                      ),
+                    ),
+                    onChanged: onTargetChanged,
+                  )
+                : Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '${_fmtPercent(targetPercentage)}%',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        color: mutedColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 76,
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerRight,
@@ -352,3 +598,8 @@ class _BudgetSegment {
 }
 
 String _fmtMoney(double value) => formatMoney(value);
+
+String _fmtPercent(double value) {
+  if (value == value.roundToDouble()) return value.round().toString();
+  return value.toStringAsFixed(1);
+}

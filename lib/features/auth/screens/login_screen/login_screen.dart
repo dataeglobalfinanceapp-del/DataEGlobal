@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Fin App',
+                'Save Tep',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
