@@ -127,7 +127,7 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _BudgetMetrics(data: widget.data),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             _StackedBudgetBar(segments: segments),
             const SizedBox(height: 12),
             Row(
@@ -136,7 +136,7 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
                   '${widget.data.utilizationPercent}% used',
                   style: const TextStyle(
                     color: Color(0xFF2563EB),
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -145,7 +145,7 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
                   'Surplus ${widget.data.surplusPercent}%',
                   style: const TextStyle(
                     color: Color(0xFF6B7280),
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -291,21 +291,21 @@ class _BudgetMetrics extends StatelessWidget {
       runSpacing: 10,
       children: [
         _MetricBlock(
-          label: 'Available',
+          label: 'Deposits',
+          value: _fmtMoney(data.total),
+          color: const Color(0xFF16A34A),
+        ),
+        _MetricBlock(
+          label: 'Expenses',
+          value: _fmtMoney(data.spent),
+          color: const Color(0xFFFF1744),
+        ),
+        _MetricBlock(
+          label: 'Reserves',
           value: _fmtMoney(data.available),
-          color: data.available >= 0
+          color: data.available > 0
               ? const Color(0xFF16A34A)
               : const Color(0xFFFF1744),
-        ),
-        _MetricBlock(
-          label: 'Spent',
-          value: _fmtMoney(data.spent),
-          color: const Color(0xFF111827),
-        ),
-        _MetricBlock(
-          label: 'Budget',
-          value: _fmtMoney(data.total),
-          color: const Color(0xFF2563EB),
         ),
       ],
     );

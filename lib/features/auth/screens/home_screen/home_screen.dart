@@ -150,11 +150,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () => _openAndRefresh('/scan'),
                   ),
                   _buildFeatureCard(
-                    icon: Icons.trending_up,
-                    label: 'INVESTMENTS',
-                    color: const Color(0xFFFCE7F3),
-                  ),
-                  _buildFeatureCard(
                     icon: Icons.receipt,
                     label: 'TRANSACTION',
                     color: const Color(0xFFE0F2FE),
@@ -163,8 +158,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildFeatureCard(
                     icon: Icons.savings_outlined,
                     label: 'RESERVES',
-                    color: const Color(0xFFDCFCE7),
+                    color: const Color.fromARGB(255, 239, 220, 252),
+                    iconColor: const Color(0xFF166534),
+                    textColor: const Color(0xFF166534),
                     onTap: () => _openAndRefresh('/reserves'),
+                  ),
+                  _buildFeatureCard(
+                    icon: Icons.trending_up,
+                    label: 'INVESTMENTS',
+                    color: const Color(0xFFFCE7F3),
                   ),
                   _buildFeatureCard(
                     icon: Icons.credit_card,
@@ -225,6 +227,8 @@ class _HomeScreenState extends State<HomeScreen> {
     required IconData icon,
     required String label,
     required Color color,
+    Color iconColor = const Color(0xFF1E40AF),
+    Color textColor = Colors.black87,
     VoidCallback? onTap,
   }) {
     final card = Container(
@@ -235,15 +239,15 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 32, color: const Color(0xFF1E40AF)),
+          Icon(icon, size: 32, color: iconColor),
           const SizedBox(height: 8),
           Text(
             label,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              color: textColor,
             ),
           ),
         ],
