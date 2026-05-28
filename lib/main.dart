@@ -86,8 +86,14 @@ class BizTrackApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignUpScreen(),
         '/confirm-signup': (context) {
-          final email = ModalRoute.of(context)!.settings.arguments as String;
-          return ConfirmSignUpScreen(email: email);
+          final arguments = ModalRoute.of(context)!.settings.arguments;
+          if (arguments is ConfirmSignUpArguments) {
+            return ConfirmSignUpScreen(
+              email: arguments.email,
+              codeDelivery: arguments.codeDelivery,
+            );
+          }
+          return ConfirmSignUpScreen(email: arguments as String);
         },
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/confirm-reset': (context) {

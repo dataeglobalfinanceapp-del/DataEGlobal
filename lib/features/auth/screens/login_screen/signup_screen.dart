@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'confirm_signup_screen.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/auth_widgets.dart';
 
@@ -175,16 +176,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => _loading = true);
     try {
-      final needsConfirm = await AuthService.signUp(
+      final signUp = await AuthService.signUp(
         _emailController.text.trim(),
         _passwordController.text,
       );
       if (!mounted) return;
-      if (needsConfirm) {
+      if (signUp.needsConfirmation) {
         Navigator.pushNamed(
           context,
           '/confirm-signup',
-          arguments: _emailController.text.trim(),
+          arguments: ConfirmSignUpArguments(
+            email: _emailController.text.trim(),
+            codeDelivery: signUp.codeDelivery,
+          ),
         );
       }
     } on Exception catch (e) {

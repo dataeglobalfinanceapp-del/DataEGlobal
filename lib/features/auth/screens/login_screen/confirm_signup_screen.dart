@@ -1,9 +1,22 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 
+class ConfirmSignUpArguments {
+  final String email;
+  final CodeDeliveryInfo? codeDelivery;
+
+  const ConfirmSignUpArguments({required this.email, this.codeDelivery});
+}
+
 class ConfirmSignUpScreen extends StatefulWidget {
   final String email;
-  const ConfirmSignUpScreen({super.key, required this.email});
+  final CodeDeliveryInfo? codeDelivery;
+
+  const ConfirmSignUpScreen({
+    super.key,
+    required this.email,
+    this.codeDelivery,
+  });
 
   @override
   State<ConfirmSignUpScreen> createState() => _ConfirmSignUpScreenState();
@@ -33,9 +46,9 @@ class _ConfirmSignUpScreenState extends State<ConfirmSignUpScreen> {
       }
     } on Exception catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -44,16 +57,18 @@ class _ConfirmSignUpScreenState extends State<ConfirmSignUpScreen> {
   Future<void> _resendCode() async {
     setState(() => _resending = true);
     try {
-      await AuthService.resendSignUpCode(widget.email);
+      final delivery = await AuthService.resendSignUpCode(widget.email);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Code resent — check your email')),
+        SnackBar(
+          content: Text(delivery?.message ?? 'Code resent - check your email'),
+        ),
       );
     } on Exception catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => _resending = false);
     }

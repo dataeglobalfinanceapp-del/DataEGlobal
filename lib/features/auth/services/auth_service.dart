@@ -24,18 +24,28 @@ class AuthService {
   // Returns true when a confirmation code was sent (expected happy path).
   // ─────────────────────────────────────────────────────────────────────────
 
-  static Future<bool> signUp(String email, String password) async {
+  static Future<SignUpAttempt> signUp(String email, String password) async {
     try {
       final result = await Amplify.Auth.signUp(
         username: email,
         password: password,
         options: SignUpOptions(
-          userAttributes: {
-            AuthUserAttributeKey.email: email,
-          },
+          userAttributes: {AuthUserAttributeKey.email: email},
         ),
       );
-      return result.nextStep.signUpStep == AuthSignUpStep.confirmSignUp;
+      final delivery = CodeDeliveryInfo.fromAuth(
+        result.nextStep.codeDeliveryDetails,
+      );
+      if (delivery != null) {
+        safePrint('Sign up code delivery: ${delivery.message}');
+      } else {
+        safePrint('Sign up next step: ${result.nextStep.signUpStep}');
+      }
+      return SignUpAttempt(
+        needsConfirmation:
+            result.nextStep.signUpStep == AuthSignUpStep.confirmSignUp,
+        codeDelivery: delivery,
+      );
     } on AuthException catch (e) {
       safePrint('Sign up error: ${e.message}');
       rethrow;
@@ -61,9 +71,14 @@ class AuthService {
   }
 
   // Resend code if the user didn't receive it
-  static Future<void> resendSignUpCode(String email) async {
+  static Future<CodeDeliveryInfo?> resendSignUpCode(String email) async {
     try {
-      await Amplify.Auth.resendSignUpCode(username: email);
+      final result = await Amplify.Auth.resendSignUpCode(username: email);
+      final delivery = CodeDeliveryInfo.fromAuth(result.codeDeliveryDetails);
+      if (delivery != null) {
+        safePrint('Resent sign up code delivery: ${delivery.message}');
+      }
+      return delivery;
     } on AuthException catch (e) {
       safePrint('Resend code error: ${e.message}');
       rethrow;
@@ -139,6 +154,37 @@ class AuthService {
   static Future<void> globalSignOut() async {
     await Amplify.Auth.signOut(
       options: const SignOutOptions(globalSignOut: true),
+    );
+  }
+}
+
+class SignUpAttempt {
+  final bool needsConfirmation;
+  final CodeDeliveryInfo? codeDelivery;
+
+  const SignUpAttempt({
+    required this.needsConfirmation,
+    required this.codeDelivery,
+  });
+}
+
+class CodeDeliveryInfo {
+  final String destination;
+  final String deliveryMedium;
+
+  const CodeDeliveryInfo({
+    required this.destination,
+    required this.deliveryMedium,
+  });
+
+  String get message =>
+      'Code sent to $destination by ${deliveryMedium.toLowerCase()}';
+
+  static CodeDeliveryInfo? fromAuth(AuthCodeDeliveryDetails? details) {
+    if (details == null) return null;
+    return CodeDeliveryInfo(
+      destination: details.destination ?? 'your registered destination',
+      deliveryMedium: details.deliveryMedium.name,
     );
   }
 }
