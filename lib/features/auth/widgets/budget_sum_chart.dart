@@ -96,7 +96,7 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
     await LocalStore.write(
       _targetStorageKey,
       jsonEncode(_targetPercentagesByPeriod),
-    );
+    ); 
   }
 
   @override
