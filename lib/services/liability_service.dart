@@ -49,35 +49,55 @@ class LiabilityService {
     required String category,
     required String payee,
     required bool isManual,
+    bool isRecurringMonthly = false,
   }) async {
     await _ensureLoaded();
-    final expense = ExpenseRecord(
-      id: _newId('expense'),
-      checkNumber: checkNumber,
-      totalAmount: totalAmount,
-      transactionDate: transactionDate,
-      category: category,
-      payee: payee,
-      isManual: isManual,
-    );
+
+    final recurringSeriesId = isRecurringMonthly
+        ? _newId('recurring-expense')
+        : '';
+    final recurringDates = isRecurringMonthly
+        ? _remainingRecurringDatesForYear(transactionDate)
+        : [transactionDate];
+
+    for (final date in recurringDates) {
+      final expense = ExpenseRecord(
+        id: _newId('expense-${date.year}-${date.month}'),
+        checkNumber: checkNumber,
+        totalAmount: totalAmount,
+        transactionDate: date,
+        category: category,
+        payee: payee,
+        isManual: isManual,
+        recurringSeriesId: recurringSeriesId,
+        recurringIndex: isRecurringMonthly
+            ? _recurringIndex(transactionDate, date)
+            : 0,
+      );
+      _addExpense(expense);
+    }
+
+    if (isRecurringMonthly) _syncRecurringExpenses(DateTime.now());
+    await _persist();
+  }
+
+  static void _addExpense(ExpenseRecord expense) {
     _expenses.add(expense);
 
-    if (category == 'Loan Obligation') {
+    if (expense.category == 'Loan Obligation') {
       _liabilities.add(
         LiabilityRecord(
-          id: _newId('liability'),
+          id: _newId('liability-${expense.id}'),
           tab: LiabilityTab.debt,
-          name: payee.isEmpty ? 'Loan obligation' : payee,
-          date: transactionDate,
-          starting: totalAmount,
-          minimum: totalAmount,
+          name: expense.payee.isEmpty ? 'Loan obligation' : expense.payee,
+          date: expense.transactionDate,
+          starting: expense.totalAmount,
+          minimum: expense.totalAmount,
           percent: 0,
           source: 'expense:${expense.id}',
         ),
       );
     }
-
-    await _persist();
   }
 
   static Future<bool> deleteDeposit(String id) async {
@@ -95,11 +115,25 @@ class LiabilityService {
     if (matching.isEmpty) return false;
 
     final expense = matching.first;
-    _expenses.removeWhere((record) => record.id == id);
+    final expensesToDelete = expense.isRecurring
+        ? _expenses
+              .where(
+                (record) =>
+                    record.recurringSeriesId == expense.recurringSeriesId,
+              )
+              .toList()
+        : matching;
+    final expenseIds = expensesToDelete.map((record) => record.id).toSet();
+
+    _expenses.removeWhere((record) => expenseIds.contains(record.id));
     _liabilities.removeWhere(
       (record) =>
-          record.source == 'expense:$id' ||
-          _isLegacyExpenseLiability(record, expense),
+          expenseIds.any(
+            (expenseId) => record.source == 'expense:$expenseId',
+          ) ||
+          expensesToDelete.any(
+            (expense) => _isLegacyExpenseLiability(record, expense),
+          ),
     );
     await _persist();
     return true;
@@ -259,11 +293,17 @@ class LiabilityService {
   }
 
   static Future<void> _ensureLoaded() async {
-    if (_loaded) return;
+    if (_loaded) {
+      final changed = _syncRecurringExpenses(DateTime.now());
+      if (changed) await _persist();
+      return;
+    }
 
     final raw = await LocalStore.read(_storageKey);
     if (raw == null || raw.trim().isEmpty) {
       _loaded = true;
+      final changed = _syncRecurringExpenses(DateTime.now());
+      if (changed) await _persist();
       return;
     }
 
@@ -291,6 +331,8 @@ class LiabilityService {
     }
 
     _loaded = true;
+    final changed = _syncRecurringExpenses(DateTime.now());
+    if (changed) await _persist();
   }
 
   static Future<void> _persist() async {
@@ -320,6 +362,86 @@ class LiabilityService {
 
   static String _newId(String prefix) =>
       '$prefix-${DateTime.now().microsecondsSinceEpoch}';
+
+  static List<DateTime> _remainingRecurringDatesForYear(DateTime startDate) {
+    return [
+      startDate,
+      for (var month = startDate.month + 1; month <= 12; month++)
+        DateTime(startDate.year, month),
+    ];
+  }
+
+  static bool _syncRecurringExpenses(DateTime now) {
+    final seriesIds = _expenses
+        .where((record) => record.isRecurring)
+        .map((record) => record.recurringSeriesId)
+        .toSet();
+    var changed = false;
+
+    for (final seriesId in seriesIds) {
+      final records =
+          _expenses
+              .where((record) => record.recurringSeriesId == seriesId)
+              .toList()
+            ..sort((a, b) => a.transactionDate.compareTo(b.transactionDate));
+      if (records.isEmpty) continue;
+
+      final template = records.first;
+      for (var year = template.transactionDate.year; year <= now.year; year++) {
+        final firstMonth = year == template.transactionDate.year
+            ? template.transactionDate.month
+            : 1;
+
+        for (var month = firstMonth; month <= 12; month++) {
+          if (_hasRecurringOccurrence(seriesId, year, month)) continue;
+
+          final date =
+              year == template.transactionDate.year &&
+                  month == template.transactionDate.month
+              ? template.transactionDate
+              : DateTime(year, month);
+          _addExpense(_recurringExpenseFromTemplate(template, date));
+          changed = true;
+        }
+      }
+    }
+
+    return changed;
+  }
+
+  static bool _hasRecurringOccurrence(String seriesId, int year, int month) {
+    return _expenses.any(
+      (record) =>
+          record.recurringSeriesId == seriesId &&
+          record.transactionDate.year == year &&
+          record.transactionDate.month == month,
+    );
+  }
+
+  static ExpenseRecord _recurringExpenseFromTemplate(
+    ExpenseRecord template,
+    DateTime date,
+  ) {
+    return ExpenseRecord(
+      id: _newId(
+        'expense-${template.recurringSeriesId}-${date.year}-${date.month}',
+      ),
+      checkNumber: template.checkNumber,
+      totalAmount: template.totalAmount,
+      transactionDate: date,
+      category: template.category,
+      payee: template.payee,
+      isManual: template.isManual,
+      recurringSeriesId: template.recurringSeriesId,
+      recurringIndex: _recurringIndex(template.transactionDate, date),
+    );
+  }
+
+  static int _recurringIndex(DateTime startDate, DateTime occurrenceDate) {
+    return (occurrenceDate.year - startDate.year) * 12 +
+        occurrenceDate.month -
+        startDate.month;
+  }
 
   static bool _isLegacyExpenseLiability(
     LiabilityRecord liability,
@@ -409,6 +531,8 @@ class ExpenseRecord {
   final String category;
   final String payee;
   final bool isManual;
+  final String recurringSeriesId;
+  final int recurringIndex;
 
   const ExpenseRecord({
     required this.id,
@@ -418,6 +542,8 @@ class ExpenseRecord {
     required this.category,
     required this.payee,
     required this.isManual,
+    this.recurringSeriesId = '',
+    this.recurringIndex = 0,
   });
 
   factory ExpenseRecord.fromJson(Map<String, dynamic> json) {
@@ -429,8 +555,12 @@ class ExpenseRecord {
       category: _asString(json['category'], fallback: 'Other'),
       payee: _asString(json['payee']),
       isManual: json['isManual'] == true,
+      recurringSeriesId: _asString(json['recurringSeriesId']),
+      recurringIndex: _asInt(json['recurringIndex']),
     );
   }
+
+  bool get isRecurring => recurringSeriesId.isNotEmpty;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -440,6 +570,8 @@ class ExpenseRecord {
     'category': category,
     'payee': payee,
     'isManual': isManual,
+    'recurringSeriesId': recurringSeriesId,
+    'recurringIndex': recurringIndex,
   };
 }
 

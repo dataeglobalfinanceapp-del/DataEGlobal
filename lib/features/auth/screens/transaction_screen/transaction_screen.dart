@@ -182,20 +182,30 @@ class _TransactionScreenState extends State<TransactionScreen> {
       records: records,
       dateOf: (record) => record.transactionDate,
       amountOf: (record) => record.totalAmount,
-      itemBuilder: (record) => [
-        _TransactionItem(
-          id: record.id,
-          kind: _TransactionKind.expense,
-          title: record.payee.isEmpty ? record.category : record.payee,
-          subtitle: record.category,
-          date: record.transactionDate,
-          amount: record.totalAmount,
-          detail:
-              'Check #${record.checkNumber.isEmpty ? '-' : record.checkNumber}',
-          icon: Icons.receipt_long_outlined,
-          iconColor: const Color(0xFFEF4444),
-        ),
-      ],
+      itemBuilder: (record) {
+        final checkDetail =
+            'Check #${record.checkNumber.isEmpty ? '-' : record.checkNumber}';
+        return [
+          _TransactionItem(
+            id: record.id,
+            kind: _TransactionKind.expense,
+            title: record.payee.isEmpty ? record.category : record.payee,
+            subtitle: record.category,
+            date: record.transactionDate,
+            amount: record.totalAmount,
+            detail: record.isRecurring
+                ? 'Monthly recurring | $checkDetail'
+                : checkDetail,
+            icon: record.isRecurring
+                ? Icons.repeat
+                : Icons.receipt_long_outlined,
+            iconColor: record.isRecurring
+                ? const Color(0xFF0F766E)
+                : const Color(0xFFEF4444),
+            isRecurring: record.isRecurring,
+          ),
+        ];
+      },
     );
   }
 
@@ -342,10 +352,16 @@ class _TransactionScreenState extends State<TransactionScreen> {
     final kindLabel = item.kind == _TransactionKind.deposit
         ? 'deposit'
         : 'expense';
+    final isRecurringExpense =
+        item.kind == _TransactionKind.expense && item.isRecurring;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete $kindLabel?'),
+        title: Text(
+          isRecurringExpense
+              ? 'Delete recurring expense?'
+              : 'Delete $kindLabel?',
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -361,6 +377,13 @@ class _TransactionScreenState extends State<TransactionScreen> {
               Text(
                 item.detail,
                 style: const TextStyle(color: Color(0xFF6B7280)),
+              ),
+            ],
+            if (isRecurringExpense) ...[
+              const SizedBox(height: 10),
+              const Text(
+                'This will remove every monthly entry in this recurring expense series.',
+                style: TextStyle(color: Color(0xFFDC2626)),
               ),
             ],
           ],
@@ -397,7 +420,9 @@ class _TransactionScreenState extends State<TransactionScreen> {
       SnackBar(
         content: Text(
           deleted
-              ? '${_capitalize(kindLabel)} deleted.'
+              ? isRecurringExpense
+                    ? 'Recurring expense series deleted.'
+                    : '${_capitalize(kindLabel)} deleted.'
               : 'Could not find that $kindLabel.',
         ),
       ),
@@ -799,8 +824,9 @@ class _TransactionScreenState extends State<TransactionScreen> {
             title: record.payee.isEmpty ? record.category : record.payee,
             category: record.category,
             amount: record.totalAmount,
-            detail:
-                'Check #${record.checkNumber.isEmpty ? '-' : record.checkNumber}',
+            detail: record.isRecurring
+                ? 'Monthly recurring | Check #${record.checkNumber.isEmpty ? '-' : record.checkNumber}'
+                : 'Check #${record.checkNumber.isEmpty ? '-' : record.checkNumber}',
           ),
         )
         .toList();
@@ -1674,6 +1700,7 @@ class _TransactionItem {
   final String detail;
   final IconData icon;
   final Color iconColor;
+  final bool isRecurring;
 
   const _TransactionItem({
     required this.id,
@@ -1685,6 +1712,7 @@ class _TransactionItem {
     required this.detail,
     required this.icon,
     required this.iconColor,
+    this.isRecurring = false,
   });
 }
 

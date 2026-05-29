@@ -84,6 +84,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
   bool _isScanning = false;
   bool _dataExtracted = false;
   bool _isSaving = false;
+  bool _isRecurringMonthly = false;
 
   ScannedExpenseData _data = ScannedExpenseData(
     transactionDate: DateTime.now(),
@@ -191,6 +192,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
         _scannedImageBytes = null;
         _dataExtracted = false;
         _data = ScannedExpenseData(transactionDate: DateTime.now());
+        _isRecurringMonthly = false;
         _checkNumberController.text = '';
         _totalAmountController.text = '';
         _payeeController.text = '';
@@ -251,11 +253,18 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
         category: updatedData.category.label,
         payee: updatedData.payee,
         isManual: _entryMode == _EntryMode.manual,
+        isRecurringMonthly: _isRecurringMonthly,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Expense saved ✓')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isRecurringMonthly
+                ? 'Recurring expense saved through December.'
+                : 'Expense saved',
+          ),
+        ),
+      );
       Navigator.pop(context, updatedData);
     } catch (e) {
       if (!mounted) return;
@@ -630,6 +639,15 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
                               ],
                             ),
                           ),
+                          const SizedBox(height: 12),
+                          const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                          const SizedBox(height: 12),
+                          _RecurringMonthlyOption(
+                            value: _isRecurringMonthly,
+                            onChanged: (value) {
+                              setState(() => _isRecurringMonthly = value);
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -860,6 +878,79 @@ class _InfoRow extends StatelessWidget {
         const Spacer(),
         child,
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recurring Option
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _RecurringMonthlyOption extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _RecurringMonthlyOption({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => onChanged(!value),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.repeat,
+                color: Color(0xFF2563EB),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'RECURRING MONTHLY',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                      color: Color(0xFF555555),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'This expense repeats until you delete or edit it. The app adds the remaining months of this year now, then on January 1 adds January through December for the new year.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: Color(0xFF666666),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Switch.adaptive(
+              value: value,
+              activeThumbColor: Color(0xFF1A2340),
+              activeTrackColor: Color(0x551A2340),
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
