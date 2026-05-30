@@ -13,8 +13,8 @@ class BudgetCategory {
 }
 
 class BudgetData {
-  final double available;
-  final double spent;
+  final double deposit;
+  final double expense;
   final double total;
   final String period;
   final int surplusPercent;
@@ -22,8 +22,8 @@ class BudgetData {
   final List<BudgetCategory> categories;
 
   const BudgetData({
-    this.available = 0,
-    this.spent = 0,
+    this.deposit = 0,
+    this.expense = 0,
     this.total = 0,
     this.period = '',
     this.surplusPercent = 0,
@@ -31,5 +31,7 @@ class BudgetData {
     this.categories = const [],
   });
 
-  bool get hasActivity => total > 0 || spent > 0 || available != 0;
+  double get reserve => deposit - expense;
+
+  bool get hasActivity => total > 0 || expense > 0 || deposit != 0;
 }

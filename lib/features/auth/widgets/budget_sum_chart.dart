@@ -96,7 +96,7 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
     await LocalStore.write(
       _targetStorageKey,
       jsonEncode(_targetPercentagesByPeriod),
-    ); 
+    );
   }
 
   @override
@@ -205,7 +205,7 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
   }
 
   List<_BudgetSegment> _budgetSegments(BudgetData data) {
-    if (data.spent <= 0) {
+    if (data.expense <= 0) {
       return const [
         _BudgetSegment(
           label: 'No activity',
@@ -219,18 +219,18 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
     final segments = <_BudgetSegment>[];
     final categories = _visibleCategories(data);
 
-    if (categories.isEmpty && data.spent > 0) {
+    if (categories.isEmpty && data.expense > 0) {
       segments.add(
         _BudgetSegment(
           label: 'Expenses',
-          amount: data.spent,
+          amount: data.expense,
           percentage: 100,
           color: const Color(0xFF2563EB),
         ),
       );
     } else {
       for (final category in categories) {
-        final amount = data.spent * category.percentage / 100;
+        final amount = data.expense * category.percentage / 100;
         if (amount <= 0) continue;
         segments.add(
           _BudgetSegment(
@@ -292,18 +292,18 @@ class _BudgetMetrics extends StatelessWidget {
       children: [
         _MetricBlock(
           label: 'Deposits',
-          value: _fmtMoney(data.total),
+          value: _fmtMoney(data.deposit),
           color: const Color(0xFF16A34A),
         ),
         _MetricBlock(
           label: 'Expenses',
-          value: _fmtMoney(data.spent),
+          value: _fmtMoney(data.expense),
           color: const Color(0xFFFF1744),
         ),
         _MetricBlock(
           label: 'Reserves',
-          value: _fmtMoney(data.available),
-          color: data.available > 0
+          value: _fmtMoney(data.reserve),
+          color: data.reserve > 0
               ? const Color(0xFF16A34A)
               : const Color(0xFFFF1744),
         ),

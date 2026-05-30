@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../features/auth/models/budget_data.dart';
@@ -18,6 +19,9 @@ class LiabilityService {
 
   static int _idCounter = 0;
   static bool _loaded = false;
+  static final ValueNotifier<int> _dataVersion = ValueNotifier<int>(0);
+
+  static ValueListenable<int> get dataVersion => _dataVersion;
 
   static Future<void> saveDeposit({
     required String orderNumber,
@@ -44,6 +48,7 @@ class LiabilityService {
       ),
     );
     await _persist();
+    _notifyDataChanged();
   }
 
   static Future<void> saveExpense({
@@ -84,6 +89,7 @@ class LiabilityService {
     }
 
     await _persist();
+    _notifyDataChanged();
   }
 
   static void _addExpense(ExpenseRecord expense) {
@@ -110,7 +116,10 @@ class LiabilityService {
     final before = _deposits.length;
     _deposits.removeWhere((record) => record.id == id);
     final removed = _deposits.length != before;
-    if (removed) await _persist();
+    if (removed) {
+      await _persist();
+      _notifyDataChanged();
+    }
     return removed;
   }
 
@@ -141,6 +150,7 @@ class LiabilityService {
           ),
     );
     await _persist();
+    _notifyDataChanged();
     return true;
   }
 
@@ -166,6 +176,7 @@ class LiabilityService {
       ),
     );
     await _persist();
+    _notifyDataChanged();
   }
 
   static Future<List<DepositRecord>> loadDeposits() async {
@@ -197,18 +208,22 @@ class LiabilityService {
       (record) => _isInRange(record.transactionDate, startDate, endDate),
     );
 
-    final income = deposits.fold<double>(
+    final depositTotal = deposits.fold<double>(
       0,
       (total, record) => total + record.totalAmount,
     );
-    final spent = expenses.fold<double>(
+    final expenseTotal = expenses.fold<double>(
       0,
       (total, record) => total + record.totalAmount,
     );
-    final available = income - spent;
-    final total = income > 0 ? income : spent;
-    final utilization = income > 0 ? (spent / income * 100).round() : 0;
-    final surplus = income > 0 ? (available / income * 100).round() : 0;
+    final balance = depositTotal - expenseTotal;
+    final total = balance;
+    final utilization = depositTotal > 0
+        ? (expenseTotal / depositTotal * 100).round()
+        : 0;
+    final surplus = depositTotal > 0
+        ? (balance / depositTotal * 100).round()
+        : 0;
 
     final categoryTotals = <String, double>{};
     for (final expense in expenses) {
@@ -220,19 +235,19 @@ class LiabilityService {
     }
 
     final categories = categoryTotals.entries
-        .where((entry) => entry.value > 0 && spent > 0)
+        .where((entry) => entry.value > 0 && expenseTotal > 0)
         .map(
           (entry) => BudgetCategory(
             label: entry.key,
-            percentage: entry.value / spent * 100,
+            percentage: entry.value / expenseTotal * 100,
             color: _categoryColor(entry.key),
           ),
         )
         .toList();
 
     return BudgetData(
-      available: available,
-      spent: spent,
+      deposit: depositTotal,
+      expense: expenseTotal,
       total: total,
       period: period,
       surplusPercent: surplus,
@@ -367,6 +382,10 @@ class LiabilityService {
 
   static String _newId(String prefix) =>
       '$prefix-${AppClock.now.microsecondsSinceEpoch}-${_idCounter++}';
+
+  static void _notifyDataChanged() {
+    _dataVersion.value++;
+  }
 
   static bool _isLegacyExpenseLiability(
     LiabilityRecord liability,

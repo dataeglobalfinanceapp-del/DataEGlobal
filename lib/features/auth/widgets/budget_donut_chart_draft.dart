@@ -141,9 +141,9 @@ class _CenterBudgetText extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              '${formatMoney(data.available)} available',
+              '${formatMoney(data.deposit)} deposit',
               style: TextStyle(
-                color: data.available >= 0
+                color: data.deposit >= 0
                     ? const Color(0xFF16A34A)
                     : const Color(0xFFFF1744),
                 fontWeight: FontWeight.w800,
@@ -163,7 +163,7 @@ class _CenterBudgetText extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '${formatMoney(data.spent)} /',
+            '${formatMoney(data.expense)} /',
             style: const TextStyle(
               color: Color(0xFF111827),
               fontSize: 13,

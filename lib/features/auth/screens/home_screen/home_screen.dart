@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../services/app_clock.dart';
@@ -19,12 +21,25 @@ class _HomeScreenState extends State<HomeScreen> {
   late DateTime _endDate;
   BudgetData _budgetData = const BudgetData();
   bool _isLoadingBudget = true;
+  int _budgetLoadSerial = 0;
 
   @override
   void initState() {
     super.initState();
+    LiabilityService.dataVersion.addListener(_handleBudgetDataChanged);
     _updateDateRange();
-    _loadBudgetData();
+    unawaited(_loadBudgetData());
+  }
+
+  @override
+  void dispose() {
+    LiabilityService.dataVersion.removeListener(_handleBudgetDataChanged);
+    super.dispose();
+  }
+
+  void _handleBudgetDataChanged() {
+    if (!mounted) return;
+    unawaited(_loadBudgetData());
   }
 
   void _updateDateRange() {
@@ -41,14 +56,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadBudgetData() async {
-    setState(() => _isLoadingBudget = true);
+    final loadSerial = ++_budgetLoadSerial;
+    setState(() {
+      _updateDateRange();
+      _isLoadingBudget = true;
+    });
+
+    final startDate = _startDate;
+    final endDate = _endDate;
     final data = await LiabilityService.loadBudgetData(
-      startDate: _startDate,
-      endDate: _endDate,
-      period: '${_formatDate(_startDate)} - ${_formatDate(_endDate)}',
+      startDate: startDate,
+      endDate: endDate,
+      period: '${_formatDate(startDate)} - ${_formatDate(endDate)}',
     );
 
-    if (!mounted) return;
+    if (!mounted || loadSerial != _budgetLoadSerial) return;
     setState(() {
       _budgetData = data;
       _isLoadingBudget = false;
@@ -165,9 +187,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () => _openAndRefresh('/reserves'),
                   ),
                   _buildFeatureCard(
-                    icon: Icons.trending_up,
-                    label: 'INVESTMENTS',
-                    color: const Color(0xFFFCE7F3),
+                    icon: Icons.flag,
+                    label: 'TAX',
+                    color: const Color(0xFFE0F2FE),
+                    onTap: () => _openAndRefresh('/tax'),
                   ),
                   _buildFeatureCard(
                     icon: Icons.credit_card,
@@ -181,10 +204,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: const Color(0xFFFECDD3),
                   ),
                   _buildFeatureCard(
-                    icon: Icons.flag,
-                    label: 'TAX',
-                    color: const Color(0xFFE0F2FE),
-                    onTap: () => _openAndRefresh('/tax'),
+                    icon: Icons.trending_up,
+                    label: 'INVESTMENTS',
+                    color: const Color(0xFFFCE7F3),
                   ),
                   _buildFeatureCard(
                     icon: Icons.campaign,
