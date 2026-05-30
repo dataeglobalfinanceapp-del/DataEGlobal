@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'app_clock.dart';
-import 'local_store.dart';
+import '../services/local_store_test/local_store.dart';
 
 enum ReminderDeleteScope { single, series }
 

@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/budget_data.dart';
-import '../../../services/local_store.dart';
+import '../../../services/local_store_test/local_store.dart';
 import '../../../services/money_formatter.dart';
 
 class BudgetSumChart extends StatefulWidget {
