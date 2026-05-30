@@ -107,7 +107,7 @@ class _TaxScreenState extends State<TaxScreen> {
                     icon: Icons.percent,
                     label: 'ESTIMATE TAX RATE',
                     value: '${estimate.bracket.rateLabel}%',
-                    detail: 'Based on tax brackets',
+                    detail: ' ',
                     color: const Color(0xFF2563EB),
                   ),
                   const SizedBox(height: 10),
