@@ -20,7 +20,7 @@ class BudgetSumChart extends StatefulWidget {
 }
 
 class _BudgetSumChartState extends State<BudgetSumChart> {
-  static const _targetStorageKey = 'biztrack_budget_target_percentages_v1';
+  static const _targetStorageKey = 'SaveTep_budget_target_percentages_v1';
 
   final Map<String, Map<String, double>> _targetPercentagesByPeriod = {};
   bool _isEditingTargets = false;
@@ -287,13 +287,13 @@ class _BudgetMetrics extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 10,
-      runSpacing: 10,
+      spacing: 8,
+      runSpacing: 8,
       children: [
         _MetricBlock(
           label: 'Deposits',
           value: _fmtMoney(data.deposit),
-          color: const Color(0xFF16A34A),
+          color: const Color.fromARGB(255, 0, 0, 0),
         ),
         _MetricBlock(
           label: 'Expenses',
@@ -335,7 +335,7 @@ class _MetricBlock extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Color(0xFF6B7280),
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.7,
             ),
@@ -348,7 +348,7 @@ class _MetricBlock extends StatelessWidget {
               value,
               style: TextStyle(
                 color: color,
-                fontSize: 17,
+                fontSize: 18,
                 fontWeight: FontWeight.w900,
               ),
             ),

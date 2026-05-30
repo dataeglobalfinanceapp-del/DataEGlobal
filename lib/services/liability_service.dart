@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import '../features/auth/models/budget_data.dart';
 import '../features/auth/models/liability_model.dart';
 import 'app_clock.dart';
-import 'local_store.dart';
+import '../services/local_store_test/local_store.dart';
 
 part 'save_future_expense.dart';
 
@@ -217,7 +217,7 @@ class LiabilityService {
       (total, record) => total + record.totalAmount,
     );
     final balance = depositTotal - expenseTotal;
-    final total = balance;
+    final total = depositTotal > 0 ? depositTotal : expenseTotal;
     final utilization = depositTotal > 0
         ? (expenseTotal / depositTotal * 100).round()
         : 0;

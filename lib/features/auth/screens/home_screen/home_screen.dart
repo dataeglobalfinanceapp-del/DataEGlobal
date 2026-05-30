@@ -95,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('FinApp'),
+        title: const Text('SaveTep'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -157,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildPeriodButton('Year'),
                 ],
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
               GridView.count(
                 crossAxisCount: 3,
                 shrinkWrap: true,
@@ -183,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: 'RESERVES',
                     color: const Color.fromARGB(255, 239, 220, 252),
                     iconColor: const Color(0xFF166534),
-                    textColor: const Color(0xFF166534),
+                    textColor: const Color.fromARGB(255, 20, 161, 7),
                     onTap: () => _openAndRefresh('/reserves'),
                   ),
                   _buildFeatureCard(
