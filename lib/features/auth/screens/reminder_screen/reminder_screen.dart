@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../services/app_clock.dart';
 import '../../../../services/money_formatter.dart';
 import '../../../../services/reminder_service.dart';
 
@@ -12,7 +13,7 @@ class ReminderScreen extends StatefulWidget {
 }
 
 class _ReminderScreenState extends State<ReminderScreen> {
-  DateTime _visibleMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  DateTime _visibleMonth = DateTime(AppClock.now.year, AppClock.now.month);
   List<ReminderRecord> _reminders = [];
   bool _isLoading = true;
 
@@ -53,11 +54,183 @@ class _ReminderScreenState extends State<ReminderScreen> {
       context,
       MaterialPageRoute(
         builder: (_) =>
-            CreateReminderScreen(initialDate: initialDate ?? DateTime.now()),
+            CreateReminderScreen(initialDate: initialDate ?? AppClock.now),
       ),
     );
     if (!mounted) return;
     await _loadReminders();
+  }
+
+  Future<void> _editReminderAmount(ReminderRecord record) async {
+    final controller = TextEditingController(
+      text: record.amount.toStringAsFixed(2),
+    );
+    final messenger = ScaffoldMessenger.of(context);
+    var applyToSeries = record.isRecurring;
+
+    final result = await showDialog<_AmountEditResult>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Edit amount'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d{0,12},?\d{0,3}\.?\d{0,2}'),
+                      ),
+                    ],
+                    decoration: const InputDecoration(
+                      labelText: 'Amount',
+                      prefixText: r'$',
+                    ),
+                  ),
+                  if (record.isRecurring) ...[
+                    const SizedBox(height: 12),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: applyToSeries,
+                      onChanged: (value) {
+                        setDialogState(() => applyToSeries = value);
+                      },
+                      title: const Text(
+                        'Apply to all recurring reminders',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final amount = parseMoney(controller.text);
+                    if (amount <= 0) return;
+                    Navigator.pop(
+                      context,
+                      _AmountEditResult(
+                        amount: amount,
+                        applyToSeries: record.isRecurring && applyToSeries,
+                      ),
+                    );
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    controller.dispose();
+    if (result == null) return;
+
+    await ReminderService.updateAmount(
+      record.id,
+      result.amount,
+      scope: result.applyToSeries
+          ? ReminderEditScope.series
+          : ReminderEditScope.single,
+    );
+    if (!mounted) return;
+    await _loadReminders();
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          result.applyToSeries
+              ? 'Recurring reminder amounts updated.'
+              : 'Reminder amount updated.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteReminder(ReminderRecord record) async {
+    final messenger = ScaffoldMessenger.of(context);
+    ReminderDeleteScope? scope;
+    if (record.isRecurring) {
+      scope = await showDialog<ReminderDeleteScope>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Delete recurring reminder?'),
+          content: const Text(
+            'Do you want to delete only this reminder or every reminder in this recurring series?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(context, ReminderDeleteScope.single),
+              child: const Text('Just this one'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Color(0xFFDC2626)),
+              onPressed: () =>
+                  Navigator.pop(context, ReminderDeleteScope.series),
+              child: const Text('Delete all'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      scope = await showDialog<ReminderDeleteScope>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Delete reminder?'),
+          content: const Text('This reminder will be permanently deleted.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Color(0xFFDC2626)),
+              onPressed: () =>
+                  Navigator.pop(context, ReminderDeleteScope.single),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (scope == null) return;
+
+    final deleted = await ReminderService.deleteReminder(
+      record.id,
+      scope: scope,
+    );
+    if (!mounted) return;
+    await _loadReminders();
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          deleted
+              ? scope == ReminderDeleteScope.series
+                    ? 'Recurring reminder series deleted.'
+                    : 'Reminder deleted.'
+              : 'Could not find that reminder.',
+        ),
+      ),
+    );
   }
 
   Future<void> _handleDateTap(DateTime date) async {
@@ -100,7 +273,11 @@ class _ReminderScreenState extends State<ReminderScreen> {
             ...reminders.map(
               (record) => ListTile(
                 title: Text(record.payee),
-                subtitle: Text(record.category),
+                subtitle: Text(
+                  record.isRecurring
+                      ? '${record.category} | ${record.reminderCount}'
+                      : record.category,
+                ),
                 trailing: Text(
                   formatMoney(record.amount),
                   style: const TextStyle(fontWeight: FontWeight.w800),
@@ -174,6 +351,10 @@ class _ReminderScreenState extends State<ReminderScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                    if (record.isRecurring) ...[
+                      const SizedBox(height: 6),
+                      _RecurringLabel(label: record.reminderCount),
+                    ],
                     const SizedBox(height: 26),
                     Row(
                       children: [
@@ -255,6 +436,58 @@ class _ReminderScreenState extends State<ReminderScreen> {
                             setDialogState(() => alertEnabled = value);
                             await _loadReminders();
                           },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              Future<void>.delayed(
+                                const Duration(milliseconds: 120),
+                                () async {
+                                  if (!mounted) return;
+                                  await _editReminderAmount(record);
+                                },
+                              );
+                            },
+                            icon: const Icon(Icons.edit_outlined, size: 16),
+                            label: const Text('Edit amount'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFDC2626),
+                              side: const BorderSide(color: Color(0xFFFCA5A5)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              Future<void>.delayed(
+                                const Duration(milliseconds: 120),
+                                () async {
+                                  if (!mounted) return;
+                                  await _deleteReminder(record);
+                                },
+                              );
+                            },
+                            icon: const Icon(Icons.delete_outline, size: 16),
+                            label: const Text('Delete'),
+                          ),
                         ),
                       ],
                     ),
@@ -341,7 +574,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add, color: Color(0xFF1F2937)),
-            onPressed: () => _openCreate(initialDate: DateTime.now()),
+            onPressed: () => _openCreate(initialDate: AppClock.now),
           ),
         ],
       ),
@@ -900,11 +1133,11 @@ class _CalendarGrid extends StatelessWidget {
             itemBuilder: (context, index) {
               final date = days[index];
               final inMonth = date.month == visibleMonth.month;
-              final today = _isSameDate(date, DateTime.now());
+              final today = _isSameDate(date, AppClock.now);
               final reminders = remindersForDate(date);
               final hasItems = reminders.isNotEmpty;
               final isOverdue =
-                  hasItems && date.isBefore(_dateOnly(DateTime.now()));
+                  hasItems && date.isBefore(_dateOnly(AppClock.now));
               final background = hasItems
                   ? isOverdue
                         ? const Color(0xFFEF4444)
@@ -1003,13 +1236,29 @@ class _ReminderCard extends StatelessWidget {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            record.payee,
-            style: const TextStyle(
-              color: Color(0xFF111827),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                record.payee,
+                style: const TextStyle(
+                  color: Color(0xFF111827),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (record.isRecurring) ...[
+                const SizedBox(height: 3),
+                Text(
+                  record.reminderCount,
+                  style: const TextStyle(
+                    color: Color(0xFF0F766E),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
         trailing: Column(
@@ -1094,7 +1343,7 @@ class _DueBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final today = _dateOnly(DateTime.now());
+    final today = _dateOnly(AppClock.now);
     final dueDate = _dateOnly(record.date);
     final difference = dueDate.difference(today).inDays;
     final label = switch (difference) {
@@ -1126,10 +1375,43 @@ class _DueBadge extends StatelessWidget {
   }
 }
 
+class _RecurringLabel extends StatelessWidget {
+  final String label;
+
+  const _RecurringLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFFCF8),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: const Color(0xFFA7F3D0)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.repeat, size: 13, color: Color(0xFF0F766E)),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF0F766E),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 enum _ReminderStatus { upcoming, overdue }
 
 _ReminderStatus _statusFor(DateTime date) {
-  return _dateOnly(date).isBefore(_dateOnly(DateTime.now()))
+  return _dateOnly(date).isBefore(_dateOnly(AppClock.now))
       ? _ReminderStatus.overdue
       : _ReminderStatus.upcoming;
 }
@@ -1140,6 +1422,13 @@ DateTime _dateOnly(DateTime value) {
 
 bool _isSameDate(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+class _AmountEditResult {
+  final double amount;
+  final bool applyToSeries;
+
+  const _AmountEditResult({required this.amount, required this.applyToSeries});
 }
 
 String _formatFullDate(DateTime date) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/app_clock.dart';
 import '../../../../services/liability_service.dart';
 import '../../../../services/money_formatter.dart';
 import '../../models/liability_model.dart';
@@ -18,7 +19,7 @@ class LiabilitiesScreen extends StatefulWidget {
 
 class _LiabilitiesScreenState extends State<LiabilitiesScreen> {
   LiabilityTab _activeTab = LiabilityTab.loan;
-  int _year = DateTime.now().year;
+  int _year = AppClock.now.year;
 
   List<MonthlyLiability> _months = [];
   LiabilitySummary _summary = LiabilitySummary.empty;
@@ -667,7 +668,7 @@ class _AddLiabilityDialogState extends State<_AddLiabilityDialog> {
   final _startingController = TextEditingController();
   final _minimumController = TextEditingController();
   final _percentController = TextEditingController();
-  DateTime _date = DateTime.now();
+  DateTime _date = AppClock.now;
   bool _isSaving = false;
 
   @override

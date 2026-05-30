@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../services/app_clock.dart';
 import '../../../../services/liability_service.dart';
 import '../../models/budget_data.dart';
 import '../../services/auth_service.dart';
@@ -27,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _updateDateRange() {
-    final now = DateTime.now();
+    final now = AppClock.now;
     _endDate = now;
 
     if (_selectedPeriod == 'Month') {

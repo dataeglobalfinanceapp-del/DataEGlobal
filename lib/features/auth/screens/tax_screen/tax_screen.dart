@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../services/app_clock.dart';
 import '../../../../services/liability_service.dart';
 import '../../../../services/money_formatter.dart';
 
@@ -11,7 +12,7 @@ class TaxScreen extends StatefulWidget {
 }
 
 class _TaxScreenState extends State<TaxScreen> {
-  int _year = DateTime.now().year;
+  int _year = AppClock.now.year;
   bool _isLoading = true;
   List<DepositRecord> _deposits = [];
   List<ExpenseRecord> _expenses = [];

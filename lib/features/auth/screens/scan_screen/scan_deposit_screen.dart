@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../services/app_clock.dart';
 import '../../../../services/liability_service.dart';
 import '../../../../services/money_formatter.dart';
 
@@ -78,9 +79,7 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
   bool _duplicateWarning = false;
   bool _isSaving = false;
 
-  ScannedDepositData _data = ScannedDepositData(
-    transactionDate: DateTime.now(),
-  );
+  ScannedDepositData _data = ScannedDepositData(transactionDate: AppClock.now);
 
   late TextEditingController _orderNumberController;
   late TextEditingController _totalAmountController;
@@ -238,7 +237,7 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
         _scannedImageBytes = null;
         _dataExtracted = false;
         _duplicateWarning = false;
-        _data = ScannedDepositData(transactionDate: DateTime.now());
+        _data = ScannedDepositData(transactionDate: AppClock.now);
         _orderNumberController.text = _data.orderNumber;
         _totalAmountController.text = '';
         _creditDebtController.text = '';
@@ -256,7 +255,7 @@ class _ScanDepositScreenState extends State<ScanDepositScreen> {
       context: context,
       initialDate: _data.transactionDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: AppClock.now,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.light(primary: Color(0xFF1A2340)),

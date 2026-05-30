@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'app_clock.dart';
 import 'money_formatter.dart';
 
 class TransactionReportRow {
@@ -44,7 +45,7 @@ class YearlyTransactionPdfReport {
     final lines = <String>[
       reportTitle,
       'Period: $periodLabel',
-      'Generated: ${_fmtDate(DateTime.now())}',
+      'Generated: ${_fmtDate(AppClock.now)}',
       'Total: ${_fmtMoney(total)}',
       '',
     ];

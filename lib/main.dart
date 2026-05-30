@@ -17,6 +17,9 @@ import 'features/auth/screens/liabilities_screen/liabilities_screen.dart';
 import 'features/auth/screens/reserves_screen/reserves_screen.dart';
 import 'features/auth/screens/reminder_screen/reminder_screen.dart';
 import 'features/auth/screens/tax_screen/tax_screen.dart';
+import 'widgets/test_clock_overlay.dart';
+
+final GlobalKey<NavigatorState> _appNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   try {
@@ -65,6 +68,7 @@ class BizTrackApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _appNavigatorKey,
       title: 'Save Tep',
       debugShowCheckedModeBanner: false, // ← hides debug banner
       theme: ThemeData(
@@ -81,6 +85,12 @@ class BizTrackApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
+      builder: (context, child) {
+        return TestClockOverlay(
+          navigatorKey: _appNavigatorKey,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const SplashScreen(),
       routes: {
         '/login': (context) => const LoginScreen(),

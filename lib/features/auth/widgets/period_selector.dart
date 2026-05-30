@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../services/app_clock.dart';
+
 enum BudgetPeriod {
   week('Week'),
   month('Month'),
@@ -69,11 +71,13 @@ class _PeriodSelectorState extends State<PeriodSelector> {
         Row(
           children: [
             for (final period in BudgetPeriod.values) ...[
-              Expanded(child: _PeriodButton(
-                label: period.label,
-                isSelected: _selectedPeriod == period,
-                onPressed: () => _selectPeriod(period),
-              )),
+              Expanded(
+                child: _PeriodButton(
+                  label: period.label,
+                  isSelected: _selectedPeriod == period,
+                  onPressed: () => _selectPeriod(period),
+                ),
+              ),
               if (period != BudgetPeriod.values.last) const SizedBox(width: 12),
             ],
           ],
@@ -96,7 +100,7 @@ class _PeriodSelectorState extends State<PeriodSelector> {
   }
 
   DateTimeRange _rangeFor(BudgetPeriod period) {
-    final now = DateTime.now();
+    final now = AppClock.now;
 
     return switch (period) {
       BudgetPeriod.week => DateTimeRange(

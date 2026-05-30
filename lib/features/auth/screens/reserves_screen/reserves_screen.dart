@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../services/app_clock.dart';
 import '../../../../services/liability_service.dart';
 import '../../../../services/money_formatter.dart';
 
@@ -14,7 +15,7 @@ class ReservesScreen extends StatefulWidget {
 
 class _ReservesScreenState extends State<ReservesScreen> {
   _ReservePeriod _period = _ReservePeriod.monthly;
-  int _year = DateTime.now().year;
+  int _year = AppClock.now.year;
   bool _isLoading = true;
   List<DepositRecord> _deposits = [];
   List<ExpenseRecord> _expenses = [];

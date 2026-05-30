@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../../../services/app_clock.dart';
 import '../../../../services/excel_transaction_report.dart';
 import '../../../../services/file_exporter.dart';
 import '../../../../services/liability_service.dart';
@@ -26,7 +27,7 @@ class TransactionScreen extends StatefulWidget {
 class _TransactionScreenState extends State<TransactionScreen> {
   _TransactionKind _kind = _TransactionKind.deposit;
   _TransactionFilter _filter = _TransactionFilter.weekly;
-  int _year = DateTime.now().year;
+  int _year = AppClock.now.year;
   String? _category;
   bool _isLoading = true;
   List<DepositRecord> _deposits = [];
@@ -736,7 +737,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
   }
 
   DateTime _initialExportDate() {
-    final now = DateTime.now();
+    final now = AppClock.now;
     final safeYear = _year.clamp(2000, 2100).toInt();
     if (safeYear == now.year) {
       return DateTime(safeYear, now.month, now.day);

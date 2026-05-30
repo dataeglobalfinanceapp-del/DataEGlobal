@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../services/app_clock.dart';
 import '../../../../services/liability_service.dart';
 import '../../../../services/money_formatter.dart';
 
@@ -86,9 +87,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
   bool _isSaving = false;
   bool _isRecurringMonthly = false;
 
-  ScannedExpenseData _data = ScannedExpenseData(
-    transactionDate: DateTime.now(),
-  );
+  ScannedExpenseData _data = ScannedExpenseData(transactionDate: AppClock.now);
 
   late TextEditingController _checkNumberController;
   late TextEditingController _totalAmountController;
@@ -191,7 +190,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
       setState(() {
         _scannedImageBytes = null;
         _dataExtracted = false;
-        _data = ScannedExpenseData(transactionDate: DateTime.now());
+        _data = ScannedExpenseData(transactionDate: AppClock.now);
         _isRecurringMonthly = false;
         _checkNumberController.text = '';
         _totalAmountController.text = '';
@@ -207,7 +206,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
       context: context,
       initialDate: _data.transactionDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: AppClock.now,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.light(primary: Color(0xFF1A2340)),
@@ -260,7 +259,7 @@ class _ScanExpenseScreenState extends State<ScanExpenseScreen> {
         SnackBar(
           content: Text(
             _isRecurringMonthly
-                ? 'Recurring expense saved through December.'
+                ? 'Recurring expense saved. Future months appear when they start.'
                 : 'Expense saved',
           ),
         ),
@@ -931,7 +930,7 @@ class _RecurringMonthlyOption extends StatelessWidget {
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'This expense repeats until you delete or edit it. The app adds the remaining months of this year now, then on January 1 adds January through December for the new year.',
+                    'This expense repeats until you delete or edit it. Future monthly entries appear only when each new month starts.',
                     style: TextStyle(
                       fontSize: 12,
                       height: 1.35,
