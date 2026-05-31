@@ -6,7 +6,7 @@ import '../../../../services/app_clock.dart';
 import '../../../../services/liability_service.dart';
 import '../../models/budget_data.dart';
 import '../../services/auth_service.dart';
-import '../../widgets/budget_sum_chart.dart';
+import 'budget_sum_chart.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -181,9 +181,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildFeatureCard(
                     icon: Icons.savings_outlined,
                     label: 'RESERVES',
-                    color: const Color.fromARGB(255, 245, 159, 103),
+                    color: const Color.fromARGB(255, 255, 199, 161),
                     iconColor: const Color(0xFF166534),
-                    textColor: const Color.fromARGB(255, 20, 161, 7),
+                    textColor: const Color.fromARGB(255, 12, 99, 4),
                     onTap: () => _openAndRefresh('/reserves'),
                   ),
                   _buildFeatureCard(
@@ -262,13 +262,13 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 32, color: iconColor),
+          Icon(icon, size: 28, color: iconColor),
           const SizedBox(height: 8),
           Text(
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
               color: textColor,
             ),

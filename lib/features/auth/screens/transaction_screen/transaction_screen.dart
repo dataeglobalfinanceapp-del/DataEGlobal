@@ -988,6 +988,10 @@ class _SummaryPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+  final reservesColor = totalReserves > 0
+    ? const Color(0xFF16A34A)
+    : const Color(0xFFFF1744);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1002,8 +1006,8 @@ class _SummaryPanel extends StatelessWidget {
               const Expanded(child: _SummaryLabel(label: 'TOTAL RESERVES')),
               Text(
                 fmtMoney(totalReserves),
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: reservesColor,
                   fontSize: 25,
                   fontWeight: FontWeight.w800,
                 ),
