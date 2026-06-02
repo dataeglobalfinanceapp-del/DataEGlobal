@@ -383,7 +383,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
             if (isRecurringExpense) ...[
               const SizedBox(height: 10),
               const Text(
-                'This will remove every monthly entry in this recurring expense series.',
+                'This will stop the recurring expense starting this month. Previous monthly entries will stay in history.',
                 style: TextStyle(color: Color(0xFFDC2626)),
               ),
             ],
@@ -422,7 +422,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
         content: Text(
           deleted
               ? isRecurringExpense
-                    ? 'Recurring expense series deleted.'
+                    ? 'Recurring expense stopped for future months.'
                     : '${_capitalize(kindLabel)} deleted.'
               : 'Could not find that $kindLabel.',
         ),
@@ -988,9 +988,9 @@ class _SummaryPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-  final reservesColor = totalReserves > 0
-    ? const Color(0xFF16A34A)
-    : const Color(0xFFFF1744);
+    final reservesColor = totalReserves > 0
+        ? const Color(0xFF16A34A)
+        : const Color(0xFFFF1744);
 
     return Container(
       width: double.infinity,

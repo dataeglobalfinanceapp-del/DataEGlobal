@@ -45,18 +45,23 @@ class SaveFutureExpense {
             ..sort((a, b) => a.transactionDate.compareTo(b.transactionDate));
       if (records.isEmpty) continue;
 
-      final template = records.first;
+      final recurringEndMonthKey = _seriesEndMonthKey(records);
       for (final date in _dueMonthlyDates(
-        startDate: template.transactionDate,
+        startDate: records.first.transactionDate,
         now: now,
+        recurringEndMonthKey: recurringEndMonthKey,
       )) {
         if (_hasRecurringOccurrence(seriesId, date.year, date.month)) {
           continue;
         }
 
-        LiabilityService._addExpense(
-          _expenseFromTemplate(template: template, date: date),
+        final expense = _expenseFromTemplate(
+          template: _templateForDate(records, date),
+          date: date,
         );
+        LiabilityService._addExpense(expense);
+        records.add(expense);
+        records.sort((a, b) => a.transactionDate.compareTo(b.transactionDate));
         changed = true;
       }
     }
@@ -95,14 +100,19 @@ class SaveFutureExpense {
   static List<DateTime> _dueMonthlyDates({
     required DateTime startDate,
     required DateTime now,
+    int recurringEndMonthKey = 0,
   }) {
     final startMonth = _monthKey(startDate);
     final currentMonth = _monthKey(now);
-    if (startMonth > currentMonth) return [];
+    final endMonth =
+        recurringEndMonthKey > 0 && recurringEndMonthKey <= currentMonth
+        ? recurringEndMonthKey - 1
+        : currentMonth;
+    if (startMonth > endMonth) return [];
 
     return [
       startDate,
-      for (var monthKey = startMonth + 1; monthKey <= currentMonth; monthKey++)
+      for (var monthKey = startMonth + 1; monthKey <= endMonth; monthKey++)
         _dateFromMonthKey(monthKey),
     ];
   }
@@ -131,8 +141,38 @@ class SaveFutureExpense {
       payee: template.payee,
       isManual: template.isManual,
       recurringSeriesId: template.recurringSeriesId,
-      recurringIndex: _recurringIndex(template.transactionDate, date),
+      recurringIndex:
+          template.recurringIndex +
+          _recurringIndex(template.transactionDate, date),
+      recurringEndMonthKey: template.recurringEndMonthKey,
     );
+  }
+
+  static ExpenseRecord _templateForDate(
+    List<ExpenseRecord> records,
+    DateTime date,
+  ) {
+    final monthKey = _monthKey(date);
+    var template = records.first;
+
+    for (final record in records) {
+      if (_monthKey(record.transactionDate) > monthKey) break;
+      template = record;
+    }
+
+    return template;
+  }
+
+  static int _seriesEndMonthKey(Iterable<ExpenseRecord> records) {
+    var endMonthKey = 0;
+    for (final record in records) {
+      final recordEndMonthKey = record.recurringEndMonthKey;
+      if (recordEndMonthKey <= 0) continue;
+      if (endMonthKey == 0 || recordEndMonthKey < endMonthKey) {
+        endMonthKey = recordEndMonthKey;
+      }
+    }
+    return endMonthKey;
   }
 
   static int _monthKey(DateTime date) => date.year * 12 + date.month;

@@ -182,11 +182,10 @@ class _CategoryPickerSheetState extends State<CategoryPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      clipBehavior: Clip.antiAlias,
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
@@ -217,10 +216,12 @@ class _CategoryPickerSheetState extends State<CategoryPickerSheet> {
                     cat.label,
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w400,
-                      color:
-                          isSelected ? const Color(0xFF1A2340) : Colors.black87,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                      color: isSelected
+                          ? const Color(0xFF1A2340)
+                          : Colors.black87,
                     ),
                   ),
                   trailing: isSelected
@@ -242,8 +243,7 @@ class _CategoryPickerSheetState extends State<CategoryPickerSheet> {
                           height: 22,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border:
-                                Border.all(color: const Color(0xFFCCCCCC)),
+                            border: Border.all(color: const Color(0xFFCCCCCC)),
                           ),
                         ),
                   onTap: () {

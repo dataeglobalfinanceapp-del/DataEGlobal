@@ -12,6 +12,22 @@ class BudgetCategory {
   });
 }
 
+class RecurringExpenseBudgetItem {
+  final String id;
+  final String label;
+  final String category;
+  final double amount;
+  final DateTime transactionDate;
+
+  const RecurringExpenseBudgetItem({
+    required this.id,
+    required this.label,
+    required this.category,
+    required this.amount,
+    required this.transactionDate,
+  });
+}
+
 class BudgetData {
   final double deposit;
   final double expense;
@@ -20,6 +36,7 @@ class BudgetData {
   final int surplusPercent;
   final int utilizationPercent;
   final List<BudgetCategory> categories;
+  final List<RecurringExpenseBudgetItem> recurringExpenses;
 
   const BudgetData({
     this.deposit = 0,
@@ -29,6 +46,7 @@ class BudgetData {
     this.surplusPercent = 0,
     this.utilizationPercent = 0,
     this.categories = const [],
+    this.recurringExpenses = const [],
   });
 
   double get reserve => deposit - expense;

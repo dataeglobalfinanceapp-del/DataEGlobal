@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/budget_data.dart';
+import '../../../../services/liability_service.dart';
 import '../../../../services/local_store_test/local_store.dart';
 import '../../../../services/money_formatter.dart';
 
@@ -96,6 +97,120 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
     await LocalStore.write(
       _targetStorageKey,
       jsonEncode(_targetPercentagesByPeriod),
+    );
+  }
+
+  Future<bool> _updateRecurringExpenseAmount(
+    RecurringExpenseBudgetItem item,
+    double amount,
+  ) async {
+    final updated = await LiabilityService.updateRecurringExpenseAmount(
+      item.id,
+      amount,
+    );
+    if (!mounted) return updated;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          updated
+              ? 'Recurring expense amount updated.'
+              : 'Could not update that recurring expense.',
+        ),
+      ),
+    );
+
+    return updated;
+  }
+
+  Future<void> _showRecurringExpenseActions(
+    RecurringExpenseBudgetItem item,
+  ) async {
+    final action = await showModalBottomSheet<_RecurringExpenseAction>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _RecurringExpenseActionSheet(item: item),
+    );
+    if (!mounted || action == null) return;
+
+    switch (action) {
+      case _RecurringExpenseAction.edit:
+        await _editRecurringExpenseAmount(item);
+        break;
+      case _RecurringExpenseAction.delete:
+        await _confirmDeleteRecurringExpense(item);
+        break;
+    }
+  }
+
+  Future<void> _editRecurringExpenseAmount(
+    RecurringExpenseBudgetItem item,
+  ) async {
+    final amount = await showDialog<double>(
+      context: context,
+      builder: (context) => _EditRecurringExpenseDialog(item: item),
+    );
+
+    if (amount == null) return;
+    await _updateRecurringExpenseAmount(item, amount);
+  }
+
+  Future<void> _confirmDeleteRecurringExpense(
+    RecurringExpenseBudgetItem item,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete recurring expense?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              item.label,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            Text('${item.category} | ${_fmtMoney(item.amount)}'),
+            const SizedBox(height: 10),
+            Text(
+              'This stops the recurring expense starting ${_fmtMonth(item.transactionDate)}. Previous months stay in budget history.',
+              style: const TextStyle(color: Color(0xFF6B7280)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final deleted = await LiabilityService.deleteRecurringExpenseFromMonth(
+      item.id,
+      item.transactionDate,
+    );
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          deleted
+              ? 'Recurring expense stopped starting ${_fmtMonth(item.transactionDate)}.'
+              : 'Could not find that recurring expense.',
+        ),
+      ),
     );
   }
 
@@ -197,6 +312,31 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
                 onTargetChanged: (value) => _updateTarget(segment.label, value),
               ),
             ),
+            if (widget.data.recurringExpenses.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              const Divider(height: 16, color: Color(0xFFE5E7EB)),
+              const Row(
+                children: [
+                  Icon(Icons.repeat, size: 15, color: Color(0xFF0F766E)),
+                  SizedBox(width: 6),
+                  Text(
+                    'Recurring expenses',
+                    style: TextStyle(
+                      color: Color(0xFF111827),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ...widget.data.recurringExpenses.map(
+                (item) => _RecurringExpenseRow(
+                  item: item,
+                  onEditTap: () => _showRecurringExpenseActions(item),
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
           ],
         ),
@@ -583,6 +723,290 @@ class _BreakdownRow extends StatelessWidget {
   }
 }
 
+class _EditRecurringExpenseDialog extends StatefulWidget {
+  final RecurringExpenseBudgetItem item;
+
+  const _EditRecurringExpenseDialog({required this.item});
+
+  @override
+  State<_EditRecurringExpenseDialog> createState() =>
+      _EditRecurringExpenseDialogState();
+}
+
+class _EditRecurringExpenseDialogState
+    extends State<_EditRecurringExpenseDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: formatMoney(widget.item.amount, symbol: false),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    if (_formKey.currentState?.validate() != true) return;
+    Navigator.pop(context, parseMoney(_controller.text));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit recurring expense'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.item.label,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              widget.item.category,
+              style: const TextStyle(color: Color(0xFF6B7280)),
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _controller,
+              autofocus: true,
+              textAlign: TextAlign.right,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+              ],
+              decoration: const InputDecoration(
+                labelText: 'Amount',
+                prefixText: r'$',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                final amount = parseMoney(value ?? '');
+                if (amount <= 0) return 'Enter an amount greater than 0';
+                return null;
+              },
+              onFieldSubmitted: (_) => _save(),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _save, child: const Text('Save')),
+      ],
+    );
+  }
+}
+
+enum _RecurringExpenseAction { edit, delete }
+
+class _RecurringExpenseActionSheet extends StatelessWidget {
+  final RecurringExpenseBudgetItem item;
+
+  const _RecurringExpenseActionSheet({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFD1D5DB),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0F2F1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.repeat,
+                      color: Color(0xFF0F766E),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF111827),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${item.category} | ${_fmtMoney(item.amount)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.edit_outlined,
+                color: Color(0xFF2563EB),
+              ),
+              title: const Text('Edit recurring expense'),
+              subtitle: const Text('Update the amount'),
+              onTap: () => Navigator.pop(context, _RecurringExpenseAction.edit),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.delete_outline,
+                color: Color(0xFFDC2626),
+              ),
+              title: const Text('Delete recurring expense'),
+              subtitle: Text(
+                'Stop starting ${_fmtMonth(item.transactionDate)}',
+              ),
+              onTap: () =>
+                  Navigator.pop(context, _RecurringExpenseAction.delete),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecurringExpenseRow extends StatelessWidget {
+  final RecurringExpenseBudgetItem item;
+  final VoidCallback onEditTap;
+
+  const _RecurringExpenseRow({required this.item, required this.onEditTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final item = this.item;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE0F2F1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(Icons.repeat, size: 15, color: Color(0xFF0F766E)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF111827),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  item.category,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 92,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                _fmtMoney(item.amount),
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  color: Color(0xFF111827),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          SizedBox.square(
+            dimension: 32,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              tooltip: 'Edit recurring expense',
+              icon: const Icon(
+                Icons.edit_outlined,
+                size: 18,
+                color: Color(0xFF2563EB),
+              ),
+              onPressed: onEditTap,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BudgetSegment {
   final String label;
   final double amount;
@@ -603,3 +1027,21 @@ String _fmtPercent(double value) {
   if (value == value.roundToDouble()) return value.round().toString();
   return value.toStringAsFixed(1);
 }
+
+String _fmtMonth(DateTime date) => '${_monthNames[date.month]} ${date.year}';
+
+const _monthNames = [
+  '',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];

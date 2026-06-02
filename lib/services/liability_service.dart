@@ -19,6 +19,7 @@ class LiabilityService {
 
   static int _idCounter = 0;
   static bool _loaded = false;
+  static bool _disablePersistenceForTesting = false;
   static final ValueNotifier<int> _dataVersion = ValueNotifier<int>(0);
 
   static ValueListenable<int> get dataVersion => _dataVersion;
@@ -94,20 +95,12 @@ class LiabilityService {
 
   static void _addExpense(ExpenseRecord expense) {
     _expenses.add(expense);
+    _addExpenseLiability(expense);
+  }
 
+  static void _addExpenseLiability(ExpenseRecord expense) {
     if (expense.category == 'Loan Obligation') {
-      _liabilities.add(
-        LiabilityRecord(
-          id: _newId('liability-${expense.id}'),
-          tab: LiabilityTab.debt,
-          name: expense.payee.isEmpty ? 'Loan obligation' : expense.payee,
-          date: expense.transactionDate,
-          starting: expense.totalAmount,
-          minimum: expense.totalAmount,
-          percent: 0,
-          source: 'expense:${expense.id}',
-        ),
-      );
+      _liabilities.add(_liabilityFromExpense(expense));
     }
   }
 
@@ -129,29 +122,150 @@ class LiabilityService {
     if (matching.isEmpty) return false;
 
     final expense = matching.first;
-    final expensesToDelete = expense.isRecurring
-        ? _expenses
-              .where(
-                (record) =>
-                    record.recurringSeriesId == expense.recurringSeriesId,
-              )
-              .toList()
-        : matching;
+    if (expense.isRecurring) {
+      return _stopRecurringExpenseFromMonth(expense, AppClock.now);
+    }
+
+    final expensesToDelete = matching;
     final expenseIds = expensesToDelete.map((record) => record.id).toSet();
 
     _expenses.removeWhere((record) => expenseIds.contains(record.id));
-    _liabilities.removeWhere(
-      (record) =>
-          expenseIds.any(
-            (expenseId) => record.source == 'expense:$expenseId',
-          ) ||
-          expensesToDelete.any(
-            (expense) => _isLegacyExpenseLiability(record, expense),
-          ),
-    );
+    _removeExpenseLiabilities(expensesToDelete);
     await _persist();
     _notifyDataChanged();
     return true;
+  }
+
+  static Future<bool> deleteRecurringExpenseFromMonth(
+    String id,
+    DateTime month,
+  ) async {
+    await _ensureLoaded();
+    final matching = _expenses.where((record) => record.id == id).toList();
+    if (matching.isEmpty) return false;
+
+    final expense = matching.first;
+    if (!expense.isRecurring) return false;
+
+    return _stopRecurringExpenseFromMonth(expense, month);
+  }
+
+  static Future<bool> updateRecurringExpenseAmount(
+    String id,
+    double amount,
+  ) async {
+    if (amount <= 0) return false;
+
+    await _ensureLoaded();
+    final matching = _expenses.where((record) => record.id == id).toList();
+    if (matching.isEmpty) return false;
+
+    final expense = matching.first;
+    if (!expense.isRecurring) return false;
+
+    final editMonthKey = SaveFutureExpense._monthKey(AppClock.now);
+    final seriesRecords = _expenses
+        .where(
+          (record) => record.recurringSeriesId == expense.recurringSeriesId,
+        )
+        .toList();
+    final endMonthKey = SaveFutureExpense._seriesEndMonthKey(seriesRecords);
+    if (endMonthKey > 0 && editMonthKey >= endMonthKey) return false;
+
+    final expensesToUpdate = seriesRecords
+        .where(
+          (record) =>
+              SaveFutureExpense._monthKey(record.transactionDate) >=
+                  editMonthKey &&
+              (endMonthKey == 0 ||
+                  SaveFutureExpense._monthKey(record.transactionDate) <
+                      endMonthKey),
+        )
+        .toList();
+    if (expensesToUpdate.isEmpty) return false;
+    if (expensesToUpdate.every((record) => record.totalAmount == amount)) {
+      return true;
+    }
+
+    final expenseIds = expensesToUpdate.map((record) => record.id).toSet();
+    _removeExpenseLiabilities(expensesToUpdate);
+
+    for (var index = 0; index < _expenses.length; index++) {
+      final record = _expenses[index];
+      if (!expenseIds.contains(record.id)) continue;
+      final updated = record.copyWith(totalAmount: amount);
+      _expenses[index] = updated;
+      _addExpenseLiability(updated);
+    }
+
+    await _persist();
+    _notifyDataChanged();
+    return true;
+  }
+
+  static Future<bool> _stopRecurringExpenseFromMonth(
+    ExpenseRecord expense,
+    DateTime month,
+  ) async {
+    final deleteMonthKey = SaveFutureExpense._monthKey(month);
+    final seriesRecords = _expenses
+        .where(
+          (record) => record.recurringSeriesId == expense.recurringSeriesId,
+        )
+        .toList();
+    final expensesToDelete = seriesRecords
+        .where(
+          (record) =>
+              SaveFutureExpense._monthKey(record.transactionDate) >=
+              deleteMonthKey,
+        )
+        .toList();
+    final retainedExpenseIds = seriesRecords
+        .where(
+          (record) =>
+              SaveFutureExpense._monthKey(record.transactionDate) <
+              deleteMonthKey,
+        )
+        .map((record) => record.id)
+        .toSet();
+    final retainedEndMonthChanged = seriesRecords.any(
+      (record) =>
+          retainedExpenseIds.contains(record.id) &&
+          _earlierRecurringEndMonthKey(
+                record.recurringEndMonthKey,
+                deleteMonthKey,
+              ) !=
+              record.recurringEndMonthKey,
+    );
+
+    if (expensesToDelete.isEmpty && !retainedEndMonthChanged) return true;
+
+    final expenseIdsToDelete = expensesToDelete
+        .map((record) => record.id)
+        .toSet();
+    _expenses.removeWhere((record) => expenseIdsToDelete.contains(record.id));
+    _removeExpenseLiabilities(expensesToDelete);
+
+    for (var index = 0; index < _expenses.length; index++) {
+      final record = _expenses[index];
+      if (!retainedExpenseIds.contains(record.id)) continue;
+      _expenses[index] = record.copyWith(
+        recurringEndMonthKey: _earlierRecurringEndMonthKey(
+          record.recurringEndMonthKey,
+          deleteMonthKey,
+        ),
+      );
+    }
+
+    await _persist();
+    _notifyDataChanged();
+    return true;
+  }
+
+  static int _earlierRecurringEndMonthKey(int current, int candidate) {
+    if (current <= 0) return candidate;
+    if (candidate <= 0) return current;
+    return current < candidate ? current : candidate;
   }
 
   static Future<void> saveLiability({
@@ -204,9 +318,11 @@ class LiabilityService {
     final deposits = _deposits.where(
       (record) => _isInRange(record.transactionDate, startDate, endDate),
     );
-    final expenses = _expenses.where(
-      (record) => _isInRange(record.transactionDate, startDate, endDate),
-    );
+    final expenses = _expenses
+        .where(
+          (record) => _isInRange(record.transactionDate, startDate, endDate),
+        )
+        .toList();
 
     final depositTotal = deposits.fold<double>(
       0,
@@ -253,6 +369,7 @@ class LiabilityService {
       surplusPercent: surplus,
       utilizationPercent: utilization,
       categories: categories,
+      recurringExpenses: _recurringExpenseBudgetItems(expenses),
     );
   }
 
@@ -312,6 +429,17 @@ class LiabilityService {
     );
   }
 
+  @visibleForTesting
+  static void resetForTesting({bool disablePersistence = true}) {
+    _deposits.clear();
+    _expenses.clear();
+    _liabilities.clear();
+    _idCounter = 0;
+    _loaded = true;
+    _disablePersistenceForTesting = disablePersistence;
+    _notifyDataChanged();
+  }
+
   static Future<void> _ensureLoaded() async {
     if (_loaded) {
       final changed = SaveFutureExpense.syncDueMonthlyExpenses(AppClock.now);
@@ -356,6 +484,8 @@ class LiabilityService {
   }
 
   static Future<void> _persist() async {
+    if (_disablePersistenceForTesting) return;
+
     final payload = jsonEncode({
       'deposits': _deposits.map((record) => record.toJson()).toList(),
       'expenses': _expenses.map((record) => record.toJson()).toList(),
@@ -380,6 +510,46 @@ class LiabilityService {
     return !date.isBefore(first) && !date.isAfter(last);
   }
 
+  static List<RecurringExpenseBudgetItem> _recurringExpenseBudgetItems(
+    List<ExpenseRecord> expenses,
+  ) {
+    final currentMonthKey = SaveFutureExpense._monthKey(AppClock.now);
+    final bySeries = <String, List<ExpenseRecord>>{};
+
+    for (final expense in expenses) {
+      if (!expense.isRecurring) continue;
+      if (expense.recurringEndMonthKey > 0 &&
+          currentMonthKey >= expense.recurringEndMonthKey) {
+        continue;
+      }
+      bySeries
+          .putIfAbsent(expense.recurringSeriesId, () => <ExpenseRecord>[])
+          .add(expense);
+    }
+
+    final items = <RecurringExpenseBudgetItem>[];
+    for (final records in bySeries.values) {
+      records.sort((a, b) => a.transactionDate.compareTo(b.transactionDate));
+      final latest = records.last;
+      items.add(
+        RecurringExpenseBudgetItem(
+          id: latest.id,
+          label: latest.payee.trim().isEmpty
+              ? latest.category
+              : latest.payee.trim(),
+          category: latest.category,
+          amount: latest.totalAmount,
+          transactionDate: latest.transactionDate,
+        ),
+      );
+    }
+
+    items.sort(
+      (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()),
+    );
+    return items;
+  }
+
   static String _newId(String prefix) =>
       '$prefix-${AppClock.now.microsecondsSinceEpoch}-${_idCounter++}';
 
@@ -399,6 +569,34 @@ class LiabilityService {
         liability.date.month == expense.transactionDate.month &&
         liability.date.day == expense.transactionDate.day &&
         liability.starting == expense.totalAmount;
+  }
+
+  static void _removeExpenseLiabilities(Iterable<ExpenseRecord> expenses) {
+    final expenseList = expenses.toList();
+    final expenseIds = expenseList.map((record) => record.id).toSet();
+
+    _liabilities.removeWhere(
+      (record) =>
+          expenseIds.any(
+            (expenseId) => record.source == 'expense:$expenseId',
+          ) ||
+          expenseList.any(
+            (expense) => _isLegacyExpenseLiability(record, expense),
+          ),
+    );
+  }
+
+  static LiabilityRecord _liabilityFromExpense(ExpenseRecord expense) {
+    return LiabilityRecord(
+      id: _newId('liability-${expense.id}'),
+      tab: LiabilityTab.debt,
+      name: expense.payee.isEmpty ? 'Loan obligation' : expense.payee,
+      date: expense.transactionDate,
+      starting: expense.totalAmount,
+      minimum: expense.totalAmount,
+      percent: 0,
+      source: 'expense:${expense.id}',
+    );
   }
 
   static Color _categoryColor(String category) {
@@ -477,6 +675,7 @@ class ExpenseRecord {
   final bool isManual;
   final String recurringSeriesId;
   final int recurringIndex;
+  final int recurringEndMonthKey;
 
   const ExpenseRecord({
     required this.id,
@@ -488,6 +687,7 @@ class ExpenseRecord {
     required this.isManual,
     this.recurringSeriesId = '',
     this.recurringIndex = 0,
+    this.recurringEndMonthKey = 0,
   });
 
   factory ExpenseRecord.fromJson(Map<String, dynamic> json) {
@@ -501,10 +701,26 @@ class ExpenseRecord {
       isManual: json['isManual'] == true,
       recurringSeriesId: _asString(json['recurringSeriesId']),
       recurringIndex: _asInt(json['recurringIndex']),
+      recurringEndMonthKey: _asInt(json['recurringEndMonthKey']),
     );
   }
 
   bool get isRecurring => recurringSeriesId.isNotEmpty;
+
+  ExpenseRecord copyWith({double? totalAmount, int? recurringEndMonthKey}) {
+    return ExpenseRecord(
+      id: id,
+      checkNumber: checkNumber,
+      totalAmount: totalAmount ?? this.totalAmount,
+      transactionDate: transactionDate,
+      category: category,
+      payee: payee,
+      isManual: isManual,
+      recurringSeriesId: recurringSeriesId,
+      recurringIndex: recurringIndex,
+      recurringEndMonthKey: recurringEndMonthKey ?? this.recurringEndMonthKey,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -516,6 +732,7 @@ class ExpenseRecord {
     'isManual': isManual,
     'recurringSeriesId': recurringSeriesId,
     'recurringIndex': recurringIndex,
+    'recurringEndMonthKey': recurringEndMonthKey,
   };
 }
 
