@@ -176,6 +176,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: Icons.receipt,
                     label: 'TRANSACTION',
                     color: const Color(0xFFE0F2FE),
+                    metricValue: _isLoadingBudget
+                        ? '...'
+                        : _budgetData.transactionCount.toString(),
+                    metricLabel:
+                        '$_selectedPeriod ${_transactionLabel(_budgetData.transactionCount)}',
                     onTap: () => _openAndRefresh('/transactions'),
                   ),
                   _buildFeatureCard(
@@ -252,9 +257,13 @@ class _HomeScreenState extends State<HomeScreen> {
     required Color color,
     Color iconColor = const Color(0xFF1E40AF),
     Color textColor = Colors.black87,
+    String? metricValue,
+    String? metricLabel,
     VoidCallback? onTap,
   }) {
+    final hasMetric = metricValue != null && metricValue.trim().isNotEmpty;
     final card = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(16),
@@ -262,17 +271,48 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 28, color: iconColor),
-          const SizedBox(height: 8),
+          Icon(icon, size: hasMetric ? 24 : 28, color: iconColor),
+          SizedBox(height: hasMetric ? 6 : 8),
           Text(
             label,
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: textColor,
             ),
           ),
+          if (hasMetric) ...[
+            const SizedBox(height: 5),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                metricValue,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: textColor,
+                ),
+              ),
+            ),
+            if (metricLabel != null && metricLabel.trim().isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                metricLabel,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: textColor.withValues(alpha: 0.68),
+                ),
+              ),
+            ],
+          ],
         ],
       ),
     );
@@ -285,5 +325,9 @@ class _HomeScreenState extends State<HomeScreen> {
   String _formatDate(DateTime date) {
     return '${date.month.toString().padLeft(2, '0')}/'
         '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String _transactionLabel(int count) {
+    return count == 1 ? 'transaction' : 'transactions';
   }
 }

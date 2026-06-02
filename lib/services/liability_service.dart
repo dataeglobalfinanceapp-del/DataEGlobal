@@ -315,9 +315,11 @@ class LiabilityService {
   }) async {
     await _ensureLoaded();
 
-    final deposits = _deposits.where(
-      (record) => _isInRange(record.transactionDate, startDate, endDate),
-    );
+    final deposits = _deposits
+        .where(
+          (record) => _isInRange(record.transactionDate, startDate, endDate),
+        )
+        .toList();
     final expenses = _expenses
         .where(
           (record) => _isInRange(record.transactionDate, startDate, endDate),
@@ -368,6 +370,7 @@ class LiabilityService {
       period: period,
       surplusPercent: surplus,
       utilizationPercent: utilization,
+      transactionCount: deposits.length + expenses.length,
       categories: categories,
       recurringExpenses: _recurringExpenseBudgetItems(expenses),
     );

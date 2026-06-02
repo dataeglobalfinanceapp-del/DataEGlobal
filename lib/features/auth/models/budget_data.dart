@@ -35,6 +35,7 @@ class BudgetData {
   final String period;
   final int surplusPercent;
   final int utilizationPercent;
+  final int transactionCount;
   final List<BudgetCategory> categories;
   final List<RecurringExpenseBudgetItem> recurringExpenses;
 
@@ -45,6 +46,7 @@ class BudgetData {
     this.period = '',
     this.surplusPercent = 0,
     this.utilizationPercent = 0,
+    this.transactionCount = 0,
     this.categories = const [],
     this.recurringExpenses = const [],
   });

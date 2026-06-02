@@ -133,6 +133,43 @@ void main() {
       );
     },
   );
+
+  test('budget data includes transaction count for selected range', () async {
+    await LiabilityService.saveDeposit(
+      orderNumber: 'd1',
+      totalAmount: 100,
+      creditDebt: 100,
+      cash: 0,
+      giftCard: 0,
+      other: 0,
+      transactionDate: DateTime(2026, 6, 12),
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'e1',
+      totalAmount: 40,
+      transactionDate: DateTime(2026, 6, 13),
+      category: 'Fuel',
+      payee: 'Fuel',
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'e2',
+      totalAmount: 80,
+      transactionDate: DateTime(2026, 5, 1),
+      category: 'Rent',
+      payee: 'Rent',
+      isManual: true,
+    );
+
+    final data = await LiabilityService.loadBudgetData(
+      startDate: DateTime(2026, 6, 9),
+      endDate: DateTime(2026, 6, 15),
+      period: 'Week',
+    );
+
+    expect(data.transactionCount, 2);
+  });
 }
 
 List<int> _months(List<ExpenseRecord> expenses) {
