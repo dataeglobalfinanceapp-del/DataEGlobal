@@ -211,279 +211,284 @@ class _SignUpScreenState extends State<SignUpScreen> {
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const SizedBox(height: 8),
+        child: AuthFocusTraversal(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              children: [
+                const SizedBox(height: 8),
 
-              // ── Logo ──────────────────────────────────────────────────────
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A2340),
-                  borderRadius: BorderRadius.circular(14),
+                // ── Logo ──────────────────────────────────────────────────────
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A2340),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.account_balance,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.account_balance,
-                  color: Colors.white,
-                  size: 28,
+                const SizedBox(height: 12),
+                const Text(
+                  'Savings Teps',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A2340),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Savings Teps',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A2340),
+                const SizedBox(height: 4),
+                const Text(
+                  'Create your executive account',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF888888)),
                 ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Create your executive account',
-                style: TextStyle(fontSize: 13, color: Color(0xFF888888)),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // ── Tab bar ───────────────────────────────────────────────────
-              AuthTabBar(
-                activeTab: AuthTab.signup,
-                onLoginTap: () =>
-                    Navigator.pushReplacementNamed(context, '/login'),
-              ),
-              const SizedBox(height: 20),
+                // ── Tab bar ───────────────────────────────────────────────────
+                AuthTabBar(
+                  activeTab: AuthTab.signup,
+                  onLoginTap: () =>
+                      Navigator.pushReplacementNamed(context, '/login'),
+                ),
+                const SizedBox(height: 20),
 
-              // ── Error banner ──────────────────────────────────────────────
-              if (_errors.isNotEmpty) ...[
-                AuthErrorBanner(errors: _errors),
+                // ── Error banner ──────────────────────────────────────────────
+                if (_errors.isNotEmpty) ...[
+                  AuthErrorBanner(errors: _errors),
+                  const SizedBox(height: 16),
+                ],
+
+                // ── Full name ─────────────────────────────────────────────────
+                AuthFieldLabel(text: 'FULL NAME', required: true),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: authFieldDecoration(
+                    hint: 'e.g: Sunny',
+                    invalid: _nameInvalid,
+                  ),
+                ),
                 const SizedBox(height: 16),
-              ],
 
-              // ── Full name ─────────────────────────────────────────────────
-              AuthFieldLabel(text: 'FULL NAME', required: true),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _nameController,
-                textCapitalization: TextCapitalization.words,
-                decoration: authFieldDecoration(
-                  hint: 'e.g: Sunny',
-                  invalid: _nameInvalid,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ── Email ─────────────────────────────────────────────────────
-              AuthFieldLabel(text: 'EMAIL', required: true),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                decoration: authFieldDecoration(
-                  hint: 'e.g: sunny@gmail.com',
-                  invalid: _emailInvalid,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ── Phone ─────────────────────────────────────────────────────
-              AuthFieldLabel(text: 'PHONE', required: true),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  // Country code picker
-                  GestureDetector(
-                    onTap: _pickCountryCode,
-                    child: Container(
-                      height: 50,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: _phoneInvalid
-                              ? const Color(0xFFEF4444)
-                              : const Color(0xFFE0E0E0),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _countryCode,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF222222),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.keyboard_arrow_down,
-                            size: 18,
-                            color: Color(0xFF888888),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: authFieldDecoration(
-                        hint: '23456788889',
-                        invalid: _phoneInvalid,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // ── Password ──────────────────────────────────────────────────
-              AuthFieldLabel(text: 'PASSWORD', required: true),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                decoration: authFieldDecoration(
-                  hint: '••••••••••••',
-                  invalid: _passwordInvalid,
-                  suffix: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      color: Colors.grey,
-                      size: 20,
-                    ),
-                    onPressed: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
+                // ── Email ─────────────────────────────────────────────────────
+                AuthFieldLabel(text: 'EMAIL', required: true),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  decoration: authFieldDecoration(
+                    hint: 'e.g: sunny@gmail.com',
+                    invalid: _emailInvalid,
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // ── Confirm password ──────────────────────────────────────────
-              AuthFieldLabel(text: 'CONFIRM PASSWORD', required: true),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _confirmController,
-                obscureText: _obscureConfirm,
-                decoration: authFieldDecoration(
-                  hint: '••••••••••••',
-                  invalid: _confirmInvalid,
-                  suffix: IconButton(
-                    icon: Icon(
-                      _obscureConfirm
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      color: Colors.grey,
-                      size: 20,
-                    ),
-                    onPressed: () =>
-                        setState(() => _obscureConfirm = !_obscureConfirm),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ── Terms checkbox ────────────────────────────────────────────
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Checkbox(
-                    value: _agreedToTerms,
-                    onChanged: (v) =>
-                        setState(() => _agreedToTerms = v ?? false),
-                    activeColor: const Color(0xFF1A2340),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Text(
-                        'I have read and agree to the terms and conditions',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF555555),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // ── Sign Up button ────────────────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _signUp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A2340),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Sign Up',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ── Login link ────────────────────────────────────────────────
-              RichText(
-                text: TextSpan(
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF555555),
-                  ),
+                // ── Phone ─────────────────────────────────────────────────────
+                AuthFieldLabel(text: 'PHONE', required: true),
+                const SizedBox(height: 6),
+                Row(
                   children: [
-                    const TextSpan(text: 'Already have an account. '),
-                    WidgetSpan(
-                      child: GestureDetector(
-                        onTap: () =>
-                            Navigator.pushReplacementNamed(context, '/login'),
-                        child: const Text(
-                          'Log in',
+                    // Country code picker
+                    GestureDetector(
+                      onTap: _pickCountryCode,
+                      child: Container(
+                        height: 50,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _phoneInvalid
+                                ? const Color(0xFFEF4444)
+                                : const Color(0xFFE0E0E0),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _countryCode,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF222222),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.keyboard_arrow_down,
+                              size: 18,
+                              color: Color(0xFF888888),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        decoration: authFieldDecoration(
+                          hint: '23456788889',
+                          invalid: _phoneInvalid,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // ── Password ──────────────────────────────────────────────────
+                AuthFieldLabel(text: 'PASSWORD', required: true),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: authFieldDecoration(
+                    hint: '••••••••••••',
+                    invalid: _passwordInvalid,
+                    suffix: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: Colors.grey,
+                        size: 20,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Confirm password ──────────────────────────────────────────
+                AuthFieldLabel(text: 'CONFIRM PASSWORD', required: true),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _confirmController,
+                  obscureText: _obscureConfirm,
+                  decoration: authFieldDecoration(
+                    hint: '••••••••••••',
+                    invalid: _confirmInvalid,
+                    suffix: IconButton(
+                      icon: Icon(
+                        _obscureConfirm
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: Colors.grey,
+                        size: 20,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscureConfirm = !_obscureConfirm),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Terms checkbox ────────────────────────────────────────────
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      value: _agreedToTerms,
+                      onChanged: (v) =>
+                          setState(() => _agreedToTerms = v ?? false),
+                      activeColor: const Color(0xFF1A2340),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Text(
+                          'I have read and agree to the terms and conditions',
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A2340),
-                            decoration: TextDecoration.underline,
+                            color: Color(0xFF555555),
                           ),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 32),
-            ],
+                const SizedBox(height: 20),
+
+                // ── Sign Up button ────────────────────────────────────────────
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _signUp,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A2340),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: _loading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Sign Up',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Login link ────────────────────────────────────────────────
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF555555),
+                    ),
+                    children: [
+                      const TextSpan(text: 'Already have an account. '),
+                      WidgetSpan(
+                        child: GestureDetector(
+                          onTap: () =>
+                              Navigator.pushReplacementNamed(context, '/login'),
+                          child: const Text(
+                            'Log in',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1A2340),
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),

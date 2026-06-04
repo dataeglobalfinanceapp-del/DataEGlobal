@@ -2,6 +2,20 @@ import 'package:flutter/material.dart';
 
 enum AuthTab { login, signup }
 
+class AuthFocusTraversal extends StatelessWidget {
+  final Widget child;
+
+  const AuthFocusTraversal({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return FocusTraversalGroup(
+      policy: WidgetOrderTraversalPolicy(),
+      child: child,
+    );
+  }
+}
+
 InputDecoration authFieldDecoration({
   required String hint,
   bool invalid = false,

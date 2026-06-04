@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/auth_widgets.dart';
 
 class ConfirmSignUpArguments {
   final String email;
@@ -78,37 +79,41 @@ class _ConfirmSignUpScreenState extends State<ConfirmSignUpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Verify email')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('A verification code was sent to ${widget.email}'),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _codeController,
-              decoration: const InputDecoration(labelText: 'Verification code'),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _confirm,
-                child: _loading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Verify'),
+      body: AuthFocusTraversal(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('A verification code was sent to ${widget.email}'),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _codeController,
+                decoration: const InputDecoration(
+                  labelText: 'Verification code',
+                ),
+                keyboardType: TextInputType.number,
               ),
-            ),
-            TextButton(
-              onPressed: _resending ? null : _resendCode,
-              child: Text(_resending ? 'Resending...' : 'Resend code'),
-            ),
-          ],
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _confirm,
+                  child: _loading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Verify'),
+                ),
+              ),
+              TextButton(
+                onPressed: _resending ? null : _resendCode,
+                child: Text(_resending ? 'Resending...' : 'Resend code'),
+              ),
+            ],
+          ),
         ),
       ),
     );
