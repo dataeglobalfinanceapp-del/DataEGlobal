@@ -117,9 +117,9 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isScanning = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to capture image: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to capture image: $e')));
       }
     }
   }
@@ -140,14 +140,14 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
 
   void _syncControllers(ScannedDepositData data) {
     _orderNumberController.text = data.orderNumber;
-    _creditDebtController.text =
-        data.creditDebt > 0 ? data.creditDebt.toStringAsFixed(2) : '';
-    _cashController.text =
-        data.cash > 0 ? data.cash.toStringAsFixed(2) : '';
-    _giftCardController.text =
-        data.giftCard > 0 ? data.giftCard.toStringAsFixed(2) : '';
-    _otherController.text =
-        data.other > 0 ? data.other.toStringAsFixed(2) : '';
+    _creditDebtController.text = data.creditDebt > 0
+        ? data.creditDebt.toStringAsFixed(2)
+        : '';
+    _cashController.text = data.cash > 0 ? data.cash.toStringAsFixed(2) : '';
+    _giftCardController.text = data.giftCard > 0
+        ? data.giftCard.toStringAsFixed(2)
+        : '';
+    _otherController.text = data.other > 0 ? data.other.toStringAsFixed(2) : '';
     _updateTotalAmount();
   }
 
@@ -242,13 +242,15 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
         isManual: false,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Deposit saved ✓')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Deposit saved ✓')));
       Navigator.pop(context, updatedData);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Save failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -446,59 +448,53 @@ class _ScannerArea extends StatelessWidget {
                 ),
               )
             : imageBytes != null
-                ? SizedBox(
-                    width: double.infinity,
-                    height: 220,
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: Image.memory(imageBytes!, fit: BoxFit.cover),
-                        ),
-                        Positioned.fill(
-                          child: ColoredBox(
-                            color: Colors.black.withValues(alpha: 0.1),
-                          ),
-                        ),
-                      ],
+            ? SizedBox(
+                width: double.infinity,
+                height: 220,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Image.memory(imageBytes!, fit: BoxFit.cover),
                     ),
-                  )
-                : GestureDetector(
-                    onTap: onTap,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0F0F0),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.document_scanner_outlined,
-                            size: 36,
-                            color: Color(0xFF888888),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Tap to scan receipt',
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Color(0xFF888888),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Or use the ⚡ icon above',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFFAAAAAA),
-                          ),
-                        ),
-                      ],
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.1),
+                      ),
                     ),
-                  ),
+                  ],
+                ),
+              )
+            : GestureDetector(
+                onTap: onTap,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F0F0),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.document_scanner_outlined,
+                        size: 36,
+                        color: Color(0xFF888888),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Tap to scan receipt',
+                      style: TextStyle(fontSize: 15, color: Color(0xFF888888)),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Or use the ⚡ icon above',
+                      style: TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
+                    ),
+                  ],
+                ),
+              ),
       ),
     );
   }

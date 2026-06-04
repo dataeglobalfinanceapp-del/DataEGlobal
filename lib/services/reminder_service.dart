@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import 'app_clock.dart';
 import '../services/local_store_test/local_store.dart';
 
@@ -15,6 +17,7 @@ class ReminderService {
   static final Set<String> _deletedRecurringKeys = {};
   static int _idCounter = 0;
   static bool _loaded = false;
+  static bool _disablePersistenceForTesting = false;
 
   static Future<List<ReminderRecord>> loadReminders() async {
     await _ensureLoaded();
@@ -140,6 +143,16 @@ class ReminderService {
     await _persist();
   }
 
+  @visibleForTesting
+  static void resetForTesting({bool disablePersistence = true}) {
+    _reminders.clear();
+    _series.clear();
+    _deletedRecurringKeys.clear();
+    _idCounter = 0;
+    _loaded = disablePersistence;
+    _disablePersistenceForTesting = disablePersistence;
+  }
+
   static Future<void> _ensureLoaded() async {
     if (_loaded) {
       final changed = _syncRecurringReminders(AppClock.now);
@@ -194,6 +207,8 @@ class ReminderService {
   }
 
   static Future<void> _persist() async {
+    if (_disablePersistenceForTesting) return;
+
     final payload = jsonEncode({
       'reminders': _reminders.map((record) => record.toJson()).toList(),
       'series': _series.values.map((record) => record.toJson()).toList(),

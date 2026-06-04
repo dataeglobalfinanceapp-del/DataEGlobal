@@ -11,7 +11,7 @@ void main() {
 
   tearDown(() {
     AppClock.reset();
-    LiabilityService.resetForTesting();
+    LiabilityService.resetForTesting(disablePersistence: false);
   });
 
   test(

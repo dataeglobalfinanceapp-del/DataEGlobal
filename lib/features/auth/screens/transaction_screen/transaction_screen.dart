@@ -43,7 +43,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
 
     final String? selected = await showModalBottomSheet<String?>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: _TransactionTokens.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -139,7 +139,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
   Future<_ExportRange?> _chooseExportRange(String actionLabel) async {
     final _ExportPeriod? period = await showModalBottomSheet<_ExportPeriod>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: _TransactionTokens.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -317,22 +317,18 @@ class _TransactionScreenState extends State<TransactionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: _TransactionTokens.screenBackground,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: _TransactionTokens.surface,
         elevation: 0,
-        title: const Text(
-          'Transaction',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 17,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        title: const Text('Transaction', style: _TransactionTokens.appBarTitle),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.bar_chart, color: Color(0xFF1E40AF)),
+            icon: const Icon(
+              Icons.bar_chart,
+              color: _TransactionTokens.primaryBlue,
+            ),
             onPressed: _controller.loadTransactions,
             tooltip: 'Refresh',
           ),

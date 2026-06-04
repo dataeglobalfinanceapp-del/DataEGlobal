@@ -39,7 +39,7 @@ class _ReminderList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+      padding: _ReminderTokens.pagePadding,
       itemCount: state.entries.length + 1,
       itemBuilder: (BuildContext context, int index) {
         if (index == 0) {
@@ -105,24 +105,12 @@ class _ReminderSectionHeader extends StatelessWidget {
         const Expanded(
           child: Text(
             'PAYMENT OBLIGATIONS',
-            style: TextStyle(
-              color: Color(0xFF6B7280),
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.3,
-            ),
+            style: _ReminderTokens.sectionLabel,
           ),
         ),
         TextButton(
           onPressed: () {},
-          child: const Text(
-            'View all',
-            style: TextStyle(
-              color: Color(0xFFF59E0B),
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          child: const Text('View all', style: _ReminderTokens.viewAllLabel),
         ),
       ],
     );
@@ -151,7 +139,7 @@ class _MonthHeader extends StatelessWidget {
         ),
         Text(
           '${_monthNames[visibleMonth.month]} ${visibleMonth.year}',
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          style: _ReminderTokens.monthTitle,
         ),
         IconButton(
           onPressed: onNext,
@@ -173,15 +161,9 @@ class _CalendarGrid extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(3),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: _ReminderTokens.surface,
+        borderRadius: BorderRadius.circular(_ReminderTokens.controlRadius),
+        boxShadow: _ReminderTokens.cardShadow,
       ),
       child: Column(
         children: <Widget>[
@@ -234,11 +216,7 @@ class _WeekdayLabel extends StatelessWidget {
     return Text(
       label,
       textAlign: TextAlign.center,
-      style: const TextStyle(
-        color: Color(0xFF64748B),
-        fontSize: 9,
-        fontWeight: FontWeight.w800,
-      ),
+      style: _ReminderTokens.weekdayLabel,
     );
   }
 }
@@ -253,19 +231,19 @@ class _CalendarDayCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color background = day.hasReminders
         ? day.isOverdue
-              ? const Color(0xFFEF4444)
-              : const Color(0xFF16A34A)
+              ? _ReminderTokens.danger
+              : _ReminderTokens.success
         : day.isToday
-        ? const Color(0xFFFACC15)
+        ? _ReminderTokens.today
         : Colors.transparent;
     final Color foreground = day.hasReminders || day.isToday
         ? Colors.white
         : day.isInVisibleMonth
-        ? const Color(0xFF111827)
-        : const Color(0xFF9CA3AF);
+        ? _ReminderTokens.textStrong
+        : _ReminderTokens.textInactive;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(_ReminderTokens.cardRadius),
       onTap: () => onTap(day.date),
       child: SizedBox(
         height: 32,
@@ -276,7 +254,7 @@ class _CalendarDayCell extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: background,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(_ReminderTokens.cardRadius),
             ),
             child: Text(
               '${day.date.day}',
@@ -309,59 +287,42 @@ class _ReminderCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
+        color: _ReminderTokens.surface,
+        borderRadius: BorderRadius.circular(_ReminderTokens.cardRadius),
         border: Border(
           left: BorderSide(
             color: isOverdue
-                ? const Color(0xFFEF4444)
-                : const Color(0xFF22C55E),
+                ? _ReminderTokens.danger
+                : _ReminderTokens.successAccent,
             width: 3,
           ),
         ),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: _ReminderTokens.cardShadow,
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(_ReminderTokens.cardRadius),
         clipBehavior: Clip.antiAlias,
         child: ListTile(
           dense: true,
-          contentPadding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          contentPadding: _ReminderTokens.cardTilePadding,
           onTap: onTap,
           title: Text(
             _ReminderDateUtils.fullDate(record.date),
-            style: const TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
+            style: _ReminderTokens.cardTitle,
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(
-                  record.payee,
-                  style: const TextStyle(
-                    color: Color(0xFF111827),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                Text(record.payee, style: _ReminderTokens.cardBody),
                 if (record.isRecurring) ...<Widget>[
                   const SizedBox(height: 3),
                   Text(
                     record.reminderCount,
                     style: const TextStyle(
-                      color: Color(0xFF0F766E),
+                      color: _ReminderTokens.recurringText,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
@@ -378,8 +339,8 @@ class _ReminderCard extends StatelessWidget {
                 formatMoney(record.amount),
                 style: TextStyle(
                   color: isOverdue
-                      ? const Color(0xFFEF4444)
-                      : const Color(0xFFF59E0B),
+                      ? _ReminderTokens.danger
+                      : _ReminderTokens.warning,
                   fontSize: 11,
                   fontWeight: FontWeight.w900,
                 ),
@@ -391,8 +352,8 @@ class _ReminderCard extends StatelessWidget {
                   Icon(
                     Icons.circle,
                     color: isOverdue
-                        ? const Color(0xFFEF4444)
-                        : const Color(0xFF22C55E),
+                        ? _ReminderTokens.danger
+                        : _ReminderTokens.successAccent,
                     size: 7,
                   ),
                   const SizedBox(width: 4),
@@ -400,8 +361,8 @@ class _ReminderCard extends StatelessWidget {
                     isOverdue ? 'Overdue' : 'Upcoming',
                     style: TextStyle(
                       color: isOverdue
-                          ? const Color(0xFFEF4444)
-                          : const Color(0xFF16A34A),
+                          ? _ReminderTokens.danger
+                          : _ReminderTokens.success,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
@@ -424,21 +385,21 @@ class _EmptyReminderList extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
+        color: _ReminderTokens.surface,
+        borderRadius: BorderRadius.circular(_ReminderTokens.cardRadius),
       ),
       child: const Column(
         children: <Widget>[
-          Icon(Icons.notifications_none, color: Color(0xFF9CA3AF), size: 32),
+          Icon(
+            Icons.notifications_none,
+            color: _ReminderTokens.textInactive,
+            size: 32,
+          ),
           SizedBox(height: 8),
           Text(
             'Tap a date to create a reminder.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(0xFF6B7280),
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
+            style: _ReminderTokens.emptyLabel,
           ),
         ],
       ),
@@ -470,10 +431,7 @@ class _ReminderPickerSheet extends StatelessWidget {
               return Text(
                 _ReminderDateUtils.fullDate(date),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: _ReminderTokens.sheetTitle,
               );
             }
 
@@ -483,7 +441,7 @@ class _ReminderPickerSheet extends StatelessWidget {
 
             if (index == reminders.length + 3) {
               return ListTile(
-                leading: const Icon(Icons.add, color: Color(0xFF2563EB)),
+                leading: const Icon(Icons.add, color: _ReminderTokens.blue),
                 title: const Text('Add another reminder'),
                 onTap: () => Navigator.pop(context),
               );
@@ -522,7 +480,7 @@ class _SheetHandle extends StatelessWidget {
           width: 36,
           height: 4,
           decoration: BoxDecoration(
-            color: const Color(0xFFE5E7EB),
+            color: _ReminderTokens.border,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -638,7 +596,7 @@ class _DeleteRecurringReminderDialog extends StatelessWidget {
         ),
         FilledButton(
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFDC2626),
+            backgroundColor: _ReminderTokens.dangerDark,
           ),
           onPressed: () => Navigator.pop(context, ReminderDeleteScope.series),
           child: const Text('Delete all'),
@@ -663,7 +621,7 @@ class _DeleteReminderDialog extends StatelessWidget {
         ),
         FilledButton(
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFDC2626),
+            backgroundColor: _ReminderTokens.dangerDark,
           ),
           onPressed: () => Navigator.pop(context, ReminderDeleteScope.single),
           child: const Text('Delete'),
@@ -699,7 +657,9 @@ class _ReminderDetailDialogState extends State<_ReminderDetailDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_ReminderTokens.dialogRadius),
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
         child: Column(
@@ -707,35 +667,19 @@ class _ReminderDetailDialogState extends State<_ReminderDetailDialog> {
           children: <Widget>[
             _DueBadge(record: widget.record),
             const SizedBox(height: 28),
-            const Text(
-              'AMOUNT DUE',
-              style: TextStyle(
-                color: Color(0xFF283154),
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 2,
-              ),
-            ),
+            const Text('AMOUNT DUE', style: _ReminderTokens.amountLabel),
             const SizedBox(height: 12),
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
                 formatMoney(widget.record.amount),
-                style: const TextStyle(
-                  color: Color(0xFF202124),
-                  fontSize: 30,
-                  fontWeight: FontWeight.w900,
-                ),
+                style: _ReminderTokens.amountValue,
               ),
             ),
             const SizedBox(height: 6),
             Text(
               _ReminderDateUtils.fullDate(widget.record.date),
-              style: const TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
+              style: _ReminderTokens.detailDate,
             ),
             if (widget.record.isRecurring) ...<Widget>[
               const SizedBox(height: 6),
@@ -795,16 +739,20 @@ class _DueBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: isOverdue ? const Color(0xFFFFF1F2) : const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(4),
+        color: isOverdue
+            ? _ReminderTokens.dangerSoft
+            : _ReminderTokens.warningSoft,
+        borderRadius: BorderRadius.circular(_ReminderTokens.cardRadius),
         border: Border.all(
-          color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFFFACC15),
+          color: isOverdue ? _ReminderTokens.danger : _ReminderTokens.today,
         ),
       ),
       child: Text(
         _ReminderDateUtils.dueLabel(record.date),
         style: TextStyle(
-          color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFFD97706),
+          color: isOverdue
+              ? _ReminderTokens.danger
+              : _ReminderTokens.warningDark,
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
@@ -823,19 +771,23 @@ class _RecurringLabel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFFCF8),
-        borderRadius: BorderRadius.circular(3),
-        border: Border.all(color: const Color(0xFFA7F3D0)),
+        color: _ReminderTokens.recurringSoft,
+        borderRadius: BorderRadius.circular(_ReminderTokens.controlRadius),
+        border: Border.all(color: _ReminderTokens.recurringBorder),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          const Icon(Icons.repeat, size: 13, color: Color(0xFF0F766E)),
+          const Icon(
+            Icons.repeat,
+            size: 13,
+            color: _ReminderTokens.recurringText,
+          ),
           const SizedBox(width: 5),
           Text(
             label,
             style: const TextStyle(
-              color: Color(0xFF0F766E),
+              color: _ReminderTokens.recurringText,
               fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
@@ -858,29 +810,17 @@ class _PayeeRow extends StatelessWidget {
         const Icon(
           Icons.person_add_alt_1_outlined,
           size: 20,
-          color: Color(0xFF22C55E),
+          color: _ReminderTokens.successAccent,
         ),
         const SizedBox(width: 10),
-        const Text(
-          'PAYEE',
-          style: TextStyle(
-            color: Color(0xFF374151),
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.6,
-          ),
-        ),
+        const Text('PAYEE', style: _ReminderTokens.payeeLabel),
         const Spacer(),
         Flexible(
           child: Text(
             payee,
             textAlign: TextAlign.right,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF111827),
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
+            style: _ReminderTokens.payeeValue,
           ),
         ),
       ],
@@ -907,12 +847,12 @@ class _AlertToggleRow extends StatelessWidget {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: const Color(0xFFE8EEF7),
+            color: _ReminderTokens.alertPanel,
             borderRadius: BorderRadius.circular(6),
           ),
           child: const Icon(
             Icons.notifications_active_outlined,
-            color: Color(0xFF293154),
+            color: _ReminderTokens.alertIcon,
           ),
         ),
         const SizedBox(width: 12),
@@ -920,29 +860,18 @@ class _AlertToggleRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                'Alert Notifications',
-                style: TextStyle(
-                  color: Color(0xFF111827),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+              Text('Alert Notifications', style: _ReminderTokens.alertTitle),
               SizedBox(height: 3),
               Text(
                 'Receive reminders for this event',
-                style: TextStyle(
-                  color: Color(0xFF6B7280),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: _ReminderTokens.alertBody,
               ),
             ],
           ),
         ),
         Switch(
           value: enabled,
-          activeThumbColor: const Color(0xFF171638),
+          activeThumbColor: _ReminderTokens.primary,
           onChanged: isBusy ? null : onChanged,
         ),
       ],
@@ -968,7 +897,9 @@ class _ReminderEditDeleteActions extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.circular(
+                  _ReminderTokens.controlRadius,
+                ),
               ),
             ),
             onPressed: onEdit,
@@ -980,11 +911,13 @@ class _ReminderEditDeleteActions extends StatelessWidget {
         Expanded(
           child: OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFFDC2626),
-              side: const BorderSide(color: Color(0xFFFCA5A5)),
+              foregroundColor: _ReminderTokens.dangerDark,
+              side: const BorderSide(color: _ReminderTokens.dangerBorder),
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.circular(
+                  _ReminderTokens.controlRadius,
+                ),
               ),
             ),
             onPressed: onDelete,
@@ -1013,17 +946,19 @@ class _ReminderPostponeCloseActions extends StatelessWidget {
         Expanded(
           child: OutlinedButton(
             style: OutlinedButton.styleFrom(
-              backgroundColor: const Color(0xFFF3F4F6),
+              backgroundColor: _ReminderTokens.softPanel,
               side: BorderSide.none,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.circular(
+                  _ReminderTokens.controlRadius,
+                ),
               ),
             ),
             onPressed: onPostpone,
             child: const Text(
               'Postpone',
-              style: TextStyle(color: Color(0xFF111827)),
+              style: TextStyle(color: _ReminderTokens.textStrong),
             ),
           ),
         ),
@@ -1031,10 +966,12 @@ class _ReminderPostponeCloseActions extends StatelessWidget {
         Expanded(
           child: FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF171638),
+              backgroundColor: _ReminderTokens.primary,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.circular(
+                  _ReminderTokens.controlRadius,
+                ),
               ),
             ),
             onPressed: onClose,
@@ -1068,7 +1005,7 @@ class _CreateReminderList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+      padding: _ReminderTokens.createPagePadding,
       itemCount: forms.length + 1,
       itemBuilder: (BuildContext context, int index) {
         if (index == forms.length) {
@@ -1104,19 +1041,20 @@ class _AddReminderButton extends StatelessWidget {
       padding: const EdgeInsets.only(top: 14),
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: const Icon(Icons.note_add_outlined, color: Color(0xFF60A5FA)),
+        icon: const Icon(
+          Icons.note_add_outlined,
+          color: _ReminderTokens.iconBlue,
+        ),
         label: const Text(
           'Add more reminder',
-          style: TextStyle(
-            color: Color(0xFF111827),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
+          style: _ReminderTokens.addButtonLabel,
         ),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 15),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
-          side: const BorderSide(color: Color(0xFF9CA3AF)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_ReminderTokens.controlRadius),
+          ),
+          side: const BorderSide(color: _ReminderTokens.inputBorder),
         ),
       ),
     );
@@ -1153,7 +1091,7 @@ class _ReminderForm extends StatelessWidget {
                 onPressed: onRemove,
                 icon: const Icon(
                   Icons.delete_outline,
-                  color: Color(0xFFEF4444),
+                  color: _ReminderTokens.danger,
                 ),
               ),
             ),
@@ -1175,7 +1113,7 @@ class _ReminderForm extends StatelessWidget {
                           const Icon(
                             Icons.calendar_month,
                             size: 18,
-                            color: Color(0xFF60A5FA),
+                            color: _ReminderTokens.iconBlue,
                           ),
                         ],
                       ),
@@ -1196,7 +1134,7 @@ class _ReminderForm extends StatelessWidget {
                         icon: const Icon(
                           Icons.grid_view,
                           size: 18,
-                          color: Color(0xFF60A5FA),
+                          color: _ReminderTokens.iconBlue,
                         ),
                         items: _categoryItems,
                         onChanged: (String? value) {
@@ -1297,18 +1235,13 @@ class _FormFieldShell extends StatelessWidget {
       children: <Widget>[
         RichText(
           text: TextSpan(
-            style: const TextStyle(
-              color: Color(0xFF283154),
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 2,
-            ),
+            style: _ReminderTokens.fieldLabel,
             children: <InlineSpan>[
               TextSpan(text: label),
               if (isRequired)
                 const TextSpan(
                   text: ' *',
-                  style: TextStyle(color: Color(0xFFEF4444)),
+                  style: TextStyle(color: _ReminderTokens.danger),
                 ),
             ],
           ),
@@ -1332,24 +1265,11 @@ class _InputLikeBox extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(3),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: _ReminderTokens.surface,
+        borderRadius: BorderRadius.circular(_ReminderTokens.controlRadius),
+        boxShadow: _ReminderTokens.inputShadow,
       ),
-      child: DefaultTextStyle(
-        style: const TextStyle(
-          color: Color(0xFF111827),
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
-        child: child,
-      ),
+      child: DefaultTextStyle(style: _ReminderTokens.inputText, child: child),
     );
   }
 }

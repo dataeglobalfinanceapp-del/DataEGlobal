@@ -318,8 +318,8 @@ class _TransactionDataMapper {
                 ? Icons.repeat
                 : Icons.receipt_long_outlined,
             iconColor: record.isRecurring
-                ? const Color(0xFF0F766E)
-                : const Color(0xFFEF4444),
+                ? _TransactionTokens.recurring
+                : _TransactionTokens.danger,
             isRecurring: record.isRecurring,
           ),
         ];
@@ -360,25 +360,25 @@ class _TransactionDataMapper {
       label: 'Credit/Debit',
       amount: record.creditDebt,
       icon: Icons.credit_card,
-      color: const Color(0xFF2563EB),
+      color: _TransactionTokens.depositBlue,
     );
     addMethod(
       label: 'Cash',
       amount: record.cash,
       icon: Icons.payments_outlined,
-      color: const Color(0xFF16A34A),
+      color: _TransactionTokens.success,
     );
     addMethod(
       label: 'Gift Card',
       amount: record.giftCard,
       icon: Icons.card_giftcard,
-      color: const Color(0xFF0EA5E9),
+      color: _TransactionTokens.giftBlue,
     );
     addMethod(
       label: 'Other',
       amount: record.other,
       icon: Icons.account_balance_wallet_outlined,
-      color: const Color(0xFFF59E0B),
+      color: _TransactionTokens.warning,
     );
 
     if (items.isEmpty) {
@@ -394,7 +394,7 @@ class _TransactionDataMapper {
           amount: record.totalAmount,
           detail: record.isManual ? 'Manual entry' : 'Scanned receipt',
           icon: Icons.account_balance_wallet_outlined,
-          iconColor: const Color(0xFF16A34A),
+          iconColor: _TransactionTokens.success,
         ),
       );
     }

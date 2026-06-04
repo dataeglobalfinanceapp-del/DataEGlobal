@@ -322,8 +322,8 @@ class _ScanExpenseManualScreenState extends State<ScanExpenseManualScreen> {
                                       controller: _totalAmountController,
                                       keyboardType:
                                           const TextInputType.numberWithOptions(
-                                        decimal: true,
-                                      ),
+                                            decimal: true,
+                                          ),
                                       inputFormatters: [
                                         FilteringTextInputFormatter.allow(
                                           RegExp(r'^\d*\.?\d{0,2}'),

@@ -117,7 +117,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
 
     final ReminderRecord? selected = await showModalBottomSheet<ReminderRecord>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: _ReminderTokens.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -162,22 +162,15 @@ class _ReminderScreenState extends State<ReminderScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: _ReminderTokens.screenBackground,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: _ReminderTokens.surface,
         elevation: 0,
-        title: const Text(
-          'Reminder',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 17,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        title: const Text('Reminder', style: _ReminderTokens.appBarTitle),
         centerTitle: true,
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.add, color: Color(0xFF1F2937)),
+            icon: const Icon(Icons.add, color: _ReminderTokens.appBarIcon),
             onPressed: () => _openCreate(initialDate: AppClock.now),
           ),
         ],
@@ -261,9 +254,9 @@ class _CreateReminderScreenState extends State<CreateReminderScreen> {
       listenable: _controller,
       builder: (BuildContext context, Widget? child) {
         return Scaffold(
-          backgroundColor: const Color(0xFFF5F5F5),
+          backgroundColor: _ReminderTokens.screenBackground,
           appBar: AppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: _ReminderTokens.surface,
             elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.black87),
@@ -271,11 +264,7 @@ class _CreateReminderScreenState extends State<CreateReminderScreen> {
             ),
             title: const Text(
               'Create Reminder',
-              style: TextStyle(
-                color: Colors.black87,
-                fontSize: 17,
-                fontWeight: FontWeight.w500,
-              ),
+              style: _ReminderTokens.appBarTitle,
             ),
             centerTitle: true,
             actions: <Widget>[

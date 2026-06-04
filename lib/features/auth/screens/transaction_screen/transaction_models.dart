@@ -182,6 +182,130 @@ class _MonthYear {
   const _MonthYear({required this.month, required this.year});
 }
 
+class _TransactionTokens {
+  const _TransactionTokens._();
+
+  static const Color screenBackground = Color(0xFFF5F5F5);
+  static const Color surface = Colors.white;
+  static const Color primary = Color(0xFF171638);
+  static const Color primaryBlue = Color(0xFF1E40AF);
+  static const Color iconBlue = Color(0xFF3B82F6);
+  static const Color depositBlue = Color(0xFF2563EB);
+  static const Color onSurface = Colors.black87;
+  static const Color onSurfaceMuted = Colors.black54;
+  static const Color onSurfaceDisabled = Colors.black38;
+  static const Color iconDisabled = Colors.black26;
+  static const Color textStrong = Color(0xFF111827);
+  static const Color textMuted = Color(0xFF6B7280);
+  static const Color textInactive = Color(0xFF9CA3AF);
+  static const Color border = Color(0xFFE5E7EB);
+  static const Color divider = Color(0xFFF3F4F6);
+  static const Color danger = Color(0xFFEF4444);
+  static const Color dangerDark = Color(0xFFDC2626);
+  static const Color expenseHot = Color(0xFFFF1744);
+  static const Color success = Color(0xFF16A34A);
+  static const Color successBright = Color(0xFF00D26A);
+  static const Color giftBlue = Color(0xFF0EA5E9);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color recurring = Color(0xFF0F766E);
+
+  static const double cardRadius = 4;
+  static const double controlRadius = 3;
+
+  static const EdgeInsets pagePadding = EdgeInsets.fromLTRB(16, 12, 16, 24);
+  static const EdgeInsets tableHeaderPadding = EdgeInsets.fromLTRB(
+    12,
+    9,
+    10,
+    7,
+  );
+  static const EdgeInsets tableRowPadding = EdgeInsets.fromLTRB(12, 8, 10, 8);
+
+  static const List<BoxShadow> softShadow = <BoxShadow>[
+    BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, 2)),
+  ];
+  static const List<BoxShadow> cardShadow = <BoxShadow>[
+    BoxShadow(color: Color(0x12000000), blurRadius: 8, offset: Offset(0, 2)),
+  ];
+
+  static const TextStyle appBarTitle = TextStyle(
+    color: Colors.black87,
+    fontSize: 17,
+    fontWeight: FontWeight.w500,
+  );
+  static const TextStyle summaryLabel = TextStyle(
+    color: Colors.white70,
+    fontSize: 14,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 1,
+  );
+  static const TextStyle reserveValue = TextStyle(
+    fontSize: 25,
+    fontWeight: FontWeight.w800,
+  );
+  static const TextStyle summaryValue = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w800,
+  );
+  static const TextStyle toggleLabel = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+  );
+  static const TextStyle categoryLabel = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w500,
+  );
+  static const TextStyle filterLabel = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+  );
+  static const TextStyle yearLabel = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+  );
+  static const TextStyle groupTitle = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+  );
+  static const TextStyle groupAmount = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w700,
+  );
+  static const TextStyle tableHeader = TextStyle(
+    color: textMuted,
+    fontSize: 8,
+    fontWeight: FontWeight.w900,
+    letterSpacing: 0.3,
+  );
+  static const TextStyle tableCell = TextStyle(
+    color: textStrong,
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
+  );
+  static const TextStyle tableAmount = TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.w800,
+  );
+  static const TextStyle emptyLabel = TextStyle(
+    color: textMuted,
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+  );
+  static const TextStyle exportLabel = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+  );
+  static const TextStyle sheetTitle = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w800,
+  );
+  static const TextStyle tileTitle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w800,
+  );
+  static const TextStyle dialogStrong = TextStyle(fontWeight: FontWeight.w700);
+}
+
 const List<String> _shortMonthNames = <String>[
   '',
   'Jan',

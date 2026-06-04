@@ -48,7 +48,7 @@ class _TransactionList extends StatelessWidget {
 
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: _TransactionTokens.pagePadding,
       itemCount: entryCount + 2,
       itemBuilder: (BuildContext context, int index) {
         if (index == 0) {
@@ -158,15 +158,15 @@ class _SummaryPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color reservesColor = totalReserves > 0
-        ? const Color(0xFF16A34A)
-        : const Color(0xFFFF1744);
+        ? _TransactionTokens.success
+        : _TransactionTokens.expenseHot;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF171638),
-        borderRadius: BorderRadius.circular(4),
+        color: _TransactionTokens.primary,
+        borderRadius: BorderRadius.circular(_TransactionTokens.cardRadius),
       ),
       child: Column(
         children: <Widget>[
@@ -175,10 +175,8 @@ class _SummaryPanel extends StatelessWidget {
               const Expanded(child: _SummaryLabel(label: 'TOTAL RESERVES')),
               Text(
                 formatMoney(totalReserves),
-                style: TextStyle(
+                style: _TransactionTokens.reserveValue.copyWith(
                   color: reservesColor,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -190,14 +188,14 @@ class _SummaryPanel extends StatelessWidget {
                 child: _SummaryValue(
                   label: 'TOTAL EXPENSE',
                   value: formatMoney(totalExpenses),
-                  color: const Color(0xFFFF1744),
+                  color: _TransactionTokens.expenseHot,
                 ),
               ),
               Expanded(
                 child: _SummaryValue(
                   label: 'TOTAL DEPOSIT',
                   value: formatMoney(totalDeposits),
-                  color: const Color(0xFF00D26A),
+                  color: _TransactionTokens.successBright,
                   alignRight: true,
                 ),
               ),
@@ -216,15 +214,7 @@ class _SummaryLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        color: Colors.white70,
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 1,
-      ),
-    );
+    return Text(label, style: _TransactionTokens.summaryLabel);
   }
 }
 
@@ -253,11 +243,7 @@ class _SummaryValue extends StatelessWidget {
         Text(
           value,
           textAlign: alignRight ? TextAlign.right : TextAlign.left,
-          style: TextStyle(
-            color: color,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-          ),
+          style: _TransactionTokens.summaryValue.copyWith(color: color),
         ),
       ],
     );
@@ -275,9 +261,9 @@ class _KindToggle extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(3),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        color: _TransactionTokens.surface,
+        borderRadius: BorderRadius.circular(_TransactionTokens.controlRadius),
+        border: Border.all(color: _TransactionTokens.border),
       ),
       child: Row(
         children: <Widget>[
@@ -313,20 +299,22 @@ class _ToggleButton extends StatelessWidget {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(_TransactionTokens.controlRadius),
         child: Container(
           height: 42,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF171638) : Colors.white,
-            borderRadius: BorderRadius.circular(3),
+            color: isActive
+                ? _TransactionTokens.primary
+                : _TransactionTokens.surface,
+            borderRadius: BorderRadius.circular(
+              _TransactionTokens.controlRadius,
+            ),
           ),
           child: Text(
             label,
-            style: TextStyle(
-              color: isActive ? Colors.white : Colors.black87,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+            style: _TransactionTokens.toggleLabel.copyWith(
+              color: isActive ? Colors.white : _TransactionTokens.onSurface,
             ),
           ),
         ),
@@ -350,27 +338,23 @@ class _CategorySelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(3),
+      borderRadius: BorderRadius.circular(_TransactionTokens.controlRadius),
       child: Container(
         height: 46,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(3),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: _TransactionTokens.surface,
+          borderRadius: BorderRadius.circular(_TransactionTokens.controlRadius),
+          boxShadow: _TransactionTokens.softShadow,
         ),
         child: Row(
           children: <Widget>[
             Icon(
               Icons.chevron_right,
               size: 18,
-              color: enabled ? Colors.black54 : Colors.black26,
+              color: enabled
+                  ? _TransactionTokens.onSurfaceMuted
+                  : _TransactionTokens.iconDisabled,
             ),
             const SizedBox(width: 6),
             Expanded(
@@ -378,14 +362,18 @@ class _CategorySelector extends StatelessWidget {
                 enabled ? label : 'Category',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: enabled ? Colors.black87 : Colors.black38,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                style: _TransactionTokens.categoryLabel.copyWith(
+                  color: enabled
+                      ? _TransactionTokens.onSurface
+                      : _TransactionTokens.onSurfaceDisabled,
                 ),
               ),
             ),
-            const Icon(Icons.grid_view, color: Color(0xFF3B82F6), size: 20),
+            const Icon(
+              Icons.grid_view,
+              color: _TransactionTokens.iconBlue,
+              size: 20,
+            ),
           ],
         ),
       ),
@@ -404,15 +392,9 @@ class _FilterBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(3),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: _TransactionTokens.surface,
+        borderRadius: BorderRadius.circular(_TransactionTokens.controlRadius),
+        boxShadow: _TransactionTokens.softShadow,
       ),
       child: Row(
         children: <Widget>[
@@ -466,22 +448,24 @@ class _FilterOptionButton extends StatelessWidget {
     return Expanded(
       child: InkWell(
         onTap: () => onChanged(value),
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(_TransactionTokens.controlRadius),
         child: Container(
           height: 40,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF171638) : Colors.white,
-            borderRadius: BorderRadius.circular(3),
+            color: isActive
+                ? _TransactionTokens.primary
+                : _TransactionTokens.surface,
+            borderRadius: BorderRadius.circular(
+              _TransactionTokens.controlRadius,
+            ),
           ),
           child: Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: isActive ? Colors.white : Colors.black87,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+            style: _TransactionTokens.filterLabel.copyWith(
+              color: isActive ? Colors.white : _TransactionTokens.onSurface,
             ),
           ),
         ),
@@ -510,10 +494,7 @@ class _YearSelector extends StatelessWidget {
           onPressed: onPrev,
           icon: const Icon(Icons.chevron_left, size: 20),
         ),
-        Text(
-          '$year',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
+        Text('$year', style: _TransactionTokens.yearLabel),
         IconButton(
           onPressed: onNext,
           icon: const Icon(Icons.chevron_right, size: 20),
@@ -537,52 +518,46 @@ class _TransactionGroupHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final BorderRadius borderRadius = isExpanded
-        ? const BorderRadius.vertical(top: Radius.circular(4))
-        : BorderRadius.circular(4);
+        ? const BorderRadius.vertical(
+            top: Radius.circular(_TransactionTokens.cardRadius),
+          )
+        : BorderRadius.circular(_TransactionTokens.cardRadius);
 
     return Container(
       margin: EdgeInsets.only(bottom: isExpanded ? 0 : 10),
       decoration: BoxDecoration(
-        color: Colors.white,
         borderRadius: borderRadius,
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: _TransactionTokens.cardShadow,
       ),
-      child: InkWell(
-        onTap: onToggle,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          child: Row(
-            children: <Widget>[
-              Icon(
-                isExpanded ? Icons.keyboard_arrow_down : Icons.chevron_right,
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  group.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+      child: Material(
+        color: _TransactionTokens.surface,
+        borderRadius: borderRadius,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onToggle,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  isExpanded ? Icons.keyboard_arrow_down : Icons.chevron_right,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    group.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _TransactionTokens.groupTitle,
                   ),
                 ),
-              ),
-              Text(
-                formatMoney(group.total),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                Text(
+                  formatMoney(group.total),
+                  style: _TransactionTokens.groupAmount,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -596,10 +571,10 @@ class _TransactionTableHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const DecoratedBox(
-      decoration: BoxDecoration(color: Colors.white),
+      decoration: BoxDecoration(color: _TransactionTokens.surface),
       child: Column(
         children: <Widget>[
-          Divider(height: 1, color: Color(0xFFE5E7EB)),
+          Divider(height: 1, color: _TransactionTokens.border),
           _TransactionTableHeader(),
         ],
       ),
@@ -625,9 +600,11 @@ class _TransactionItemCard extends StatelessWidget {
     return Container(
       margin: EdgeInsets.only(bottom: isLastInGroup ? 10 : 0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _TransactionTokens.surface,
         borderRadius: isLastInGroup
-            ? const BorderRadius.vertical(bottom: Radius.circular(4))
+            ? const BorderRadius.vertical(
+                bottom: Radius.circular(_TransactionTokens.cardRadius),
+              )
             : BorderRadius.zero,
       ),
       child: Column(
@@ -638,7 +615,7 @@ class _TransactionItemCard extends StatelessWidget {
             onDelete: onDelete,
           ),
           if (!isLastInGroup)
-            const Divider(height: 1, color: Color(0xFFF3F4F6)),
+            const Divider(height: 1, color: _TransactionTokens.divider),
         ],
       ),
     );
@@ -651,7 +628,7 @@ class _TransactionTableHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Padding(
-      padding: EdgeInsets.fromLTRB(12, 9, 10, 7),
+      padding: _TransactionTokens.tableHeaderPadding,
       child: Row(
         children: <Widget>[
           SizedBox(width: 42, child: _TableHeaderText('DATE')),
@@ -673,7 +650,7 @@ class _TransactionTableHeader extends StatelessWidget {
             child: Icon(
               Icons.delete_outline,
               size: 14,
-              color: Color(0xFF9CA3AF),
+              color: _TransactionTokens.textInactive,
             ),
           ),
         ],
@@ -695,12 +672,7 @@ class _TableHeaderText extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       textAlign: textAlign,
-      style: const TextStyle(
-        color: Color(0xFF6B7280),
-        fontSize: 8,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 0.3,
-      ),
+      style: _TransactionTokens.tableHeader,
     );
   }
 }
@@ -719,7 +691,7 @@ class _TransactionItemRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
+      padding: _TransactionTokens.tableRowPadding,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
@@ -729,11 +701,7 @@ class _TransactionItemRow extends StatelessWidget {
               _shortDate(item.date),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF111827),
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
+              style: _TransactionTokens.tableCell,
             ),
           ),
           const SizedBox(width: 8),
@@ -742,11 +710,7 @@ class _TransactionItemRow extends StatelessWidget {
               item.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF111827),
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
+              style: _TransactionTokens.tableCell,
             ),
           ),
           const SizedBox(width: 8),
@@ -758,12 +722,10 @@ class _TransactionItemRow extends StatelessWidget {
               child: Text(
                 formatMoney(item.amount),
                 textAlign: TextAlign.right,
-                style: TextStyle(
+                style: _TransactionTokens.tableAmount.copyWith(
                   color: isExpense
-                      ? const Color(0xFFEF4444)
-                      : const Color(0xFF111827),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
+                      ? _TransactionTokens.danger
+                      : _TransactionTokens.textStrong,
                 ),
               ),
             ),
@@ -784,7 +746,7 @@ class _TransactionItemRow extends StatelessWidget {
               icon: const Icon(
                 Icons.delete_outline,
                 size: 18,
-                color: Color(0xFFDC2626),
+                color: _TransactionTokens.dangerDark,
               ),
               onPressed: onDelete,
             ),
@@ -811,8 +773,8 @@ class _EmptyTransactions extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
+        color: _TransactionTokens.surface,
+        borderRadius: BorderRadius.circular(_TransactionTokens.cardRadius),
       ),
       child: Column(
         children: <Widget>[
@@ -820,7 +782,7 @@ class _EmptyTransactions extends StatelessWidget {
             kind == _TransactionKind.deposit
                 ? Icons.account_balance_wallet_outlined
                 : Icons.receipt_long_outlined,
-            color: const Color(0xFF9CA3AF),
+            color: _TransactionTokens.textInactive,
             size: 34,
           ),
           const SizedBox(height: 10),
@@ -829,11 +791,7 @@ class _EmptyTransactions extends StatelessWidget {
                 ? 'No deposit history for this view.'
                 : 'No expense history for this view.',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF6B7280),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+            style: _TransactionTokens.emptyLabel,
           ),
         ],
       ),
@@ -860,7 +818,7 @@ class _ExportActions extends StatelessWidget {
           child: _ExportButton(
             icon: Icons.picture_as_pdf,
             label: 'PDF',
-            color: const Color(0xFFEF4444),
+            color: _TransactionTokens.danger,
             onTap: onExportPdf,
           ),
         ),
@@ -869,7 +827,7 @@ class _ExportActions extends StatelessWidget {
           child: _ExportButton(
             icon: Icons.print_outlined,
             label: 'Print',
-            color: const Color(0xFF1E40AF),
+            color: _TransactionTokens.primaryBlue,
             onTap: onPrintPdf,
           ),
         ),
@@ -878,7 +836,7 @@ class _ExportActions extends StatelessWidget {
           child: _ExportButton(
             icon: Icons.table_chart,
             label: 'Excel',
-            color: const Color(0xFF16A34A),
+            color: _TransactionTokens.success,
             onTap: onExportExcel,
           ),
         ),
@@ -905,12 +863,14 @@ class _ExportButton extends StatelessWidget {
     return OutlinedButton(
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.black87,
-        backgroundColor: Colors.white,
-        side: const BorderSide(color: Color(0xFFE5E7EB)),
+        foregroundColor: _TransactionTokens.onSurface,
+        backgroundColor: _TransactionTokens.surface,
+        side: const BorderSide(color: _TransactionTokens.border),
         minimumSize: const Size(0, 44),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_TransactionTokens.controlRadius),
+        ),
       ),
       child: FittedBox(
         fit: BoxFit.scaleDown,
@@ -919,11 +879,7 @@ class _ExportButton extends StatelessWidget {
           children: <Widget>[
             Icon(icon, color: color, size: 18),
             const SizedBox(width: 6),
-            Text(
-              label,
-              maxLines: 1,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
+            Text(label, maxLines: 1, style: _TransactionTokens.exportLabel),
           ],
         ),
       ),
@@ -958,7 +914,7 @@ class _CategoryBottomSheet extends StatelessWidget {
               return ListTile(
                 title: const Text('All Categories'),
                 trailing: selectedCategory == null
-                    ? const Icon(Icons.check, color: Color(0xFF1A2340))
+                    ? const Icon(Icons.check, color: _TransactionTokens.primary)
                     : null,
                 onTap: () => Navigator.pop(context),
               );
@@ -972,7 +928,7 @@ class _CategoryBottomSheet extends StatelessWidget {
             return ListTile(
               title: Text(category),
               trailing: category == selectedCategory
-                  ? const Icon(Icons.check, color: Color(0xFF1A2340))
+                  ? const Icon(Icons.check, color: _TransactionTokens.primary)
                   : null,
               onTap: () => Navigator.pop(context, category),
             );
@@ -995,10 +951,7 @@ class _ExportRangeBottomSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           const _SheetHandle(),
-          Text(
-            '$actionLabel by',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-          ),
+          Text('$actionLabel by', style: _TransactionTokens.sheetTitle),
           const SizedBox(height: 8),
           _ExportPeriodTile(
             icon: Icons.calendar_view_week,
@@ -1037,7 +990,7 @@ class _SheetHandle extends StatelessWidget {
           width: 36,
           height: 4,
           decoration: BoxDecoration(
-            color: const Color(0xFFE5E7EB),
+            color: _TransactionTokens.border,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -1063,11 +1016,8 @@ class _ExportPeriodTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: const Color(0xFF1E40AF)),
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-      ),
+      leading: Icon(icon, color: _TransactionTokens.primaryBlue),
+      title: Text(title, style: _TransactionTokens.tileTitle),
       subtitle: Text(subtitle),
       trailing: const Icon(Icons.chevron_right),
       onTap: onTap,
@@ -1096,20 +1046,23 @@ class _DeleteTransactionDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(item.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(item.title, style: _TransactionTokens.dialogStrong),
           const SizedBox(height: 6),
           Text(
             '${_TransactionDateUtils.fullDate(item.date)}  |  ${formatMoney(item.amount)}',
           ),
           if (item.detail.isNotEmpty) ...<Widget>[
             const SizedBox(height: 6),
-            Text(item.detail, style: const TextStyle(color: Color(0xFF6B7280))),
+            Text(
+              item.detail,
+              style: const TextStyle(color: _TransactionTokens.textMuted),
+            ),
           ],
           if (isRecurringExpense) ...<Widget>[
             const SizedBox(height: 10),
             const Text(
               'This will stop the recurring expense starting this month. Previous monthly entries will stay in history.',
-              style: TextStyle(color: Color(0xFFDC2626)),
+              style: TextStyle(color: _TransactionTokens.dangerDark),
             ),
           ],
         ],
@@ -1121,7 +1074,7 @@ class _DeleteTransactionDialog extends StatelessWidget {
         ),
         FilledButton(
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFDC2626),
+            backgroundColor: _TransactionTokens.dangerDark,
           ),
           onPressed: () => Navigator.pop(context, true),
           child: const Text('Delete'),

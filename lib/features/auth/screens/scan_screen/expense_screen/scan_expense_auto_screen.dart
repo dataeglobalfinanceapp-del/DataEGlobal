@@ -99,9 +99,9 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isScanning = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to capture image: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to capture image: $e')));
       }
     }
   }
@@ -120,8 +120,9 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
 
   void _syncControllers(ScannedExpenseData data) {
     _checkNumberController.text = data.checkNumber;
-    _totalAmountController.text =
-        data.totalAmount > 0 ? data.totalAmount.toStringAsFixed(2) : '';
+    _totalAmountController.text = data.totalAmount > 0
+        ? data.totalAmount.toStringAsFixed(2)
+        : '';
     _payeeController.text = data.payee;
   }
 
@@ -435,8 +436,10 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
                                       const SizedBox(height: 2),
                                       TextField(
                                         controller: _totalAmountController,
-                                        keyboardType: const TextInputType
-                                            .numberWithOptions(decimal: true),
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                            ),
                                         inputFormatters: [
                                           FilteringTextInputFormatter.allow(
                                             RegExp(r'^\d*\.?\d{0,2}'),
@@ -667,51 +670,48 @@ class _ScannerArea extends StatelessWidget {
                 ),
               )
             : imageBytes != null
-                ? SizedBox(
-                    width: double.infinity,
-                    height: 180,
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: Image.memory(imageBytes!, fit: BoxFit.cover),
-                        ),
-                        Positioned.fill(
-                          child: ColoredBox(
-                            color: Colors.black.withValues(alpha: 0.08),
-                          ),
-                        ),
-                      ],
+            ? SizedBox(
+                width: double.infinity,
+                height: 180,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Image.memory(imageBytes!, fit: BoxFit.cover),
                     ),
-                  )
-                : GestureDetector(
-                    onTap: onTap,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0F0F0),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.document_scanner_outlined,
-                            size: 32,
-                            color: Color(0xFF888888),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Tap to scan check',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF888888),
-                          ),
-                        ),
-                      ],
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.08),
+                      ),
                     ),
-                  ),
+                  ],
+                ),
+              )
+            : GestureDetector(
+                onTap: onTap,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F0F0),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.document_scanner_outlined,
+                        size: 32,
+                        color: Color(0xFF888888),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Tap to scan check',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF888888)),
+                    ),
+                  ],
+                ),
+              ),
       ),
     );
   }

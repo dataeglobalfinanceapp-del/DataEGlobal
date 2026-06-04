@@ -90,14 +90,14 @@ class _ScanDepositManualScreenState extends State<ScanDepositManualScreen> {
 
   void _syncControllers(ScannedDepositData data) {
     _orderNumberController.text = data.orderNumber;
-    _creditDebtController.text =
-        data.creditDebt > 0 ? data.creditDebt.toStringAsFixed(2) : '';
-    _cashController.text =
-        data.cash > 0 ? data.cash.toStringAsFixed(2) : '';
-    _giftCardController.text =
-        data.giftCard > 0 ? data.giftCard.toStringAsFixed(2) : '';
-    _otherController.text =
-        data.other > 0 ? data.other.toStringAsFixed(2) : '';
+    _creditDebtController.text = data.creditDebt > 0
+        ? data.creditDebt.toStringAsFixed(2)
+        : '';
+    _cashController.text = data.cash > 0 ? data.cash.toStringAsFixed(2) : '';
+    _giftCardController.text = data.giftCard > 0
+        ? data.giftCard.toStringAsFixed(2)
+        : '';
+    _otherController.text = data.other > 0 ? data.other.toStringAsFixed(2) : '';
     _updateTotalAmount();
   }
 
@@ -153,13 +153,15 @@ class _ScanDepositManualScreenState extends State<ScanDepositManualScreen> {
         isManual: true,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Deposit saved ✓')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Deposit saved ✓')));
       Navigator.pop(context, updatedData);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Save failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
