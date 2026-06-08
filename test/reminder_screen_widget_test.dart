@@ -51,6 +51,37 @@ void main() {
     expect(find.text('Due on 06/10/2026'), findsOneWidget);
   });
 
+  testWidgets('Mark as Finished removes the selected payment obligation card', (
+    WidgetTester tester,
+  ) async {
+    await ReminderService.saveReminders(<ReminderDraft>[
+      ReminderDraft(
+        date: DateTime(2026, 6, 20),
+        category: 'Insurance',
+        amount: 240,
+        reminderCount: 'Just one',
+        payee: 'Carrier',
+      ),
+    ]);
+
+    await tester.pumpWidget(const MaterialApp(home: ReminderScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text(r'$240.00'), findsOneWidget);
+
+    await tester.tap(find.text(r'$240.00'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mark as Finished'), findsOneWidget);
+
+    await tester.tap(find.text('Mark as Finished'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(r'$240.00'), findsNothing);
+    expect(find.text('Tap a date to create a reminder.'), findsOneWidget);
+    expect(find.text('Reminder marked as finished.'), findsOneWidget);
+  });
+
   testWidgets('CreateReminderScreen renders required form fields', (
     WidgetTester tester,
   ) async {

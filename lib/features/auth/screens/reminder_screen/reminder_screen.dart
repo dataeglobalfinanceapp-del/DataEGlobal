@@ -94,6 +94,21 @@ class _ReminderScreenState extends State<ReminderScreen> {
     );
   }
 
+  Future<void> _markReminderFinished(ReminderRecord record) async {
+    final bool finished = await _controller.markFinished(record);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          finished
+              ? 'Reminder marked as finished.'
+              : 'Could not find that reminder.',
+        ),
+      ),
+    );
+  }
+
   Future<void> _postponeReminder(ReminderRecord record) async {
     await _controller.postpone(record);
     if (!mounted) return;
@@ -154,6 +169,8 @@ class _ReminderScreenState extends State<ReminderScreen> {
         await _editReminderAmount(record);
       case _ReminderDetailAction.delete:
         await _deleteReminder(record);
+      case _ReminderDetailAction.markFinished:
+        await _markReminderFinished(record);
       case _ReminderDetailAction.postpone:
         await _postponeReminder(record);
     }

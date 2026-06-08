@@ -72,6 +72,13 @@ class _ReminderController extends ChangeNotifier {
     return deleted;
   }
 
+  Future<bool> markFinished(ReminderRecord record) async {
+    final bool finished = await ReminderService.markFinished(record.id);
+    if (_isDisposed) return finished;
+    await loadReminders(showLoading: false);
+    return finished;
+  }
+
   Future<void> postpone(ReminderRecord record) async {
     await ReminderService.postpone(record.id);
     if (_isDisposed) return;

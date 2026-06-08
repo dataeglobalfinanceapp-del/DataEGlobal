@@ -59,7 +59,7 @@ class _CalendarDayModel {
   bool get hasReminders => reminders.isNotEmpty;
 }
 
-enum _ReminderDetailAction { editAmount, delete, postpone }
+enum _ReminderDetailAction { editAmount, delete, markFinished, postpone }
 
 class _AmountEditResult {
   final double amount;

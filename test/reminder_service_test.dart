@@ -68,6 +68,56 @@ void main() {
     },
   );
 
+  test('marking one-time reminder finished removes it', () async {
+    await ReminderService.saveReminders(<ReminderDraft>[
+      ReminderDraft(
+        date: DateTime(2026, 6, 20),
+        category: 'Utilities',
+        amount: 80,
+        reminderCount: 'Just one',
+        payee: 'Power Co',
+      ),
+    ]);
+
+    final ReminderRecord reminder =
+        (await ReminderService.loadReminders()).single;
+
+    final bool finished = await ReminderService.markFinished(reminder.id);
+
+    expect(finished, true);
+    expect(await ReminderService.loadReminders(), isEmpty);
+  });
+
+  test(
+    'marking recurring reminder finished removes only selected occurrence',
+    () async {
+      await ReminderService.saveReminders(<ReminderDraft>[
+        ReminderDraft(
+          date: DateTime(2026, 6, 10),
+          category: 'Insurance',
+          amount: 300,
+          reminderCount: 'Monthly',
+          payee: 'Carrier',
+        ),
+      ]);
+
+      List<ReminderRecord> reminders = await ReminderService.loadReminders();
+      final ReminderRecord june = reminders.singleWhere(
+        (ReminderRecord record) => record.date.month == 6,
+      );
+
+      final bool finished = await ReminderService.markFinished(june.id);
+
+      expect(finished, true);
+      reminders = await ReminderService.loadReminders();
+      expect(_months(reminders), <int>[7, 8, 9, 10, 11, 12]);
+      expect(
+        reminders.every((ReminderRecord record) => record.isRecurring),
+        true,
+      );
+    },
+  );
+
   test('month rollover deletes reminders from prior months', () async {
     AppClock.set(DateTime(2026, 5, 20));
     ReminderService.resetForTesting();

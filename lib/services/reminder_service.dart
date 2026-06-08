@@ -130,6 +130,10 @@ class ReminderService {
     return true;
   }
 
+  static Future<bool> markFinished(String id) {
+    return deleteReminder(id);
+  }
+
   static Future<void> postpone(String id, {int days = 1}) async {
     await _ensureLoaded();
     final index = _reminders.indexWhere((record) => record.id == id);

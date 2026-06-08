@@ -658,6 +658,12 @@ class _ReminderDetailDialogState extends State<_ReminderDetailDialog> {
               onChanged: _handleAlertChanged,
             ),
             const SizedBox(height: 18),
+            _ReminderFinishedAction(
+              onPressed: () {
+                Navigator.pop(context, _ReminderDetailAction.markFinished);
+              },
+            ),
+            const SizedBox(height: 12),
             _ReminderEditDeleteActions(
               onEdit: () {
                 Navigator.pop(context, _ReminderDetailAction.editAmount);
@@ -830,6 +836,31 @@ class _AlertToggleRow extends StatelessWidget {
           onChanged: isBusy ? null : onChanged,
         ),
       ],
+    );
+  }
+}
+
+class _ReminderFinishedAction extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _ReminderFinishedAction({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        style: FilledButton.styleFrom(
+          backgroundColor: _ReminderTokens.success,
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_ReminderTokens.controlRadius),
+          ),
+        ),
+        onPressed: onPressed,
+        icon: const Icon(Icons.check_circle_outline, size: 17),
+        label: const Text('Mark as Finished'),
+      ),
     );
   }
 }
