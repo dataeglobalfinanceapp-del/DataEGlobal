@@ -47,14 +47,12 @@ class _CalendarDayModel {
   final DateTime date;
   final bool isInVisibleMonth;
   final bool isToday;
-  final bool isOverdue;
   final List<ReminderRecord> reminders;
 
   const _CalendarDayModel({
     required this.date,
     required this.isInVisibleMonth,
     required this.isToday,
-    required this.isOverdue,
     required this.reminders,
   });
 
@@ -62,8 +60,6 @@ class _CalendarDayModel {
 }
 
 enum _ReminderDetailAction { editAmount, delete, postpone }
-
-enum _ReminderStatus { upcoming, overdue }
 
 class _AmountEditResult {
   final double amount;
@@ -125,12 +121,6 @@ class _ReminderDateUtils {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
-  static _ReminderStatus statusFor(DateTime date) {
-    return dateOnly(date).isBefore(dateOnly(AppClock.now))
-        ? _ReminderStatus.overdue
-        : _ReminderStatus.upcoming;
-  }
-
   static List<DateTime> calendarDates(DateTime month) {
     final DateTime first = DateTime(month.year, month.month);
     final DateTime start = first.subtract(Duration(days: first.weekday % 7));
@@ -146,7 +136,7 @@ class _ReminderDateUtils {
     final DateTime dueDate = dateOnly(date);
     final int difference = dueDate.difference(today).inDays;
     return switch (difference) {
-      < 0 => 'Overdue by ${difference.abs()} day${difference == -1 ? '' : 's'}',
+      < 0 => 'Due on ${fullDate(date)}',
       0 => 'Due today',
       1 => 'Due tomorrow',
       _ => 'Due in $difference days',
@@ -169,7 +159,6 @@ class _ReminderTokens {
   static const Color amountStrong = Color(0xFF202124);
   static const Color danger = Color(0xFFEF4444);
   static const Color dangerDark = Color(0xFFDC2626);
-  static const Color dangerSoft = Color(0xFFFFF1F2);
   static const Color dangerBorder = Color(0xFFFCA5A5);
   static const Color success = Color(0xFF16A34A);
   static const Color successAccent = Color(0xFF22C55E);

@@ -1,26 +1,30 @@
-I am building a cross-platform mobile app for iOS and Android using Flutter and Dart. The backend will be Python + AWS.
+# Project Agent Guide
 
-App idea:
-The app helps small business owners manage their finances. Users can:
-1. Track business expenses.
-2. Scan receipts and save expense details.
-3. Monitor financial goals.
-4. Receive reminders for payments, reports, budgets, and goals.
+Build this Flutter app with a feature-based structure and clear separation between UI, state, persistence, and business rules.
 
-Your job is to help me build clean, scalable, maintainable Flutter UI/UX code.
+## Workflow
 
-Before writing production code, use a spec-driven development workflow:
+1. Plan the target feature or fix.
+2. Code in small, scoped changes.
+3. Validate with formatting, analyzer, and tests.
+4. Iterate until errors and warnings are resolved.
 
-1. Plan
-2. Code
-3. Validate
-4. Iterate
+## Flutter Standards
 
-First, inspect the current Flutter project structure if files already exist. Do not overwrite existing work unless necessary. If something is unclear, ask questions before making major architectural decisions.
+- Keep widgets small, reusable, responsive, and accessible.
+- Keep async work, API calls, persistence, and business logic outside widget layout code.
+- Prefer feature-local controllers, models, services, and widgets before adding shared abstractions.
+- Use `ListView.builder` or other lazy builders for dynamic lists.
+- Apply `const` to immutable widgets, styles, and values where possible.
+- Use centralized styling tokens, app theme values, or shared component styles instead of scattering visual constants.
+- Add tests for important business logic and widget behavior touched by a change.
 
-Create or update the following files:
+## Validation
 
-- `AGENTS.md`
-- `plans/requirements.md`
-- `plans/design.md`
-- `plans/tasks.md`
+Run these before handing off a Flutter change:
+
+```powershell
+dart format .
+flutter analyze
+flutter test
+```

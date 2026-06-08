@@ -27,8 +27,8 @@ class ReminderService {
   }
 
   static Future<void> saveReminders(List<ReminderDraft> drafts) async {
-    await _ensureLoaded();
     final now = AppClock.now;
+    await _ensureLoaded();
 
     for (final draft in drafts) {
       if (draft.amount <= 0) continue;
@@ -65,6 +65,7 @@ class ReminderService {
       }
     }
 
+    _deleteRemindersBeforeCurrentMonth(now);
     await _persist();
   }
 
@@ -154,8 +155,11 @@ class ReminderService {
   }
 
   static Future<void> _ensureLoaded() async {
+    final now = AppClock.now;
     if (_loaded) {
-      final changed = _syncRecurringReminders(AppClock.now);
+      final synced = _syncRecurringReminders(now);
+      final cleaned = _deleteRemindersBeforeCurrentMonth(now);
+      final changed = synced || cleaned;
       if (changed) await _persist();
       return;
     }
@@ -200,9 +204,9 @@ class ReminderService {
     }
 
     _loaded = true;
-    final repaired = _repairRecurringData();
-    final synced = _syncRecurringReminders(AppClock.now);
-    final changed = repaired || synced;
+    final synced = _syncRecurringReminders(now);
+    final cleaned = _deleteRemindersBeforeCurrentMonth(now);
+    final changed = synced || cleaned;
     if (changed) await _persist();
   }
 
@@ -249,19 +253,6 @@ class ReminderService {
       });
     }
 
-    for (final seriesId in _series.keys.toList()) {
-      final hasRecord = _reminders.any(
-        (record) => record.recurringSeriesId == seriesId,
-      );
-      if (!hasRecord) {
-        _series.remove(seriesId);
-        _deletedRecurringKeys.removeWhere(
-          (key) => key.startsWith('$seriesId|'),
-        );
-        changed = true;
-      }
-    }
-
     return changed;
   }
 
@@ -285,6 +276,31 @@ class ReminderService {
     }
 
     return changed;
+  }
+
+  static bool _deleteRemindersBeforeCurrentMonth(DateTime now) {
+    final DateTime currentMonthStart = DateTime(now.year, now.month);
+    final List<ReminderRecord> active = <ReminderRecord>[];
+    var changed = false;
+
+    for (final ReminderRecord record in _reminders) {
+      if (!_dateOnly(record.date).isBefore(currentMonthStart)) {
+        active.add(record);
+        continue;
+      }
+
+      if (record.isRecurring && record.recurringOccurrenceKey.isNotEmpty) {
+        _deletedRecurringKeys.add(record.recurringOccurrenceKey);
+      }
+      changed = true;
+    }
+
+    if (!changed) return false;
+
+    _reminders
+      ..clear()
+      ..addAll(active);
+    return true;
   }
 
   static bool _addMissingOccurrencesForSeries(

@@ -2,16 +2,35 @@ import 'package:flutter/material.dart';
 
 enum AuthTab { login, signup }
 
-class AuthFocusTraversal extends StatelessWidget {
+class AuthFocusTraversal extends StatefulWidget {
   final Widget child;
 
   const AuthFocusTraversal({super.key, required this.child});
 
   @override
+  State<AuthFocusTraversal> createState() => _AuthFocusTraversalState();
+}
+
+class _AuthFocusTraversalState extends State<AuthFocusTraversal> {
+  bool _focusReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() => _focusReady = true);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FocusTraversalGroup(
       policy: WidgetOrderTraversalPolicy(),
-      child: child,
+      descendantsAreFocusable: _focusReady,
+      descendantsAreTraversable: _focusReady,
+      child: widget.child,
     );
   }
 }

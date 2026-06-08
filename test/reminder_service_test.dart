@@ -14,30 +14,33 @@ void main() {
     ReminderService.resetForTesting(disablePersistence: false);
   });
 
-  test('monthly recurring reminders sync active-year occurrences', () async {
-    await ReminderService.saveReminders(<ReminderDraft>[
-      ReminderDraft(
-        date: DateTime(2026, 1, 10),
-        category: 'Rent',
-        amount: 1200,
-        reminderCount: 'Monthly',
-        payee: 'Landlord',
-      ),
-    ]);
+  test(
+    'monthly recurring reminders sync current and future occurrences',
+    () async {
+      await ReminderService.saveReminders(<ReminderDraft>[
+        ReminderDraft(
+          date: DateTime(2026, 1, 10),
+          category: 'Rent',
+          amount: 1200,
+          reminderCount: 'Monthly',
+          payee: 'Landlord',
+        ),
+      ]);
 
-    final List<ReminderRecord> reminders =
-        await ReminderService.loadReminders();
+      final List<ReminderRecord> reminders =
+          await ReminderService.loadReminders();
 
-    expect(_months(reminders), <int>[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-    expect(
-      reminders.every((ReminderRecord record) => record.isRecurring),
-      true,
-    );
-    expect(
-      reminders.map((ReminderRecord record) => record.payee).toSet(),
-      <String>{'Landlord'},
-    );
-  });
+      expect(_months(reminders), <int>[6, 7, 8, 9, 10, 11, 12]);
+      expect(
+        reminders.every((ReminderRecord record) => record.isRecurring),
+        true,
+      );
+      expect(
+        reminders.map((ReminderRecord record) => record.payee).toSet(),
+        <String>{'Landlord'},
+      );
+    },
+  );
 
   test(
     'deleting one recurring occurrence keeps the rest of the series',
@@ -53,15 +56,87 @@ void main() {
       ]);
 
       List<ReminderRecord> reminders = await ReminderService.loadReminders();
-      final ReminderRecord march = reminders.singleWhere(
-        (ReminderRecord record) => record.date.month == 3,
+      final ReminderRecord august = reminders.singleWhere(
+        (ReminderRecord record) => record.date.month == 8,
       );
 
-      final bool deleted = await ReminderService.deleteReminder(march.id);
+      final bool deleted = await ReminderService.deleteReminder(august.id);
 
       expect(deleted, true);
       reminders = await ReminderService.loadReminders();
-      expect(_months(reminders), <int>[1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+      expect(_months(reminders), <int>[6, 7, 9, 10, 11, 12]);
+    },
+  );
+
+  test('month rollover deletes reminders from prior months', () async {
+    AppClock.set(DateTime(2026, 5, 20));
+    ReminderService.resetForTesting();
+
+    await ReminderService.saveReminders(<ReminderDraft>[
+      ReminderDraft(
+        date: DateTime(2026, 5, 25),
+        category: 'Utilities',
+        amount: 80,
+        reminderCount: 'Just one',
+        payee: 'Power Co',
+      ),
+      ReminderDraft(
+        date: DateTime(2026, 6, 5),
+        category: 'Insurance',
+        amount: 200,
+        reminderCount: 'Just one',
+        payee: 'Carrier',
+      ),
+    ]);
+
+    expect(_months(await ReminderService.loadReminders()), <int>[5, 6]);
+
+    AppClock.set(DateTime(2026, 6, 1));
+
+    final List<ReminderRecord> reminders =
+        await ReminderService.loadReminders();
+
+    expect(_months(reminders), <int>[6]);
+    expect(reminders.single.payee, 'Carrier');
+  });
+
+  test(
+    'month rollover does not recreate deleted recurring occurrences',
+    () async {
+      AppClock.set(DateTime(2026, 5, 20));
+      ReminderService.resetForTesting();
+
+      await ReminderService.saveReminders(<ReminderDraft>[
+        ReminderDraft(
+          date: DateTime(2026, 1, 10),
+          category: 'Rent',
+          amount: 1200,
+          reminderCount: 'Monthly',
+          payee: 'Landlord',
+        ),
+      ]);
+
+      expect(_months(await ReminderService.loadReminders()), <int>[
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+      ]);
+
+      AppClock.set(DateTime(2026, 6, 1));
+
+      final List<ReminderRecord> reminders =
+          await ReminderService.loadReminders();
+
+      expect(_months(reminders), <int>[6, 7, 8, 9, 10, 11, 12]);
+      expect(
+        reminders.every((ReminderRecord record) => record.isRecurring),
+        true,
+      );
     },
   );
 

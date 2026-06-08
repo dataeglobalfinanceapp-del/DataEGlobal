@@ -176,14 +176,10 @@ class _ReminderDataMapper {
           final List<ReminderRecord> reminders =
               remindersByDate[_ReminderDateUtils.dateKey(date)] ??
               const <ReminderRecord>[];
-          final bool hasReminders = reminders.isNotEmpty;
           return _CalendarDayModel(
             date: date,
             isInVisibleMonth: date.month == visibleMonth.month,
             isToday: _ReminderDateUtils.isSameDate(date, today),
-            isOverdue:
-                hasReminders &&
-                _ReminderDateUtils.dateOnly(date).isBefore(today),
             reminders: reminders,
           );
         })

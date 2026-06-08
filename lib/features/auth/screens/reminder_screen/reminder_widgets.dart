@@ -230,9 +230,7 @@ class _CalendarDayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color background = day.hasReminders
-        ? day.isOverdue
-              ? _ReminderTokens.danger
-              : _ReminderTokens.success
+        ? _ReminderTokens.success
         : day.isToday
         ? _ReminderTokens.today
         : Colors.transparent;
@@ -281,21 +279,13 @@ class _ReminderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final _ReminderStatus status = _ReminderDateUtils.statusFor(record.date);
-    final bool isOverdue = status == _ReminderStatus.overdue;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: _ReminderTokens.surface,
         borderRadius: BorderRadius.circular(_ReminderTokens.cardRadius),
         border: Border(
-          left: BorderSide(
-            color: isOverdue
-                ? _ReminderTokens.danger
-                : _ReminderTokens.successAccent,
-            width: 3,
-          ),
+          left: BorderSide(color: _ReminderTokens.successAccent, width: 3),
         ),
         boxShadow: _ReminderTokens.cardShadow,
       ),
@@ -337,37 +327,11 @@ class _ReminderCard extends StatelessWidget {
             children: <Widget>[
               Text(
                 formatMoney(record.amount),
-                style: TextStyle(
-                  color: isOverdue
-                      ? _ReminderTokens.danger
-                      : _ReminderTokens.warning,
+                style: const TextStyle(
+                  color: _ReminderTokens.warning,
                   fontSize: 11,
                   fontWeight: FontWeight.w900,
                 ),
-              ),
-              const SizedBox(height: 3),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(
-                    Icons.circle,
-                    color: isOverdue
-                        ? _ReminderTokens.danger
-                        : _ReminderTokens.successAccent,
-                    size: 7,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    isOverdue ? 'Overdue' : 'Upcoming',
-                    style: TextStyle(
-                      color: isOverdue
-                          ? _ReminderTokens.danger
-                          : _ReminderTokens.success,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
@@ -733,26 +697,17 @@ class _DueBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isOverdue =
-        _ReminderDateUtils.statusFor(record.date) == _ReminderStatus.overdue;
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: isOverdue
-            ? _ReminderTokens.dangerSoft
-            : _ReminderTokens.warningSoft,
+        color: _ReminderTokens.warningSoft,
         borderRadius: BorderRadius.circular(_ReminderTokens.cardRadius),
-        border: Border.all(
-          color: isOverdue ? _ReminderTokens.danger : _ReminderTokens.today,
-        ),
+        border: Border.all(color: _ReminderTokens.today),
       ),
       child: Text(
         _ReminderDateUtils.dueLabel(record.date),
-        style: TextStyle(
-          color: isOverdue
-              ? _ReminderTokens.danger
-              : _ReminderTokens.warningDark,
+        style: const TextStyle(
+          color: _ReminderTokens.warningDark,
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
