@@ -345,16 +345,6 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
   }
 
   List<_BudgetSegment> _budgetSegments(BudgetData data) {
-    if (data.expense <= 0) {
-      return const [
-        _BudgetSegment(
-          label: 'No activity',
-          amount: 0,
-          percentage: 100,
-          color: Color(0xFFE5E7EB),
-        ),
-      ];
-    }
 
     final segments = <_BudgetSegment>[];
     final categories = _visibleCategories(data);
@@ -381,17 +371,6 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
           ),
         );
       }
-    }
-
-    if (segments.isEmpty) {
-      return const [
-        _BudgetSegment(
-          label: 'No activity',
-          amount: 0,
-          percentage: 100,
-          color: Color(0xFFE5E7EB),
-        ),
-      ];
     }
 
     return segments;
