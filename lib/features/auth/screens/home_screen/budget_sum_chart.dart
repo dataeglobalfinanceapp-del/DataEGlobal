@@ -433,7 +433,7 @@ class _BudgetMetrics extends StatelessWidget {
         _MetricBlock(
           label: 'Deposits',
           value: _fmtMoney(data.deposit),
-          color: const Color.fromARGB(255, 0, 0, 0),
+          color: const Color(0xFF16A34A),
         ),
         _MetricBlock(
           label: 'Expenses',
