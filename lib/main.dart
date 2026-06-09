@@ -17,6 +17,7 @@ import 'features/auth/screens/liabilities_screen/liabilities_screen.dart';
 import 'features/auth/screens/reserves_screen/reserves_screen.dart';
 import 'features/auth/screens/reminder_screen/reminder_screen.dart';
 import 'features/auth/screens/tax_screen/tax_screen.dart';
+import 'features/auth/screens/user_setting/user_setting_screens.dart';
 import 'widgets/test_clock_overlay.dart';
 
 final GlobalKey<NavigatorState> _appNavigatorKey = GlobalKey<NavigatorState>();
@@ -119,6 +120,19 @@ class BizTrackApp extends StatelessWidget {
         '/reserves': (context) => const ReservesScreen(),
         '/reminders': (context) => const ReminderScreen(),
         '/tax': (context) => const TaxScreen(),
+        UserSettingsRoutes.settings: (context) => const UserSettingsScreen(),
+        UserSettingsRoutes.businessManagement: (context) =>
+            const BusinessManagementScreen(),
+        UserSettingsRoutes.enterpriseCodeId: (context) =>
+            const EnterpriseCodeIdScreen(),
+        UserSettingsRoutes.changePassword: (context) =>
+            const ChangePasswordScreen(),
+        UserSettingsRoutes.institutionSupport: (context) =>
+            const InstitutionSupportScreen(),
+        UserSettingsRoutes.managePartner: (context) =>
+            const ManagePartnerScreen(),
+        UserSettingsRoutes.deactivateAccess: (context) =>
+            const DeactivateAccessScreen(),
       },
     );
   }

@@ -6,6 +6,8 @@ import '../../../../services/app_clock.dart';
 import '../../../../services/liability_service.dart';
 import '../../models/budget_data.dart';
 import '../../services/auth_service.dart';
+import '../user_setting/user_settings_routes.dart';
+import '../user_setting/widgets/user_logo_menu_button.dart';
 import 'budget_sum_chart.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -95,6 +97,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: 64,
+        leading: UserLogoMenuButton(
+          onPressed: () =>
+              Navigator.pushNamed(context, UserSettingsRoutes.settings),
+        ),
         title: const Text('SaveTep'),
         actions: [
           IconButton(
