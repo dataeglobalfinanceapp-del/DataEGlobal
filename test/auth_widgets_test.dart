@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('AuthFocusTraversal enables focus after the first frame', (
+  testWidgets('AuthFocusTraversal uses widget order without a timing gate', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -18,12 +18,14 @@ void main() {
     );
 
     var traversal = tester.widget<FocusTraversalGroup>(authTraversal);
-    expect(traversal.descendantsAreFocusable, isFalse);
-    expect(traversal.descendantsAreTraversable, isFalse);
+    expect(traversal.policy, isA<WidgetOrderTraversalPolicy>());
+    expect(traversal.descendantsAreFocusable, isTrue);
+    expect(traversal.descendantsAreTraversable, isTrue);
 
     await tester.pump();
 
     traversal = tester.widget<FocusTraversalGroup>(authTraversal);
+    expect(traversal.policy, isA<WidgetOrderTraversalPolicy>());
     expect(traversal.descendantsAreFocusable, isTrue);
     expect(traversal.descendantsAreTraversable, isTrue);
   });

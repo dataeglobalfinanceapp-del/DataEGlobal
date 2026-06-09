@@ -345,7 +345,6 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
   }
 
   List<_BudgetSegment> _budgetSegments(BudgetData data) {
-
     final segments = <_BudgetSegment>[];
     final categories = _visibleCategories(data);
 
