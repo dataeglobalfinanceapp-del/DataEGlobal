@@ -6,6 +6,7 @@ import '../../../../services/app_clock.dart';
 import '../../../../services/liability_service.dart';
 import '../../models/budget_data.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/app_bottom_navigation_bar.dart';
 import '../user_setting/user_settings_routes.dart';
 import '../user_setting/widgets/user_logo_menu_button.dart';
 import 'budget_sum_chart.dart';
@@ -48,12 +49,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final now = AppClock.now;
     _endDate = now;
 
-    if (_selectedPeriod == 'Month') {
-      _startDate = DateTime(now.year, now.month);
-    } else if (_selectedPeriod == 'Year') {
-      _startDate = DateTime(now.year);
-    } else {
-      _startDate = now.subtract(const Duration(days: 6));
+    switch (_selectedPeriod) {
+      case 'Day':
+        _startDate = DateTime(now.year, now.month, now.day);
+        break;
+      case 'Month':
+        _startDate = DateTime(now.year, now.month);
+        break;
+      case '3 Months':
+        _startDate = DateTime(now.year, now.month - 2);
+        break;
+      case 'Week':
+      default:
+        _startDate = now.subtract(const Duration(days: 6));
     }
   }
 
@@ -114,6 +122,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: const AppBottomNavigationBar(
+        currentItem: AppBottomNavItem.home,
+      ),
       body: RefreshIndicator(
         onRefresh: _loadBudgetData,
         child: SingleChildScrollView(
@@ -157,11 +168,13 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 20),
               Row(
                 children: [
+                  _buildPeriodButton('Day'),
+                  const SizedBox(width: 8),
                   _buildPeriodButton('Week'),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   _buildPeriodButton('Month'),
-                  const SizedBox(width: 12),
-                  _buildPeriodButton('Year'),
+                  const SizedBox(width: 8),
+                  _buildPeriodButton('3 Months'),
                 ],
               ),
               const SizedBox(height: 20),
@@ -174,10 +187,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 childAspectRatio: 0.95,
                 children: [
                   _buildFeatureCard(
-                    icon: Icons.document_scanner_outlined,
-                    label: 'SCAN',
-                    color: const Color(0xFFDEFACF),
-                    onTap: () => _openAndRefresh('/scan'),
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: 'DEPOSIT',
+                    color: const Color(0xFFDFF7EA),
+                    iconColor: const Color(0xFF0F766E),
+                    textColor: const Color(0xFF064E3B),
+                    onTap: () => _openAndRefresh('/scan-deposit'),
+                  ),
+                  _buildFeatureCard(
+                    icon: Icons.receipt_long_outlined,
+                    label: 'EXPENSE',
+                    color: const Color(0xFFFFE8D6),
+                    iconColor: const Color(0xFFB45309),
+                    textColor: const Color(0xFF7C2D12),
+                    onTap: () => _openAndRefresh('/scan-expense'),
                   ),
                   _buildFeatureCard(
                     icon: Icons.receipt,

@@ -8,7 +8,10 @@ void main() {
   ) async {
     await tester.pumpWidget(const MaterialApp(home: UserSettingsScreen()));
 
-    expect(find.text('Settings'), findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(AppBar), matching: find.text('Settings')),
+      findsOneWidget,
+    );
     expect(find.text('Account'), findsOneWidget);
     expect(find.text('Business Management'), findsOneWidget);
     expect(find.text('Enterprise Code ID'), findsOneWidget);

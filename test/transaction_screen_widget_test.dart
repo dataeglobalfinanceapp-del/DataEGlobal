@@ -71,6 +71,13 @@ void main() {
     await tester.tap(find.text('Week 24'));
     await tester.pumpAndSettle();
 
+    await tester.dragUntilVisible(
+      find.text('Credit/Debit'),
+      find.byType(ListView),
+      const Offset(0, -120),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('Credit/Debit'), findsOneWidget);
     expect(find.text('Cash'), findsOneWidget);
 

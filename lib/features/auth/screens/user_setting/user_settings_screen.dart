@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../widgets/app_bottom_navigation_bar.dart';
 import 'user_settings_routes.dart';
 import 'widgets/user_settings_menu_item.dart';
 
@@ -60,7 +61,13 @@ class UserSettingsScreen extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacementNamed(context, '/home');
+            }
+          },
         ),
         title: const Text(
           'Settings',
@@ -71,6 +78,9 @@ class UserSettingsScreen extends StatelessWidget {
           ),
         ),
         centerTitle: true,
+      ),
+      bottomNavigationBar: const AppBottomNavigationBar(
+        currentItem: AppBottomNavItem.settings,
       ),
       body: SafeArea(
         child: ListView(

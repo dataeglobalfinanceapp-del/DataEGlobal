@@ -10,6 +10,7 @@ import '../../../../services/exporter/pdf_printer.dart';
 import '../../../../services/liability_service.dart';
 import '../../../../services/money_formatter.dart';
 import '../../../../services/yearly_pdf_report.dart';
+import '../../widgets/app_bottom_navigation_bar.dart';
 
 part 'transaction_controller.dart';
 part 'transaction_models.dart';
@@ -333,6 +334,9 @@ class _TransactionScreenState extends State<TransactionScreen> {
             tooltip: 'Refresh',
           ),
         ],
+      ),
+      bottomNavigationBar: const AppBottomNavigationBar(
+        currentItem: AppBottomNavItem.report,
       ),
       body: ListenableBuilder(
         listenable: _controller,

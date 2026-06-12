@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../services/app_clock.dart';
 import '../../../../services/money_formatter.dart';
 import '../../../../services/reminder_service.dart';
+import '../../widgets/app_bottom_navigation_bar.dart';
 
 part 'reminder_controller.dart';
 part 'reminder_models.dart';
@@ -191,6 +192,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
             onPressed: () => _openCreate(initialDate: AppClock.now),
           ),
         ],
+      ),
+      bottomNavigationBar: const AppBottomNavigationBar(
+        currentItem: AppBottomNavItem.calendar,
       ),
       body: ListenableBuilder(
         listenable: _controller,
