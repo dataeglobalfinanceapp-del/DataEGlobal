@@ -435,9 +435,8 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
 
   /// All categories including zeros — shown in legend
   List<_BudgetSegment> _allLegendSegments(BudgetData data) {
-    final allCategories =
-        data.categories.toList()
-          ..sort((a, b) => b.percentage.compareTo(a.percentage));
+    final allCategories = data.categories.toList()
+      ..sort((a, b) => b.percentage.compareTo(a.percentage));
     final result = <_BudgetSegment>[];
     for (var index = 0; index < allCategories.length && index < 8; index++) {
       final category = allCategories[index];
@@ -485,11 +484,221 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
   }
 }
 
-// ── Deposit + Expense Summary Cards ──────────────────────────────────────────
+// ── Range Summary ────────────────────────────────────────────────────────────
+
+class BudgetTotalsCard extends StatelessWidget {
+  final BudgetData data;
+
+  const BudgetTotalsCard({super.key, required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final reserveColor = data.reserve >= 0
+        ? const Color(0xFF76C95F)
+        : const Color(0xFFFF5E63);
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 720),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF064A42), Color(0xFF052D2E)],
+          ),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Color(0xFFBCA052), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF052D2E).withValues(alpha: 0.22),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'TOTAL BALANCE',
+                        style: TextStyle(
+                          color: Color(0xFFC6E2CE),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _fmtMoney(data.total),
+                          maxLines: 1,
+                          style: const TextStyle(
+                            color: Color(0xFFFFC84D),
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Icon(
+                            data.reserve >= 0
+                                ? Icons.arrow_drop_up
+                                : Icons.arrow_drop_down,
+                            color: reserveColor,
+                            size: 18,
+                          ),
+                          Text(
+                            '${data.surplusPercent}% reserved in range',
+                            style: TextStyle(
+                              color: reserveColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: Color(0xFFD9B957),
+                  size: 48,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Divider(
+              height: 1,
+              color: const Color(0xFFBCA052).withValues(alpha: 0.44),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _SummaryMetric(
+                    label: 'TOTAL EXPENSE',
+                    amount: data.expense,
+                    icon: Icons.south_west_rounded,
+                    iconColor: const Color(0xFFFF5E63),
+                    amountColor: const Color(0xFFFF5E63),
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 54,
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  color: const Color(0xFFBCA052).withValues(alpha: 0.28),
+                ),
+                Expanded(
+                  child: _SummaryMetric(
+                    label: 'TOTAL RESERVES',
+                    amount: data.reserve,
+                    icon: Icons.trending_up_rounded,
+                    iconColor: reserveColor,
+                    amountColor: reserveColor,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryMetric extends StatelessWidget {
+  final String label;
+  final double amount;
+  final IconData icon;
+  final Color iconColor;
+  final Color amountColor;
+
+  const _SummaryMetric({
+    required this.label,
+    required this.amount,
+    required this.icon,
+    required this.iconColor,
+    required this.amountColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: iconColor, width: 1.2),
+            color: iconColor.withValues(alpha: 0.08),
+          ),
+          child: Icon(icon, color: iconColor, size: 18),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFFE8F4DC),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
+                ),
+              ),
+              const SizedBox(height: 3),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _fmtMoney(amount),
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: amountColor,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class BudgetTopCards extends StatelessWidget {
   final double deposit;
   final double expense;
+
   const BudgetTopCards({
     super.key,
     required this.deposit,
@@ -498,108 +707,8 @@ class BudgetTopCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _SummaryCard(
-            label: 'Deposit',
-            amount: deposit,
-            icon: Icons.download_rounded,
-            iconBgColor: const Color(0xFFDCFCE7),
-            iconColor: const Color(0xFF16A34A),
-            amountColor: const Color(0xFF16A34A),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _SummaryCard(
-            label: 'Expense',
-            amount: expense,
-            icon: Icons.upload_rounded,
-            iconBgColor: const Color(0xFFFEF3C7),
-            iconColor: const Color(0xFFD97706),
-            amountColor: const Color(0xFFDC2626),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  final String label;
-  final double amount;
-  final IconData icon;
-  final Color iconBgColor;
-  final Color iconColor;
-  final Color amountColor;
-  const _SummaryCard({
-    required this.label,
-    required this.amount,
-    required this.icon,
-    required this.iconBgColor,
-    required this.iconColor,
-    required this.amountColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _fmtMoney(amount),
-                    style: TextStyle(
-                      color: amountColor,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return BudgetTotalsCard(
+      data: BudgetData(deposit: deposit, expense: expense, total: deposit),
     );
   }
 }

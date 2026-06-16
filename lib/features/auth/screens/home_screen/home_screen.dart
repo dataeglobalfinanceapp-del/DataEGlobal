@@ -9,7 +9,7 @@ import '../../services/auth_service.dart';
 import '../../widgets/app_bottom_navigation_bar.dart';
 import '../user_setting/user_settings_routes.dart';
 import '../user_setting/widgets/user_logo_menu_button.dart';
-import 'budget_sum_chart.dart';
+import 'budget_donut_chart.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -104,6 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF2F5ED),
       appBar: AppBar(
         leadingWidth: 64,
         leading: UserLogoMenuButton(
@@ -133,39 +134,8 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: _isLoadingBudget
-                    ? const SizedBox(
-                        width: 250,
-                        height: 250,
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    : BudgetSumChart(
-                        data: _budgetData,
-                        periodKey: _selectedPeriod,
-                      ),
-              ),
-              const SizedBox(height: 28),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.calendar_today,
-                    size: 20,
-                    color: Color(0xFF1E40AF),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _budgetData.period.isEmpty
-                        ? '${_formatDate(_startDate)} - ${_formatDate(_endDate)}'
-                        : _budgetData.period,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
+              _buildDateRangePill(),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   _buildPeriodButton('Day'),
@@ -177,7 +147,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildPeriodButton('3 Months'),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
+              Center(
+                child: _isLoadingBudget
+                    ? const SizedBox(
+                        width: 250,
+                        height: 250,
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    : BudgetDonutChart(
+                        data: _budgetData,
+                        periodKey: _selectedPeriod,
+                      ),
+              ),
+              const SizedBox(height: 28),
               GridView.count(
                 crossAxisCount: 3,
                 shrinkWrap: true,
@@ -263,20 +246,64 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildDateRangePill() {
+    final periodLabel = _budgetData.period.isEmpty
+        ? '${_formatDate(_startDate)} - ${_formatDate(_endDate)}'
+        : _budgetData.period;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFD7DEC9)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.calendar_today, size: 18, color: Color(0xFF0E5E54)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              periodLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF173E37),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPeriodButton(String label) {
     final isSelected = _selectedPeriod == label;
     return Expanded(
       child: ElevatedButton(
         onPressed: () => _selectPeriod(label),
         style: ElevatedButton.styleFrom(
-          backgroundColor: isSelected ? const Color(0xFF1F2937) : Colors.white,
-          foregroundColor: isSelected ? Colors.white : Colors.black,
+          backgroundColor: isSelected ? const Color(0xFF075E54) : Colors.white,
+          foregroundColor: isSelected ? Colors.white : const Color(0xFF173E37),
           elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           side: isSelected
               ? BorderSide.none
-              : const BorderSide(color: Colors.grey, width: 1),
+              : const BorderSide(color: Color(0xFFD7DEC9), width: 1),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: Text(label),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            maxLines: 1,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
       ),
     );
   }

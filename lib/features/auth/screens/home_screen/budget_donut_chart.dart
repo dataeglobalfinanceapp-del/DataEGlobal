@@ -11,6 +11,13 @@ class BudgetDonutChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BudgetSumChart(data: data, periodKey: periodKey);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        BudgetTotalsCard(data: data),
+        const SizedBox(height: 12),
+        BudgetSumChart(data: data, periodKey: periodKey),
+      ],
+    );
   }
 }

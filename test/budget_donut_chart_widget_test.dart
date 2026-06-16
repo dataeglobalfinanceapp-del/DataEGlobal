@@ -33,12 +33,16 @@ void main() {
     );
 
     expect(find.text('OVERVIEW'), findsOneWidget);
+    expect(find.text('TOTAL EXPENSE'), findsOneWidget);
+    expect(find.text('TOTAL RESERVES'), findsOneWidget);
     expect(find.text('Payroll'), findsOneWidget);
     expect(find.text('Rent'), findsOneWidget);
     expect(find.text('60%'), findsOneWidget);
     expect(find.text('40%'), findsOneWidget);
     expect(find.text('Total Budget'), findsOneWidget);
     expect(find.text(r'$1,000.00'), findsOneWidget);
+    expect(find.text(r'$400.00'), findsOneWidget);
+    expect(find.text(r'$600.00'), findsOneWidget);
     expect(find.text(r'Available $600.00'), findsOneWidget);
     expect(find.text('40% utilized'), findsOneWidget);
     expect(find.text('Deposits'), findsNothing);
