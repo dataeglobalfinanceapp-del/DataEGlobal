@@ -189,11 +189,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: Icons.receipt,
                     label: 'TRANSACTION',
                     color: const Color(0xFFE0F2FE),
-                    metricValue: _isLoadingBudget
-                        ? '...'
-                        : _budgetData.transactionCount.toString(),
-                    metricLabel:
-                        '$_selectedPeriod ${_transactionLabel(_budgetData.transactionCount)}',
                     onTap: () => _openAndRefresh('/transactions'),
                   ),
                   _buildFeatureCard(
@@ -382,9 +377,5 @@ class _HomeScreenState extends State<HomeScreen> {
   String _formatDate(DateTime date) {
     return '${date.month.toString().padLeft(2, '0')}/'
         '${date.day.toString().padLeft(2, '0')}';
-  }
-
-  String _transactionLabel(int count) {
-    return count == 1 ? 'transaction' : 'transactions';
   }
 }

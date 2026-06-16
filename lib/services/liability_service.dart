@@ -12,12 +12,16 @@ part 'save_future_expense.dart';
 
 class LiabilityService {
   static const _storageKey = 'biztrack_local_data_v1';
+  static const _defaultBudgetSeedVersionKey = 'defaultBudgetSeedVersion';
+  static const _defaultBudgetSeedMonthKey = 'defaultBudgetSeedMonthKey';
 
   static final List<DepositRecord> _deposits = [];
   static final List<ExpenseRecord> _expenses = [];
   static final List<LiabilityRecord> _liabilities = [];
 
   static int _idCounter = 0;
+  static int _defaultBudgetSeedVersion = 0;
+  static int _defaultBudgetSeedMonth = 0;
   static bool _loaded = false;
   static bool _disablePersistenceForTesting = false;
   static final ValueNotifier<int> _dataVersion = ValueNotifier<int>(0);
@@ -433,19 +437,27 @@ class LiabilityService {
   }
 
   @visibleForTesting
-  static void resetForTesting({bool disablePersistence = true}) {
+  static void resetForTesting({
+    bool disablePersistence = true,
+    bool seedDefaultBudgetData = false,
+  }) {
     _deposits.clear();
     _expenses.clear();
     _liabilities.clear();
     _idCounter = 0;
+    _defaultBudgetSeedVersion = 0;
+    _defaultBudgetSeedMonth = 0;
     _loaded = true;
     _disablePersistenceForTesting = disablePersistence;
+    if (seedDefaultBudgetData) {
+      _seedDefaultBudgetDataIfNeeded(AppClock.now, force: true);
+    }
     _notifyDataChanged();
   }
 
   static Future<void> _ensureLoaded() async {
     if (_loaded) {
-      final changed = SaveFutureExpense.syncDueMonthlyExpenses(AppClock.now);
+      final changed = _prepareLoadedData(AppClock.now);
       if (changed) await _persist();
       return;
     }
@@ -453,7 +465,7 @@ class LiabilityService {
     final raw = await LocalStore.read(_storageKey);
     if (raw == null || raw.trim().isEmpty) {
       _loaded = true;
-      final changed = SaveFutureExpense.syncDueMonthlyExpenses(AppClock.now);
+      final changed = _prepareLoadedData(AppClock.now);
       if (changed) await _persist();
       return;
     }
@@ -475,15 +487,101 @@ class LiabilityService {
         ..addAll(
           _listFromJson(decoded['liabilities']).map(LiabilityRecord.fromJson),
         );
+      _defaultBudgetSeedVersion = _asInt(decoded[_defaultBudgetSeedVersionKey]);
+      _defaultBudgetSeedMonth = _asInt(decoded[_defaultBudgetSeedMonthKey]);
     } catch (_) {
       _deposits.clear();
       _expenses.clear();
       _liabilities.clear();
+      _defaultBudgetSeedVersion = 0;
+      _defaultBudgetSeedMonth = 0;
     }
 
     _loaded = true;
-    final changed = SaveFutureExpense.syncDueMonthlyExpenses(AppClock.now);
+    final changed = _prepareLoadedData(AppClock.now);
     if (changed) await _persist();
+  }
+
+  static bool _prepareLoadedData(DateTime createdAt) {
+    final seeded = _seedDefaultBudgetDataIfNeeded(createdAt);
+    final synced = SaveFutureExpense.syncDueMonthlyExpenses(createdAt);
+    return seeded || synced;
+  }
+
+  static bool _seedDefaultBudgetDataIfNeeded(
+    DateTime createdAt, {
+    bool force = false,
+  }) {
+    if (_disablePersistenceForTesting && !force) return false;
+    if (_defaultBudgetSeedVersion >= DefaultBudgetSeedData.version) {
+      return false;
+    }
+    if (_deposits.isNotEmpty ||
+        _expenses.isNotEmpty ||
+        _liabilities.isNotEmpty) {
+      return false;
+    }
+
+    var changed = false;
+    for (final seed in DefaultBudgetSeedData.deposits) {
+      final transactionDate = _seedDate(createdAt, seed.dayOfMonth);
+      if (transactionDate == null) continue;
+
+      _deposits.add(
+        DepositRecord(
+          id: _newId('seed-deposit'),
+          orderNumber: _seedOrderNumber(seed),
+          totalAmount: seed.totalAmount,
+          creditDebt: seed.creditDebt,
+          cash: seed.cash,
+          giftCard: seed.giftCard,
+          other: seed.other,
+          transactionDate: transactionDate,
+          isManual: true,
+        ),
+      );
+      changed = true;
+    }
+
+    for (final seed in DefaultBudgetSeedData.expenses) {
+      final transactionDate = _seedDate(createdAt, seed.dayOfMonth);
+      if (transactionDate == null) continue;
+      final payee = seed.payee.trim().isEmpty ? seed.category : seed.payee;
+
+      if (seed.isRecurringMonthly) {
+        final expenses = SaveFutureExpense.createDueMonthlyExpenses(
+          checkNumber: _seedCheckNumber(seed),
+          totalAmount: seed.amount,
+          transactionDate: transactionDate,
+          category: seed.category,
+          payee: payee,
+          isManual: true,
+          now: createdAt,
+        );
+        for (final expense in expenses) {
+          _addExpense(expense);
+        }
+        changed = changed || expenses.isNotEmpty;
+        continue;
+      }
+
+      _addExpense(
+        ExpenseRecord(
+          id: _newId('seed-expense'),
+          checkNumber: _seedCheckNumber(seed),
+          totalAmount: seed.amount,
+          transactionDate: transactionDate,
+          category: seed.category,
+          payee: payee,
+          isManual: true,
+        ),
+      );
+      changed = true;
+    }
+
+    _defaultBudgetSeedVersion = DefaultBudgetSeedData.version;
+    _defaultBudgetSeedMonth = SaveFutureExpense._monthKey(createdAt);
+    return changed;
   }
 
   static Future<void> _persist() async {
@@ -493,9 +591,37 @@ class LiabilityService {
       'deposits': _deposits.map((record) => record.toJson()).toList(),
       'expenses': _expenses.map((record) => record.toJson()).toList(),
       'liabilities': _liabilities.map((record) => record.toJson()).toList(),
+      _defaultBudgetSeedVersionKey: _defaultBudgetSeedVersion,
+      _defaultBudgetSeedMonthKey: _defaultBudgetSeedMonth,
     });
 
     await LocalStore.write(_storageKey, payload);
+  }
+
+  static DateTime? _seedDate(DateTime createdAt, int dayOfMonth) {
+    if (dayOfMonth < 1) return null;
+    final lastDay = DateTime(createdAt.year, createdAt.month + 1, 0).day;
+    if (dayOfMonth > lastDay) return null;
+    return DateTime(createdAt.year, createdAt.month, dayOfMonth);
+  }
+
+  static String _seedOrderNumber(BudgetSeedDeposit seed) {
+    final day = seed.dayOfMonth.toString().padLeft(2, '0');
+    return 'Seed-${_seedToken(seed.label)}-$day';
+  }
+
+  static String _seedCheckNumber(BudgetSeedExpense seed) {
+    final day = seed.dayOfMonth.toString().padLeft(2, '0');
+    return 'Seed-${_seedToken(seed.category)}-$day';
+  }
+
+  static String _seedToken(String value) {
+    final token = value
+        .trim()
+        .toUpperCase()
+        .replaceAll(RegExp(r'[^A-Z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    return token.isEmpty ? 'BUDGET' : token;
   }
 
   static List<Map<String, dynamic>> _listFromJson(Object? value) {

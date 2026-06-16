@@ -113,7 +113,7 @@ class SaveFutureExpense {
     return [
       startDate,
       for (var monthKey = startMonth + 1; monthKey <= endMonth; monthKey++)
-        _dateFromMonthKey(monthKey),
+        _dateFromMonthKey(monthKey, startDate),
     ];
   }
 
@@ -177,10 +177,20 @@ class SaveFutureExpense {
 
   static int _monthKey(DateTime date) => date.year * 12 + date.month;
 
-  static DateTime _dateFromMonthKey(int monthKey) {
+  static DateTime _dateFromMonthKey(int monthKey, DateTime template) {
     final year = (monthKey - 1) ~/ 12;
     final month = (monthKey - 1) % 12 + 1;
-    return DateTime(year, month);
+    final day = template.day.clamp(1, DateTime(year, month + 1, 0).day).toInt();
+    return DateTime(
+      year,
+      month,
+      day,
+      template.hour,
+      template.minute,
+      template.second,
+      template.millisecond,
+      template.microsecond,
+    );
   }
 
   static int _recurringIndex(DateTime startDate, DateTime occurrenceDate) {

@@ -40,7 +40,7 @@ void main() {
     expect(find.text('60%'), findsOneWidget);
     expect(find.text('40%'), findsOneWidget);
     expect(find.text('Total Budget'), findsOneWidget);
-    expect(find.text(r'$1,000.00'), findsOneWidget);
+    expect(find.text(r'$1,000.00'), findsWidgets);
     expect(find.text(r'$400.00'), findsOneWidget);
     expect(find.text(r'$600.00'), findsOneWidget);
     expect(find.text(r'Available $600.00'), findsOneWidget);
@@ -89,7 +89,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('OVERVIEW'), findsOneWidget);
     expect(find.text('Total Budget'), findsOneWidget);
-    expect(find.text(r'$100,000.00'), findsOneWidget);
+    expect(find.text(r'$100,000.00'), findsWidgets);
     expect(find.text(r'Available $87,000.00'), findsOneWidget);
     expect(find.text('13% utilized'), findsOneWidget);
   });

@@ -268,7 +268,7 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
                   builder: (context, constraints) {
                     final contentWidth = constraints.maxWidth;
                     final isWide = contentWidth >= 560;
-                    final isTight = contentWidth < 340;
+                    final isTight = contentWidth < 280;
                     final gap = isWide
                         ? 24.0
                         : isTight
@@ -288,20 +288,35 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
                       minChartHeight,
                       activeSegmentCount * rowHeight + 8,
                     );
+                    final legend = _CategoryLegend(
+                      segments: allLegendSegments,
+                      targetPercentages: targetPercentages,
+                      periodKey: _periodKey,
+                      isEditingTargets: _isEditingTargets,
+                      onTargetChanged: _updateTarget,
+                    );
+                    final figure = _BudgetDonutFigure(
+                      data: widget.data,
+                      segments: segments,
+                    );
+                    if (isTight) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          legend,
+                          const SizedBox(height: 12),
+                          const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                          const SizedBox(height: 12),
+                          figure,
+                        ],
+                      );
+                    }
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // Legend
-                        SizedBox(
-                          width: legendWidth,
-                          child: _CategoryLegend(
-                            segments: allLegendSegments,
-                            targetPercentages: targetPercentages,
-                            periodKey: _periodKey,
-                            isEditingTargets: _isEditingTargets,
-                            onTargetChanged: _updateTarget,
-                          ),
-                        ),
+                        SizedBox(width: legendWidth, child: legend),
                         SizedBox(width: gap),
                         // Vertical divider
                         Container(
@@ -311,12 +326,7 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
                         ),
                         SizedBox(width: gap),
                         // Donut chart
-                        Expanded(
-                          child: _BudgetDonutFigure(
-                            data: widget.data,
-                            segments: segments,
-                          ),
-                        ),
+                        Expanded(child: figure),
                       ],
                     );
                   },
@@ -563,13 +573,17 @@ class BudgetTotalsCard extends StatelessWidget {
                             color: reserveColor,
                             size: 18,
                           ),
-                          Text(
-                            '${data.surplusPercent}% reserved in range',
-                            style: TextStyle(
-                              color: reserveColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0,
+                          Expanded(
+                            child: Text(
+                              '${data.surplusPercent}% reserved in range',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: reserveColor,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0,
+                              ),
                             ),
                           ),
                         ],

@@ -134,6 +134,23 @@ void main() {
     },
   );
 
+  test('recurring expense sync preserves the original day of month', () async {
+    await LiabilityService.saveExpense(
+      checkNumber: '104',
+      totalAmount: 3000,
+      transactionDate: DateTime(2026, 1, 2),
+      category: 'Insurance',
+      payee: 'Insurance',
+      isManual: true,
+      isRecurringMonthly: true,
+    );
+
+    final expenses = await LiabilityService.loadExpenses();
+
+    expect(_months(expenses), [1, 2, 3, 4, 5, 6]);
+    expect(expenses.map((record) => record.transactionDate.day).toSet(), {2});
+  });
+
   test('budget data includes transaction count for selected range', () async {
     await LiabilityService.saveDeposit(
       orderNumber: 'd1',
@@ -170,6 +187,60 @@ void main() {
 
     expect(data.transactionCount, 2);
   });
+
+  test('default budget seed uses the created month', () async {
+    LiabilityService.resetForTesting(seedDefaultBudgetData: true);
+
+    final deposits = await LiabilityService.loadDeposits();
+    final expenses = await LiabilityService.loadExpenses();
+
+    expect(deposits, hasLength(2));
+    expect(expenses, hasLength(15));
+    expect(deposits.map((record) => record.transactionDate.month).toSet(), {6});
+    expect(expenses.map((record) => record.transactionDate.month).toSet(), {6});
+
+    final cash = deposits.singleWhere((record) => record.cash == 100000);
+    expect(cash.transactionDate.day, 1);
+    expect(cash.totalAmount, 100000);
+
+    final credit = deposits.singleWhere((record) => record.creditDebt == 20000);
+    expect(credit.transactionDate.day, 15);
+    expect(credit.totalAmount, 20000);
+
+    final insurance = expenses.singleWhere(
+      (record) => record.category == 'Insurance',
+    );
+    expect(insurance.transactionDate.day, 2);
+    expect(insurance.isRecurring, isTrue);
+
+    final rent = expenses.singleWhere((record) => record.category == 'Rent');
+    expect(rent.transactionDate.day, 1);
+    expect(rent.isRecurring, isTrue);
+
+    expect(await LiabilityService.loadDeposits(), hasLength(2));
+    expect(await LiabilityService.loadExpenses(), hasLength(15));
+  });
+
+  test(
+    'default budget seed aggregates through the created date range',
+    () async {
+      LiabilityService.resetForTesting(seedDefaultBudgetData: true);
+
+      final data = await LiabilityService.loadBudgetData(
+        startDate: DateTime(2026, 6),
+        endDate: DateTime(2026, 6, 15),
+        period: 'Created month',
+      );
+
+      expect(data.deposit, 120000);
+      expect(data.expense, closeTo(53542.44, 0.001));
+      expect(data.transactionCount, 10);
+      expect(data.recurringExpenses.map((item) => item.category).toSet(), {
+        'Insurance',
+        'Rent',
+      });
+    },
+  );
 }
 
 List<int> _months(List<ExpenseRecord> expenses) {
