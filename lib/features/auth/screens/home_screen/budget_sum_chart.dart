@@ -1023,7 +1023,7 @@ class _CenterBudgetText extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Total Budget',
+            'Available',
             maxLines: 1,
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -1032,14 +1032,14 @@ class _CenterBudgetText extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          SizedBox(height: 3 * scale),
+          SizedBox(height: 6 * scale),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              _fmtMoney(data.total),
+              _fmtMoney(data.reserve),
               maxLines: 1,
               style: TextStyle(
-                color: const Color(0xFF111827),
+                color: availableColor,
                 fontSize: 22 * scale,
                 fontWeight: FontWeight.w900,
               ),
@@ -1049,16 +1049,16 @@ class _CenterBudgetText extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              'Available ${_fmtMoney(data.reserve)}',
+              '${data.expense} / ${data.deposit}',
               maxLines: 1,
               style: TextStyle(
-                color: availableColor,
-                fontSize: 12 * scale,
-                fontWeight: FontWeight.w800,
+                color: Colors.black,
+                fontSize: 18 * scale,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
-          SizedBox(height: 3 * scale),
+          SizedBox(height: 6 * scale),
           Text(
             '${data.utilizationPercent}% utilized',
             maxLines: 1,
