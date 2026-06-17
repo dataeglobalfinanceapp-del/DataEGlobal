@@ -63,6 +63,16 @@ class ScannedExpenseData {
 
 enum ScanExpenseEntryMode { automatic, manual }
 
+enum ExpenseReminderFrequency {
+  weekly('Weekly'),
+  biweekly('Biweekly'),
+  semiMonthly('Semi-monthly'),
+  monthly('Monthly');
+
+  const ExpenseReminderFrequency(this.label);
+  final String label;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared widgets
 // ─────────────────────────────────────────────────────────────────────────────
@@ -161,6 +171,208 @@ class RecurringMonthlyOption extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class ExpenseReminderOption extends StatelessWidget {
+  final bool value;
+  final DateTime startDate;
+  final ExpenseReminderFrequency frequency;
+  final ValueChanged<bool> onChanged;
+  final VoidCallback onPickStartDate;
+  final ValueChanged<ExpenseReminderFrequency> onFrequencyChanged;
+
+  const ExpenseReminderOption({
+    super.key,
+    required this.value,
+    required this.startDate,
+    required this.frequency,
+    required this.onChanged,
+    required this.onPickStartDate,
+    required this.onFrequencyChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: () => onChanged(!value),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFFCF8),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.notifications_active_outlined,
+                    color: Color(0xFF0F766E),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ADD TO REMINDERS',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                          color: Color(0xFF555555),
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Create recurring payment reminders from a custom start date.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          color: Color(0xFF666666),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Switch.adaptive(
+                  value: value,
+                  activeThumbColor: Color(0xFF0F766E),
+                  activeTrackColor: Color(0x550F766E),
+                  onChanged: onChanged,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (value) ...[
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _ExpenseReminderField(
+                  label: 'START DATE',
+                  child: InkWell(
+                    onTap: onPickStartDate,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _formatDate(startDate),
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1A2340),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(
+                          Icons.calendar_month_outlined,
+                          size: 18,
+                          color: Color(0xFF4A90D9),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _ExpenseReminderField(
+                  label: 'FREQUENCY',
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<ExpenseReminderFrequency>(
+                      value: frequency,
+                      isExpanded: true,
+                      icon: const Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 18,
+                        color: Color(0xFF4A90D9),
+                      ),
+                      items: ExpenseReminderFrequency.values
+                          .map(
+                            (option) =>
+                                DropdownMenuItem<ExpenseReminderFrequency>(
+                                  value: option,
+                                  child: Text(
+                                    option.label,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                          )
+                          .toList(growable: false),
+                      onChanged: (option) {
+                        if (option == null) return;
+                        onFrequencyChanged(option);
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _formatDate(DateTime d) =>
+      '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
+}
+
+class _ExpenseReminderField extends StatelessWidget {
+  final String label;
+  final Widget child;
+
+  const _ExpenseReminderField({required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+            color: Color(0xFF888888),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9FAFB),
+            border: Border.all(color: const Color(0xFFD0D0D0)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DefaultTextStyle(
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1A2340),
+            ),
+            child: child,
+          ),
+        ),
+      ],
     );
   }
 }

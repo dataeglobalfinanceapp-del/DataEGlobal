@@ -354,20 +354,27 @@ class ReminderService {
     final endOfYear = DateTime(year, 12, 31);
     final frequency = series.reminderCount.toLowerCase();
 
-    if (frequency == 'weekly') {
+    if (frequency == 'weekly' || frequency == 'biweekly') {
+      final int intervalDays = frequency == 'weekly' ? 7 : 14;
       var date = series.startDate;
       if (date.isBefore(startOfYear)) {
         final difference = startOfYear.difference(date).inDays;
-        final offset = difference % 7 == 0 ? 0 : 7 - (difference % 7);
+        final offset = difference % intervalDays == 0
+            ? 0
+            : intervalDays - (difference % intervalDays);
         date = startOfYear.add(Duration(days: offset));
       }
 
       final dates = <DateTime>[];
       while (!date.isAfter(endOfYear)) {
         dates.add(_dateOnly(date));
-        date = date.add(const Duration(days: 7));
+        date = date.add(Duration(days: intervalDays));
       }
       return dates;
+    }
+
+    if (frequency == 'semi-monthly') {
+      return _semiMonthlyDatesForYear(series.startDate, year);
     }
 
     final intervalMonths = switch (frequency) {
@@ -385,6 +392,46 @@ class ReminderService {
       if (date.year == year) dates.add(date);
     }
     return dates;
+  }
+
+  static List<DateTime> _semiMonthlyDatesForYear(
+    DateTime startDate,
+    int year,
+  ) {
+    final List<DateTime> dates = <DateTime>[];
+    final int firstMonth = year == startDate.year ? startDate.month : 1;
+    final List<int> anchorDays = _semiMonthlyAnchorDays(startDate.day);
+
+    for (var month = firstMonth; month <= 12; month++) {
+      for (final int day in anchorDays) {
+        final DateTime date = _clampedDate(year, month, day);
+        if (date.isBefore(startDate) || _containsDate(dates, date)) {
+          continue;
+        }
+        dates.add(date);
+      }
+    }
+
+    return dates;
+  }
+
+  static List<int> _semiMonthlyAnchorDays(int startDay) {
+    final int pairedDay = startDay > 15 ? startDay - 15 : startDay + 15;
+    final List<int> days = <int>[startDay, pairedDay]..sort();
+    return days;
+  }
+
+  static DateTime _clampedDate(int year, int month, int day) {
+    return DateTime(year, month, _minInt(day, _daysInMonth(year, month)));
+  }
+
+  static bool _containsDate(List<DateTime> dates, DateTime date) {
+    return dates.any(
+      (entry) =>
+          entry.year == date.year &&
+          entry.month == date.month &&
+          entry.day == date.day,
+    );
   }
 
   static DateTime _addMonthsClamped(DateTime date, int months) {
@@ -412,7 +459,12 @@ class ReminderService {
 
   static bool _isRecurringCount(String value) {
     return switch (value.trim().toLowerCase()) {
-      'weekly' || 'monthly' || 'quarterly' || 'yearly' => true,
+      'weekly' ||
+      'biweekly' ||
+      'semi-monthly' ||
+      'monthly' ||
+      'quarterly' ||
+      'yearly' => true,
       _ => false,
     };
   }

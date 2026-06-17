@@ -68,6 +68,61 @@ void main() {
     },
   );
 
+  test('biweekly recurring reminders repeat every 14 days', () async {
+    await ReminderService.saveReminders(<ReminderDraft>[
+      ReminderDraft(
+        date: DateTime(2026, 6, 1),
+        category: 'Payroll',
+        amount: 800,
+        reminderCount: 'Biweekly',
+        payee: 'Team payroll',
+      ),
+    ]);
+
+    final List<ReminderRecord> reminders = await ReminderService.loadReminders();
+    final List<String> juneDates = reminders
+        .where((ReminderRecord record) => record.date.month == 6)
+        .map((ReminderRecord record) => _dateKey(record.date))
+        .toList(growable: false);
+
+    expect(juneDates, <String>['2026-06-01', '2026-06-15', '2026-06-29']);
+    expect(
+      reminders.map((ReminderRecord record) => record.reminderCount).toSet(),
+      <String>{'Biweekly'},
+    );
+  });
+
+  test('semi-monthly recurring reminders use the selected start date pair',
+      () async {
+    await ReminderService.saveReminders(<ReminderDraft>[
+      ReminderDraft(
+        date: DateTime(2026, 6, 20),
+        category: 'Rent',
+        amount: 600,
+        reminderCount: 'Semi-monthly',
+        payee: 'Studio rent',
+      ),
+    ]);
+
+    final List<ReminderRecord> reminders = await ReminderService.loadReminders();
+    final List<String> firstDates = reminders
+        .take(5)
+        .map((ReminderRecord record) => _dateKey(record.date))
+        .toList(growable: false);
+
+    expect(firstDates, <String>[
+      '2026-06-20',
+      '2026-07-05',
+      '2026-07-20',
+      '2026-08-05',
+      '2026-08-20',
+    ]);
+    expect(
+      reminders.every((ReminderRecord record) => record.isRecurring),
+      true,
+    );
+  });
+
   test('marking one-time reminder finished removes it', () async {
     await ReminderService.saveReminders(<ReminderDraft>[
       ReminderDraft(
@@ -255,4 +310,10 @@ void main() {
 List<int> _months(List<ReminderRecord> reminders) {
   return reminders.map((ReminderRecord record) => record.date.month).toList()
     ..sort();
+}
+
+String _dateKey(DateTime date) {
+  return '${date.year}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
 }

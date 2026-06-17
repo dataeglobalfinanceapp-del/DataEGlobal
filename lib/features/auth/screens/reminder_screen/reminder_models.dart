@@ -311,6 +311,8 @@ const List<String> _reminderCounts = <String>[
   'Monthly',
   'Just one',
   'Weekly',
+  'Biweekly',
+  'Semi-monthly',
   'Quarterly',
   'Yearly',
 ];

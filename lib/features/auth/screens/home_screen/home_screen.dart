@@ -201,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   _buildFeatureCard(
                     icon: Icons.flag,
-                    label: 'TAX',
+                    label: 'PROFIT & LOSS',
                     color: const Color(0xFFE0F2FE),
                     onTap: () => _openAndRefresh('/tax'),
                   ),
