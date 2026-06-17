@@ -1017,6 +1017,9 @@ class _CenterBudgetText extends StatelessWidget {
         ? const Color(0xFF16A34A)
         : const Color(0xFFDC2626);
     final scale = (width / 122).clamp(0.65, 1.0).toDouble();
+    final surplusPercent = data.deposit > 0
+    ? ((data.reserve / data.deposit) * 100).round()
+    : 0;
     return SizedBox(
       width: width,
       child: Column(
@@ -1027,8 +1030,8 @@ class _CenterBudgetText extends StatelessWidget {
             maxLines: 1,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: const Color(0xFF6B7280),
-              fontSize: 11 * scale,
+              color: const Color.fromARGB(255, 0, 0, 0),
+              fontSize: 12 * scale,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1040,7 +1043,7 @@ class _CenterBudgetText extends StatelessWidget {
               maxLines: 1,
               style: TextStyle(
                 color: availableColor,
-                fontSize: 22 * scale,
+                fontSize: 20 * scale,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -1049,11 +1052,11 @@ class _CenterBudgetText extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              _fmtMoney(data.reserve),
+              'SURPLUS $surplusPercent%',
               maxLines: 1,
               style: TextStyle(
                 color: availableColor,
-                fontSize: 22 * scale,
+                fontSize: 14 * scale,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -1062,11 +1065,11 @@ class _CenterBudgetText extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              '${data.expense} / ${data.deposit}',
+              '${_fmtMoney(data.expense)} / ${_fmtMoney(data.deposit)}',
               maxLines: 1,
               style: TextStyle(
                 color: Colors.black,
-                fontSize: 18 * scale,
+                fontSize: 12 * scale,
                 fontWeight: FontWeight.w900,
               ),
             ),
