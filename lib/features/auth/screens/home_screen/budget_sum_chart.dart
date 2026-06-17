@@ -1049,6 +1049,19 @@ class _CenterBudgetText extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
+              _fmtMoney(data.reserve),
+              maxLines: 1,
+              style: TextStyle(
+                color: availableColor,
+                fontSize: 22 * scale,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          SizedBox(height: 6 * scale),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
               '${data.expense} / ${data.deposit}',
               maxLines: 1,
               style: TextStyle(
