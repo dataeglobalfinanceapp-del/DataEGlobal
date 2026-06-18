@@ -239,7 +239,7 @@ class _CalendarDayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color background = day.hasReminders
-        ? _ReminderTokens.success
+        ? const Color(0xFFD64A4A)
         : day.isToday
         ? _ReminderTokens.today
         : Colors.transparent;
@@ -320,18 +320,18 @@ class _ReminderCard extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Expanded(
-                flex: 2,
+                flex: 4,
                 child: _ReminderLineText(label: 'Payee', value: record.payee),
               ),
               const SizedBox(width: 6),
               Expanded(
-                flex: 2,
+                flex: 0,
                 child: _ReminderLineText(
                   label: 'Frequency',
                   value: record.reminderCount,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               Expanded(
                 flex: 3,
                 child: _ReminderLineText(
