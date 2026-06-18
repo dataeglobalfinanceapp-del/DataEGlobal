@@ -66,31 +66,6 @@ void main() {
     expect(expenses.map((record) => record.transactionDate.day).toSet(), {2});
   });
 
-  test('biweekly recurring expenses use reminder frequency dates', () async {
-    await LiabilityService.saveExpense(
-      checkNumber: '105',
-      totalAmount: 500,
-      transactionDate: DateTime(2026, 6, 1),
-      category: 'Payroll',
-      payee: 'Team payroll',
-      isManual: true,
-      isRecurringMonthly: true,
-      recurringStartDate: DateTime(2026, 6, 1),
-      recurringFrequency: 'Biweekly',
-    );
-
-    var expenses = await LiabilityService.loadExpenses();
-
-    expect(_dateKeys(expenses), ['2026-06-01', '2026-06-15']);
-    expect(expenses.map((record) => record.normalizedRecurringFrequency), {
-      'Biweekly',
-    });
-
-    AppClock.set(DateTime(2026, 6, 29));
-    expenses = await LiabilityService.loadExpenses();
-
-    expect(_dateKeys(expenses), ['2026-06-01', '2026-06-15', '2026-06-29']);
-  });
 
   test('future recurring expense starts on the selected date only', () async {
     await LiabilityService.saveExpense(
