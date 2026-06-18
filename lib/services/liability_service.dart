@@ -72,16 +72,17 @@ class LiabilityService {
     await _ensureLoaded();
 
     final expenses = isRecurringMonthly
-        ? SaveFutureExpense.createDueRecurringExpenses(
-            checkNumber: checkNumber,
-            totalAmount: totalAmount,
-            startDate: recurringStartDate ?? transactionDate,
-            category: category,
-            payee: payee,
-            isManual: isManual,
-            frequency: recurringFrequency,
-            now: AppClock.now,
-          )
+        ? [
+            SaveFutureExpense.createInitialRecurringExpense(
+              checkNumber: checkNumber,
+              totalAmount: totalAmount,
+              startDate: recurringStartDate ?? transactionDate,
+              category: category,
+              payee: payee,
+              isManual: isManual,
+              frequency: recurringFrequency,
+            ),
+          ]
         : [
             ExpenseRecord(
               id: _newId('expense'),

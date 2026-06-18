@@ -92,6 +92,36 @@ void main() {
     expect(_dateKeys(expenses), ['2026-06-01', '2026-06-15', '2026-06-29']);
   });
 
+  test('future recurring expense starts on the selected date only', () async {
+    await LiabilityService.saveExpense(
+      checkNumber: '107',
+      totalAmount: 240,
+      transactionDate: DateTime(2026, 6, 15),
+      category: 'Utilities',
+      payee: 'Power Co',
+      isManual: true,
+      isRecurringMonthly: true,
+      recurringStartDate: DateTime(2026, 7, 1),
+      recurringFrequency: 'Monthly',
+    );
+
+    var expenses = await LiabilityService.loadExpenses();
+
+    expect(_dateKeys(expenses), ['2026-07-01']);
+
+    final juneBudget = await LiabilityService.loadBudgetData(
+      startDate: DateTime(2026, 6, 1),
+      endDate: DateTime(2026, 6, 30),
+      period: 'June',
+    );
+    expect(juneBudget.expense, 0);
+
+    AppClock.set(DateTime(2026, 8, 1));
+    expenses = await LiabilityService.loadExpenses();
+
+    expect(_dateKeys(expenses), ['2026-07-01', '2026-08-01']);
+  });
+
   test(
     'semi-monthly recurring expenses use the selected start date pair',
     () async {

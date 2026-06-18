@@ -3,6 +3,32 @@ part of 'liability_service.dart';
 class SaveFutureExpense {
   const SaveFutureExpense._();
 
+  static ExpenseRecord createInitialRecurringExpense({
+    required String checkNumber,
+    required double totalAmount,
+    required DateTime startDate,
+    required String category,
+    required String payee,
+    required bool isManual,
+    required String frequency,
+  }) {
+    final transactionDate = RecurrenceSchedule.dateOnly(startDate);
+    final recurringSeriesId = LiabilityService._newId('recurring-expense');
+    final recurringFrequency = _normalizedFrequency(frequency);
+    return ExpenseRecord(
+      id: LiabilityService._newId('expense-${_dateToken(transactionDate)}'),
+      checkNumber: checkNumber,
+      totalAmount: totalAmount,
+      transactionDate: transactionDate,
+      category: category,
+      payee: payee,
+      isManual: isManual,
+      recurringSeriesId: recurringSeriesId,
+      recurringIndex: 0,
+      recurringFrequency: recurringFrequency,
+    );
+  }
+
   static List<ExpenseRecord> createDueRecurringExpenses({
     required String checkNumber,
     required double totalAmount,
@@ -38,7 +64,7 @@ class SaveFutureExpense {
   }
 
   static bool syncDueRecurringExpenses(DateTime now) {
-    var changed = _removeUnstartedRecurringExpenses(now);
+    var changed = false;
     final seriesIds = LiabilityService._expenses
         .where((record) => record.isRecurring)
         .map((record) => record.recurringSeriesId)
@@ -82,34 +108,6 @@ class SaveFutureExpense {
     }
 
     return changed;
-  }
-
-  static bool _removeUnstartedRecurringExpenses(DateTime now) {
-    final currentMonth = _monthKey(now);
-    final expensesToRemove = LiabilityService._expenses
-        .where(
-          (record) =>
-              record.isRecurring &&
-              _monthKey(record.transactionDate) > currentMonth,
-        )
-        .toList();
-    if (expensesToRemove.isEmpty) return false;
-
-    final expenseIds = expensesToRemove.map((record) => record.id).toSet();
-    LiabilityService._expenses.removeWhere(
-      (record) => expenseIds.contains(record.id),
-    );
-    LiabilityService._liabilities.removeWhere(
-      (record) =>
-          expenseIds.any(
-            (expenseId) => record.source == 'expense:$expenseId',
-          ) ||
-          expensesToRemove.any(
-            (expense) =>
-                LiabilityService._isLegacyExpenseLiability(record, expense),
-          ),
-    );
-    return true;
   }
 
   static List<DateTime> _dueRecurringDates({

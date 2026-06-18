@@ -90,7 +90,7 @@ class _ScanExpenseManualScreenState extends State<ScanExpenseManualScreen> {
       context,
       initialDate: _recurringStartDate,
       firstDate: DateTime(2020),
-      lastDate: AppClock.now,
+      lastDate: DateTime(2100),
     );
     if (picked != null && mounted) {
       setState(() => _recurringStartDate = picked);
