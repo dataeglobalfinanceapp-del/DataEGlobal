@@ -49,91 +49,6 @@ void main() {
     },
   );
 
-  test(
-    'deleting recurring expense from selected month keeps earlier months',
-    () async {
-      await LiabilityService.saveExpense(
-        checkNumber: '103',
-        totalAmount: 700,
-        transactionDate: DateTime(2026, 1, 10),
-        category: 'Utilities',
-        payee: 'Utilities',
-        isManual: true,
-        isRecurringMonthly: true,
-      );
-
-      var expenses = await LiabilityService.loadExpenses();
-      final marchUtilities = expenses.singleWhere(
-        (record) => record.transactionDate.month == 3,
-      );
-
-      final deleted = await LiabilityService.deleteRecurringExpenseFromMonth(
-        marchUtilities.id,
-        marchUtilities.transactionDate,
-      );
-
-      expect(deleted, isTrue);
-      expenses = await LiabilityService.loadExpenses();
-      expect(_months(expenses), [1, 2]);
-
-      AppClock.set(DateTime(2026, 7, 1));
-      expenses = await LiabilityService.loadExpenses();
-      expect(_months(expenses), [1, 2]);
-    },
-  );
-
-  test(
-    'editing recurring amount keeps past months and updates future sync',
-    () async {
-      await LiabilityService.saveExpense(
-        checkNumber: '102',
-        totalAmount: 900,
-        transactionDate: DateTime(2026, 1, 10),
-        category: 'Rent',
-        payee: 'Rent',
-        isManual: true,
-        isRecurringMonthly: true,
-      );
-
-      var expenses = await LiabilityService.loadExpenses();
-      final juneRent = expenses.singleWhere(
-        (record) => record.transactionDate.month == 6,
-      );
-
-      final updated = await LiabilityService.updateRecurringExpenseAmount(
-        juneRent.id,
-        950,
-      );
-
-      expect(updated, isTrue);
-      expenses = await LiabilityService.loadExpenses();
-      expect(
-        expenses
-            .where((record) => record.transactionDate.month < 6)
-            .map((record) => record.totalAmount)
-            .toSet(),
-        {900},
-      );
-      expect(
-        expenses
-            .singleWhere((record) => record.transactionDate.month == 6)
-            .totalAmount,
-        950,
-      );
-
-      AppClock.set(DateTime(2026, 7, 1));
-      expenses = await LiabilityService.loadExpenses();
-
-      expect(_months(expenses), [1, 2, 3, 4, 5, 6, 7]);
-      expect(
-        expenses
-            .singleWhere((record) => record.transactionDate.month == 7)
-            .totalAmount,
-        950,
-      );
-    },
-  );
-
   test('recurring expense sync preserves the original day of month', () async {
     await LiabilityService.saveExpense(
       checkNumber: '104',
@@ -308,10 +223,6 @@ void main() {
       expect(data.surplusPercent, 50);
       expect(data.utilizationPercent, 50);
       expect(data.transactionCount, 10);
-      expect(data.recurringExpenses.map((item) => item.category).toSet(), {
-        'Insurance',
-        'Rent',
-      });
     },
   );
 }

@@ -145,73 +145,6 @@ class LiabilityService {
     return true;
   }
 
-  static Future<bool> deleteRecurringExpenseFromMonth(
-    String id,
-    DateTime month,
-  ) async {
-    await _ensureLoaded();
-    final matching = _expenses.where((record) => record.id == id).toList();
-    if (matching.isEmpty) return false;
-
-    final expense = matching.first;
-    if (!expense.isRecurring) return false;
-
-    return _stopRecurringExpenseFromMonth(expense, month);
-  }
-
-  static Future<bool> updateRecurringExpenseAmount(
-    String id,
-    double amount,
-  ) async {
-    if (amount <= 0) return false;
-
-    await _ensureLoaded();
-    final matching = _expenses.where((record) => record.id == id).toList();
-    if (matching.isEmpty) return false;
-
-    final expense = matching.first;
-    if (!expense.isRecurring) return false;
-
-    final editMonthKey = SaveFutureExpense._monthKey(AppClock.now);
-    final seriesRecords = _expenses
-        .where(
-          (record) => record.recurringSeriesId == expense.recurringSeriesId,
-        )
-        .toList();
-    final endMonthKey = SaveFutureExpense._seriesEndMonthKey(seriesRecords);
-    if (endMonthKey > 0 && editMonthKey >= endMonthKey) return false;
-
-    final expensesToUpdate = seriesRecords
-        .where(
-          (record) =>
-              SaveFutureExpense._monthKey(record.transactionDate) >=
-                  editMonthKey &&
-              (endMonthKey == 0 ||
-                  SaveFutureExpense._monthKey(record.transactionDate) <
-                      endMonthKey),
-        )
-        .toList();
-    if (expensesToUpdate.isEmpty) return false;
-    if (expensesToUpdate.every((record) => record.totalAmount == amount)) {
-      return true;
-    }
-
-    final expenseIds = expensesToUpdate.map((record) => record.id).toSet();
-    _removeExpenseLiabilities(expensesToUpdate);
-
-    for (var index = 0; index < _expenses.length; index++) {
-      final record = _expenses[index];
-      if (!expenseIds.contains(record.id)) continue;
-      final updated = record.copyWith(totalAmount: amount);
-      _expenses[index] = updated;
-      _addExpenseLiability(updated);
-    }
-
-    await _persist();
-    _notifyDataChanged();
-    return true;
-  }
-
   static Future<bool> _stopRecurringExpenseFromMonth(
     ExpenseRecord expense,
     DateTime month,
@@ -382,7 +315,6 @@ class LiabilityService {
       utilizationPercent: utilization,
       transactionCount: deposits.length + expenses.length,
       categories: categories,
-      recurringExpenses: _recurringExpenseBudgetItems(expenses),
     );
   }
 
@@ -644,46 +576,6 @@ class LiabilityService {
     final first = DateTime(start.year, start.month, start.day);
     final last = DateTime(end.year, end.month, end.day);
     return !date.isBefore(first) && !date.isAfter(last);
-  }
-
-  static List<RecurringExpenseBudgetItem> _recurringExpenseBudgetItems(
-    List<ExpenseRecord> expenses,
-  ) {
-    final currentMonthKey = SaveFutureExpense._monthKey(AppClock.now);
-    final bySeries = <String, List<ExpenseRecord>>{};
-
-    for (final expense in expenses) {
-      if (!expense.isRecurring) continue;
-      if (expense.recurringEndMonthKey > 0 &&
-          currentMonthKey >= expense.recurringEndMonthKey) {
-        continue;
-      }
-      bySeries
-          .putIfAbsent(expense.recurringSeriesId, () => <ExpenseRecord>[])
-          .add(expense);
-    }
-
-    final items = <RecurringExpenseBudgetItem>[];
-    for (final records in bySeries.values) {
-      records.sort((a, b) => a.transactionDate.compareTo(b.transactionDate));
-      final latest = records.last;
-      items.add(
-        RecurringExpenseBudgetItem(
-          id: latest.id,
-          label: latest.payee.trim().isEmpty
-              ? latest.category
-              : latest.payee.trim(),
-          category: latest.category,
-          amount: latest.totalAmount,
-          transactionDate: latest.transactionDate,
-        ),
-      );
-    }
-
-    items.sort(
-      (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()),
-    );
-    return items;
   }
 
   static String _newId(String prefix) =>

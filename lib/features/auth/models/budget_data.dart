@@ -14,22 +14,6 @@ class BudgetCategory {
   });
 }
 
-class RecurringExpenseBudgetItem {
-  final String id;
-  final String label;
-  final String category;
-  final double amount;
-  final DateTime transactionDate;
-
-  const RecurringExpenseBudgetItem({
-    required this.id,
-    required this.label,
-    required this.category,
-    required this.amount,
-    required this.transactionDate,
-  });
-}
-
 class BudgetSeedDeposit {
   final int dayOfMonth;
   final String label;
@@ -132,7 +116,6 @@ class BudgetData {
   final int utilizationPercent;
   final int transactionCount;
   final List<BudgetCategory> categories;
-  final List<RecurringExpenseBudgetItem> recurringExpenses;
 
   const BudgetData({
     this.deposit = 0,
@@ -143,7 +126,6 @@ class BudgetData {
     this.utilizationPercent = 0,
     this.transactionCount = 0,
     this.categories = const [],
-    this.recurringExpenses = const [],
   });
 
   double get saving => DepositAllocation.savingFor(deposit);
