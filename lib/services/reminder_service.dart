@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'app_clock.dart';
+import 'recurrence_schedule.dart';
 import '../services/local_store_test/local_store.dart';
 
 enum ReminderDeleteScope { single, series }
@@ -33,7 +34,7 @@ class ReminderService {
     for (final draft in drafts) {
       if (draft.amount <= 0) continue;
 
-      if (_isRecurringCount(draft.reminderCount)) {
+      if (RecurrenceSchedule.isRecurringFrequency(draft.reminderCount)) {
         final series = ReminderSeries(
           id: _newId('reminder-series'),
           startDate: _dateOnly(draft.date),
@@ -230,7 +231,9 @@ class ReminderService {
 
     for (var i = 0; i < _reminders.length; i++) {
       final record = _reminders[i];
-      if (!_isRecurringCount(record.reminderCount)) continue;
+      if (!RecurrenceSchedule.isRecurringFrequency(record.reminderCount)) {
+        continue;
+      }
 
       var seriesId = record.recurringSeriesId;
       if (seriesId.isEmpty) {
@@ -314,7 +317,11 @@ class ReminderService {
     var changed = false;
 
     for (var year = series.startDate.year; year <= upToYear; year++) {
-      for (final date in _occurrenceDatesForYear(series, year)) {
+      for (final date in RecurrenceSchedule.occurrenceDatesForYear(
+        startDate: series.startDate,
+        frequency: series.reminderCount,
+        year: year,
+      )) {
         final occurrenceKey = _occurrenceKey(series.id, date);
         if (_deletedRecurringKeys.contains(occurrenceKey)) continue;
         if (_reminders.any(
@@ -344,105 +351,6 @@ class ReminderService {
     return changed;
   }
 
-  static List<DateTime> _occurrenceDatesForYear(
-    ReminderSeries series,
-    int year,
-  ) {
-    if (year < series.startDate.year) return [];
-
-    final startOfYear = DateTime(year);
-    final endOfYear = DateTime(year, 12, 31);
-    final frequency = series.reminderCount.toLowerCase();
-
-    if (frequency == 'weekly' || frequency == 'biweekly') {
-      final int intervalDays = frequency == 'weekly' ? 7 : 14;
-      var date = series.startDate;
-      if (date.isBefore(startOfYear)) {
-        final difference = startOfYear.difference(date).inDays;
-        final offset = difference % intervalDays == 0
-            ? 0
-            : intervalDays - (difference % intervalDays);
-        date = startOfYear.add(Duration(days: offset));
-      }
-
-      final dates = <DateTime>[];
-      while (!date.isAfter(endOfYear)) {
-        dates.add(_dateOnly(date));
-        date = date.add(Duration(days: intervalDays));
-      }
-      return dates;
-    }
-
-    if (frequency == 'semi-monthly') {
-      return _semiMonthlyDatesForYear(series.startDate, year);
-    }
-
-    final intervalMonths = switch (frequency) {
-      'monthly' => 1,
-      'quarterly' => 3,
-      'yearly' => 12,
-      _ => 0,
-    };
-    if (intervalMonths == 0) return [];
-
-    final dates = <DateTime>[];
-    for (var index = 0; index < 1200; index++) {
-      final date = _addMonthsClamped(series.startDate, index * intervalMonths);
-      if (date.year > year) break;
-      if (date.year == year) dates.add(date);
-    }
-    return dates;
-  }
-
-  static List<DateTime> _semiMonthlyDatesForYear(DateTime startDate, int year) {
-    final List<DateTime> dates = <DateTime>[];
-    final int firstMonth = year == startDate.year ? startDate.month : 1;
-    final List<int> anchorDays = _semiMonthlyAnchorDays(startDate.day);
-
-    for (var month = firstMonth; month <= 12; month++) {
-      for (final int day in anchorDays) {
-        final DateTime date = _clampedDate(year, month, day);
-        if (date.isBefore(startDate) || _containsDate(dates, date)) {
-          continue;
-        }
-        dates.add(date);
-      }
-    }
-
-    return dates;
-  }
-
-  static List<int> _semiMonthlyAnchorDays(int startDay) {
-    final int pairedDay = startDay > 15 ? startDay - 15 : startDay + 15;
-    final List<int> days = <int>[startDay, pairedDay]..sort();
-    return days;
-  }
-
-  static DateTime _clampedDate(int year, int month, int day) {
-    return DateTime(year, month, _minInt(day, _daysInMonth(year, month)));
-  }
-
-  static bool _containsDate(List<DateTime> dates, DateTime date) {
-    return dates.any(
-      (entry) =>
-          entry.year == date.year &&
-          entry.month == date.month &&
-          entry.day == date.day,
-    );
-  }
-
-  static DateTime _addMonthsClamped(DateTime date, int months) {
-    final totalMonths = date.year * 12 + date.month - 1 + months;
-    final year = totalMonths ~/ 12;
-    final month = totalMonths % 12 + 1;
-    final day = _minInt(date.day, _daysInMonth(year, month));
-    return DateTime(year, month, day);
-  }
-
-  static int _daysInMonth(int year, int month) {
-    return DateTime(year, month + 1, 0).day;
-  }
-
   static String _occurrenceKey(String seriesId, DateTime date) {
     final value = _dateOnly(date);
     return '$seriesId|${value.year}-'
@@ -450,25 +358,10 @@ class ReminderService {
         '${value.day.toString().padLeft(2, '0')}';
   }
 
-  static DateTime _dateOnly(DateTime value) {
-    return DateTime(value.year, value.month, value.day);
-  }
-
-  static bool _isRecurringCount(String value) {
-    return switch (value.trim().toLowerCase()) {
-      'weekly' ||
-      'biweekly' ||
-      'semi-monthly' ||
-      'monthly' ||
-      'quarterly' ||
-      'yearly' => true,
-      _ => false,
-    };
-  }
+  static DateTime _dateOnly(DateTime value) =>
+      RecurrenceSchedule.dateOnly(value);
 
   static int _maxInt(int a, int b) => a > b ? a : b;
-
-  static int _minInt(int a, int b) => a < b ? a : b;
 
   static List<Map<String, dynamic>> _listFromJson(Object? value) {
     if (value is! List) return [];

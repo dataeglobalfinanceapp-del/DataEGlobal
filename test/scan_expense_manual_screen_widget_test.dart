@@ -58,10 +58,53 @@ void main() {
     );
     expect(reminders.first.payee, 'Power Co');
   });
+
+  testWidgets('manual expense can add a recurring expense schedule', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: ScanExpenseManualScreen()));
+
+    await tester.enterText(find.byType(TextField).at(1), '150.00');
+    await tester.enterText(find.byType(TextField).at(2), 'Power Co');
+
+    await tester.ensureVisible(find.text('RECURRING EXPENSE'));
+    await tester.tap(find.text('RECURRING EXPENSE'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Monthly'));
+    await tester.tap(find.text('Monthly'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Biweekly').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+
+    var expenses = await LiabilityService.loadExpenses();
+
+    expect(_expenseDateKeys(expenses), <String>['2026-06-15']);
+    expect(
+      expenses
+          .map((ExpenseRecord record) => record.normalizedRecurringFrequency)
+          .toList(growable: false),
+      <String>['Biweekly'],
+    );
+
+    AppClock.set(DateTime(2026, 6, 29));
+    expenses = await LiabilityService.loadExpenses();
+
+    expect(_expenseDateKeys(expenses), <String>['2026-06-15', '2026-06-29']);
+  });
 }
 
 String _dateKey(DateTime date) {
   return '${date.year}-'
       '${date.month.toString().padLeft(2, '0')}-'
       '${date.day.toString().padLeft(2, '0')}';
+}
+
+List<String> _expenseDateKeys(List<ExpenseRecord> expenses) {
+  return expenses
+      .map((ExpenseRecord record) => _dateKey(record.transactionDate))
+      .toList(growable: false);
 }

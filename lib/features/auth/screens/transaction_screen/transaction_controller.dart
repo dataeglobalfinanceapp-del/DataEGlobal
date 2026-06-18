@@ -312,7 +312,7 @@ class _TransactionDataMapper {
             date: record.transactionDate,
             amount: record.totalAmount,
             detail: record.isRecurring
-                ? 'Monthly recurring | $checkDetail'
+                ? '${record.normalizedRecurringFrequency} recurring | $checkDetail'
                 : checkDetail,
             icon: record.isRecurring
                 ? Icons.repeat
@@ -611,7 +611,7 @@ class _TransactionReportBuilder {
             category: record.category,
             amount: record.totalAmount,
             detail: record.isRecurring
-                ? 'Monthly recurring | Check #${record.checkNumber.isEmpty ? '-' : record.checkNumber}'
+                ? '${record.normalizedRecurringFrequency} recurring | Check #${record.checkNumber.isEmpty ? '-' : record.checkNumber}'
                 : 'Check #${record.checkNumber.isEmpty ? '-' : record.checkNumber}',
           ),
         )

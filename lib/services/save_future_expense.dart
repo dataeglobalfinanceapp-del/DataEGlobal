@@ -3,34 +3,41 @@ part of 'liability_service.dart';
 class SaveFutureExpense {
   const SaveFutureExpense._();
 
-  static List<ExpenseRecord> createDueMonthlyExpenses({
+  static List<ExpenseRecord> createDueRecurringExpenses({
     required String checkNumber,
     required double totalAmount,
-    required DateTime transactionDate,
+    required DateTime startDate,
     required String category,
     required String payee,
     required bool isManual,
+    required String frequency,
     required DateTime now,
   }) {
     final recurringSeriesId = LiabilityService._newId('recurring-expense');
-    return _dueMonthlyDates(startDate: transactionDate, now: now)
-        .map(
-          (date) => ExpenseRecord(
-            id: LiabilityService._newId('expense-${date.year}-${date.month}'),
-            checkNumber: checkNumber,
-            totalAmount: totalAmount,
-            transactionDate: date,
-            category: category,
-            payee: payee,
-            isManual: isManual,
-            recurringSeriesId: recurringSeriesId,
-            recurringIndex: _recurringIndex(transactionDate, date),
-          ),
-        )
-        .toList();
+    final recurringFrequency = _normalizedFrequency(frequency);
+    final dates = _dueRecurringDates(
+      startDate: startDate,
+      now: now,
+      frequency: recurringFrequency,
+    );
+    return [
+      for (var index = 0; index < dates.length; index++)
+        ExpenseRecord(
+          id: LiabilityService._newId('expense-${_dateToken(dates[index])}'),
+          checkNumber: checkNumber,
+          totalAmount: totalAmount,
+          transactionDate: dates[index],
+          category: category,
+          payee: payee,
+          isManual: isManual,
+          recurringSeriesId: recurringSeriesId,
+          recurringIndex: index,
+          recurringFrequency: recurringFrequency,
+        ),
+    ];
   }
 
-  static bool syncDueMonthlyExpenses(DateTime now) {
+  static bool syncDueRecurringExpenses(DateTime now) {
     var changed = _removeUnstartedRecurringExpenses(now);
     final seriesIds = LiabilityService._expenses
         .where((record) => record.isRecurring)
@@ -46,18 +53,26 @@ class SaveFutureExpense {
       if (records.isEmpty) continue;
 
       final recurringEndMonthKey = _seriesEndMonthKey(records);
-      for (final date in _dueMonthlyDates(
+      final startDate = records.first.transactionDate;
+      final frequency = records.first.normalizedRecurringFrequency;
+      for (final date in _dueRecurringDates(
         startDate: records.first.transactionDate,
         now: now,
+        frequency: frequency,
         recurringEndMonthKey: recurringEndMonthKey,
       )) {
-        if (_hasRecurringOccurrence(seriesId, date.year, date.month)) {
+        if (_hasRecurringOccurrence(seriesId, date)) {
           continue;
         }
 
         final expense = _expenseFromTemplate(
           template: _templateForDate(records, date),
           date: date,
+          recurringIndex: _recurringIndex(
+            startDate: startDate,
+            occurrenceDate: date,
+            frequency: frequency,
+          ),
         );
         LiabilityService._addExpense(expense);
         records.add(expense);
@@ -97,42 +112,43 @@ class SaveFutureExpense {
     return true;
   }
 
-  static List<DateTime> _dueMonthlyDates({
+  static List<DateTime> _dueRecurringDates({
     required DateTime startDate,
     required DateTime now,
+    required String frequency,
     int recurringEndMonthKey = 0,
   }) {
-    final startMonth = _monthKey(startDate);
     final currentMonth = _monthKey(now);
-    final endMonth =
+    final normalizedFrequency = _normalizedFrequency(frequency);
+    final through =
         recurringEndMonthKey > 0 && recurringEndMonthKey <= currentMonth
-        ? recurringEndMonthKey - 1
-        : currentMonth;
-    if (startMonth > endMonth) return [];
-
-    return [
-      startDate,
-      for (var monthKey = startMonth + 1; monthKey <= endMonth; monthKey++)
-        _dateFromMonthKey(monthKey, startDate),
-    ];
+        ? _lastDayOfMonthKey(recurringEndMonthKey - 1)
+        : normalizedFrequency == RecurrenceSchedule.monthly
+        ? _lastDayOfMonthKey(currentMonth)
+        : now;
+    return RecurrenceSchedule.dueDates(
+      startDate: startDate,
+      through: through,
+      frequency: normalizedFrequency,
+    );
   }
 
-  static bool _hasRecurringOccurrence(String seriesId, int year, int month) {
+  static bool _hasRecurringOccurrence(String seriesId, DateTime date) {
     return LiabilityService._expenses.any(
       (record) =>
           record.recurringSeriesId == seriesId &&
-          record.transactionDate.year == year &&
-          record.transactionDate.month == month,
+          RecurrenceSchedule.isSameDate(record.transactionDate, date),
     );
   }
 
   static ExpenseRecord _expenseFromTemplate({
     required ExpenseRecord template,
     required DateTime date,
+    required int recurringIndex,
   }) {
     return ExpenseRecord(
       id: LiabilityService._newId(
-        'expense-${template.recurringSeriesId}-${date.year}-${date.month}',
+        'expense-${template.recurringSeriesId}-${_dateToken(date)}',
       ),
       checkNumber: template.checkNumber,
       totalAmount: template.totalAmount,
@@ -141,10 +157,9 @@ class SaveFutureExpense {
       payee: template.payee,
       isManual: template.isManual,
       recurringSeriesId: template.recurringSeriesId,
-      recurringIndex:
-          template.recurringIndex +
-          _recurringIndex(template.transactionDate, date),
+      recurringIndex: recurringIndex,
       recurringEndMonthKey: template.recurringEndMonthKey,
+      recurringFrequency: template.normalizedRecurringFrequency,
     );
   }
 
@@ -177,25 +192,36 @@ class SaveFutureExpense {
 
   static int _monthKey(DateTime date) => date.year * 12 + date.month;
 
-  static DateTime _dateFromMonthKey(int monthKey, DateTime template) {
+  static DateTime _lastDayOfMonthKey(int monthKey) {
     final year = (monthKey - 1) ~/ 12;
     final month = (monthKey - 1) % 12 + 1;
-    final day = template.day.clamp(1, DateTime(year, month + 1, 0).day).toInt();
-    return DateTime(
-      year,
-      month,
-      day,
-      template.hour,
-      template.minute,
-      template.second,
-      template.millisecond,
-      template.microsecond,
+    return DateTime(year, month + 1, 0);
+  }
+
+  static int _recurringIndex({
+    required DateTime startDate,
+    required DateTime occurrenceDate,
+    required String frequency,
+  }) {
+    final dates = _dueRecurringDates(
+      startDate: startDate,
+      now: occurrenceDate,
+      frequency: frequency,
+    );
+    return dates.indexWhere(
+      (date) => RecurrenceSchedule.isSameDate(date, occurrenceDate),
     );
   }
 
-  static int _recurringIndex(DateTime startDate, DateTime occurrenceDate) {
-    return (occurrenceDate.year - startDate.year) * 12 +
-        occurrenceDate.month -
-        startDate.month;
+  static String _normalizedFrequency(String value) {
+    return RecurrenceSchedule.isRecurringFrequency(value)
+        ? value
+        : RecurrenceSchedule.monthly;
+  }
+
+  static String _dateToken(DateTime date) {
+    return '${date.year}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
   }
 }

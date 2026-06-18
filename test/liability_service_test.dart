@@ -151,6 +151,61 @@ void main() {
     expect(expenses.map((record) => record.transactionDate.day).toSet(), {2});
   });
 
+  test('biweekly recurring expenses use reminder frequency dates', () async {
+    await LiabilityService.saveExpense(
+      checkNumber: '105',
+      totalAmount: 500,
+      transactionDate: DateTime(2026, 6, 1),
+      category: 'Payroll',
+      payee: 'Team payroll',
+      isManual: true,
+      isRecurringMonthly: true,
+      recurringStartDate: DateTime(2026, 6, 1),
+      recurringFrequency: 'Biweekly',
+    );
+
+    var expenses = await LiabilityService.loadExpenses();
+
+    expect(_dateKeys(expenses), ['2026-06-01', '2026-06-15']);
+    expect(expenses.map((record) => record.normalizedRecurringFrequency), {
+      'Biweekly',
+    });
+
+    AppClock.set(DateTime(2026, 6, 29));
+    expenses = await LiabilityService.loadExpenses();
+
+    expect(_dateKeys(expenses), ['2026-06-01', '2026-06-15', '2026-06-29']);
+  });
+
+  test(
+    'semi-monthly recurring expenses use the selected start date pair',
+    () async {
+      AppClock.set(DateTime(2026, 8, 5));
+
+      await LiabilityService.saveExpense(
+        checkNumber: '106',
+        totalAmount: 600,
+        transactionDate: DateTime(2026, 6, 20),
+        category: 'Rent',
+        payee: 'Studio rent',
+        isManual: true,
+        isRecurringMonthly: true,
+        recurringStartDate: DateTime(2026, 6, 20),
+        recurringFrequency: 'Semi-monthly',
+      );
+
+      final expenses = await LiabilityService.loadExpenses();
+
+      expect(_dateKeys(expenses), [
+        '2026-06-20',
+        '2026-07-05',
+        '2026-07-20',
+        '2026-08-05',
+      ]);
+      expect(expenses.every((record) => record.isRecurring), isTrue);
+    },
+  );
+
   test('budget data includes transaction count for selected range', () async {
     await LiabilityService.saveDeposit(
       orderNumber: 'd1',
@@ -264,4 +319,15 @@ void main() {
 List<int> _months(List<ExpenseRecord> expenses) {
   return expenses.map((record) => record.transactionDate.month).toList()
     ..sort();
+}
+
+List<String> _dateKeys(List<ExpenseRecord> expenses) {
+  return expenses.map((record) => _dateKey(record.transactionDate)).toList()
+    ..sort();
+}
+
+String _dateKey(DateTime date) {
+  return '${date.year}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
 }

@@ -7,6 +7,7 @@ import '../features/auth/models/budget_data.dart';
 import '../features/auth/models/liability_model.dart';
 import 'app_clock.dart';
 import 'deposit_allocation.dart';
+import 'recurrence_schedule.dart';
 import '../services/local_store_test/local_store.dart';
 
 part 'save_future_expense.dart';
@@ -65,17 +66,20 @@ class LiabilityService {
     required String payee,
     required bool isManual,
     bool isRecurringMonthly = false,
+    DateTime? recurringStartDate,
+    String recurringFrequency = RecurrenceSchedule.monthly,
   }) async {
     await _ensureLoaded();
 
     final expenses = isRecurringMonthly
-        ? SaveFutureExpense.createDueMonthlyExpenses(
+        ? SaveFutureExpense.createDueRecurringExpenses(
             checkNumber: checkNumber,
             totalAmount: totalAmount,
-            transactionDate: transactionDate,
+            startDate: recurringStartDate ?? transactionDate,
             category: category,
             payee: payee,
             isManual: isManual,
+            frequency: recurringFrequency,
             now: AppClock.now,
           )
         : [
@@ -506,7 +510,7 @@ class LiabilityService {
 
   static bool _prepareLoadedData(DateTime createdAt) {
     final seeded = _seedDefaultBudgetDataIfNeeded(createdAt);
-    final synced = SaveFutureExpense.syncDueMonthlyExpenses(createdAt);
+    final synced = SaveFutureExpense.syncDueRecurringExpenses(createdAt);
     return seeded || synced;
   }
 
@@ -551,13 +555,14 @@ class LiabilityService {
       final payee = seed.payee.trim().isEmpty ? seed.category : seed.payee;
 
       if (seed.isRecurringMonthly) {
-        final expenses = SaveFutureExpense.createDueMonthlyExpenses(
+        final expenses = SaveFutureExpense.createDueRecurringExpenses(
           checkNumber: _seedCheckNumber(seed),
           totalAmount: seed.amount,
-          transactionDate: transactionDate,
+          startDate: transactionDate,
           category: seed.category,
           payee: payee,
           isManual: true,
+          frequency: RecurrenceSchedule.monthly,
           now: createdAt,
         );
         for (final expense in expenses) {
@@ -813,6 +818,7 @@ class ExpenseRecord {
   final String recurringSeriesId;
   final int recurringIndex;
   final int recurringEndMonthKey;
+  final String recurringFrequency;
 
   const ExpenseRecord({
     required this.id,
@@ -825,9 +831,11 @@ class ExpenseRecord {
     this.recurringSeriesId = '',
     this.recurringIndex = 0,
     this.recurringEndMonthKey = 0,
+    this.recurringFrequency = '',
   });
 
   factory ExpenseRecord.fromJson(Map<String, dynamic> json) {
+    final seriesId = _asString(json['recurringSeriesId']);
     return ExpenseRecord(
       id: _asString(json['id'], fallback: _fallbackId('expense')),
       checkNumber: _asString(json['checkNumber']),
@@ -836,15 +844,30 @@ class ExpenseRecord {
       category: _asString(json['category'], fallback: 'Other'),
       payee: _asString(json['payee']),
       isManual: json['isManual'] == true,
-      recurringSeriesId: _asString(json['recurringSeriesId']),
+      recurringSeriesId: seriesId,
       recurringIndex: _asInt(json['recurringIndex']),
       recurringEndMonthKey: _asInt(json['recurringEndMonthKey']),
+      recurringFrequency: _asString(
+        json['recurringFrequency'],
+        fallback: seriesId.isEmpty ? '' : RecurrenceSchedule.monthly,
+      ),
     );
   }
 
   bool get isRecurring => recurringSeriesId.isNotEmpty;
 
-  ExpenseRecord copyWith({double? totalAmount, int? recurringEndMonthKey}) {
+  String get normalizedRecurringFrequency {
+    if (!isRecurring) return '';
+    return RecurrenceSchedule.isRecurringFrequency(recurringFrequency)
+        ? recurringFrequency
+        : RecurrenceSchedule.monthly;
+  }
+
+  ExpenseRecord copyWith({
+    double? totalAmount,
+    int? recurringEndMonthKey,
+    String? recurringFrequency,
+  }) {
     return ExpenseRecord(
       id: id,
       checkNumber: checkNumber,
@@ -856,6 +879,7 @@ class ExpenseRecord {
       recurringSeriesId: recurringSeriesId,
       recurringIndex: recurringIndex,
       recurringEndMonthKey: recurringEndMonthKey ?? this.recurringEndMonthKey,
+      recurringFrequency: recurringFrequency ?? this.recurringFrequency,
     );
   }
 
@@ -870,6 +894,7 @@ class ExpenseRecord {
     'recurringSeriesId': recurringSeriesId,
     'recurringIndex': recurringIndex,
     'recurringEndMonthKey': recurringEndMonthKey,
+    'recurringFrequency': recurringFrequency,
   };
 }
 

@@ -22,12 +22,15 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   bool _isScanning = false;
   bool _dataExtracted = false;
   bool _isSaving = false;
-  bool _isRecurringMonthly = false;
+  bool _isRecurringExpense = false;
   bool _addToReminders = false;
-  ExpenseReminderFrequency _reminderFrequency =
-      ExpenseReminderFrequency.monthly;
+  ExpenseScheduleFrequency _recurringFrequency =
+      ExpenseScheduleFrequency.monthly;
+  ExpenseScheduleFrequency _reminderFrequency =
+      ExpenseScheduleFrequency.monthly;
 
   late ScannedExpenseData _data;
+  late DateTime _recurringStartDate;
   late DateTime _reminderStartDate;
   late TextEditingController _checkNumberController;
   late TextEditingController _totalAmountController;
@@ -37,6 +40,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   void initState() {
     super.initState();
     _data = ScannedExpenseData(transactionDate: AppClock.now);
+    _recurringStartDate = _data.transactionDate;
     _reminderStartDate = _data.transactionDate;
     _checkNumberController = TextEditingController();
     _totalAmountController = TextEditingController();
@@ -62,10 +66,12 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
       _scannedImageBytes = null;
       _isScanning = false;
       _dataExtracted = false;
-      _isRecurringMonthly = false;
+      _isRecurringExpense = false;
       _addToReminders = false;
+      _recurringStartDate = emptyData.transactionDate;
       _reminderStartDate = emptyData.transactionDate;
-      _reminderFrequency = ExpenseReminderFrequency.monthly;
+      _recurringFrequency = ExpenseScheduleFrequency.monthly;
+      _reminderFrequency = ExpenseScheduleFrequency.monthly;
       _data = emptyData;
     });
     _syncControllers(emptyData);
@@ -103,6 +109,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
         _isScanning = false;
         _dataExtracted = true;
         _data = extractedData;
+        _recurringStartDate = extractedData.transactionDate;
         _reminderStartDate = extractedData.transactionDate;
       });
       _syncControllers(extractedData);
@@ -151,10 +158,12 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
         _isScanning = false;
         _dataExtracted = false;
         _data = emptyData;
-        _isRecurringMonthly = false;
+        _isRecurringExpense = false;
         _addToReminders = false;
+        _recurringStartDate = emptyData.transactionDate;
         _reminderStartDate = emptyData.transactionDate;
-        _reminderFrequency = ExpenseReminderFrequency.monthly;
+        _recurringFrequency = ExpenseScheduleFrequency.monthly;
+        _reminderFrequency = ExpenseScheduleFrequency.monthly;
       });
       _syncControllers(emptyData);
     }
@@ -163,21 +172,18 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   // ── Date picker ───────────────────────────────────────────────────────────
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await pickExpenseScheduleDate(
+      context,
       initialDate: _data.transactionDate,
       firstDate: DateTime(2020),
       lastDate: AppClock.now,
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFF1A2340)),
-        ),
-        child: child!,
-      ),
     );
     if (picked != null && mounted) {
       setState(() {
         _data = _data.copyWith(transactionDate: picked);
+        if (!_isRecurringExpense) {
+          _recurringStartDate = picked;
+        }
         if (!_addToReminders) {
           _reminderStartDate = picked;
         }
@@ -185,18 +191,24 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
     }
   }
 
+  Future<void> _pickRecurringStartDate() async {
+    final picked = await pickExpenseScheduleDate(
+      context,
+      initialDate: _recurringStartDate,
+      firstDate: DateTime(2020),
+      lastDate: AppClock.now,
+    );
+    if (picked != null && mounted) {
+      setState(() => _recurringStartDate = picked);
+    }
+  }
+
   Future<void> _pickReminderStartDate() async {
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await pickExpenseScheduleDate(
+      context,
       initialDate: _reminderStartDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFF1A2340)),
-        ),
-        child: child!,
-      ),
     );
     if (picked != null && mounted) {
       setState(() => _reminderStartDate = picked);
@@ -236,7 +248,9 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
         category: updatedData.category.label,
         payee: updatedData.payee,
         isManual: false,
-        isRecurringMonthly: _isRecurringMonthly,
+        isRecurringMonthly: _isRecurringExpense,
+        recurringStartDate: _recurringStartDate,
+        recurringFrequency: _recurringFrequency.label,
       );
       await _saveExpenseReminder(updatedData);
       if (!mounted) return;
@@ -269,20 +283,17 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   }
 
   String _saveMessage() {
-    if (_addToReminders && _isRecurringMonthly) {
+    if (_addToReminders && _isRecurringExpense) {
       return 'Recurring expense and reminder schedule saved.';
     }
     if (_addToReminders) {
       return 'Expense saved and reminder schedule added.';
     }
-    if (_isRecurringMonthly) {
-      return 'Recurring expense saved. Future months appear when they start.';
+    if (_isRecurringExpense) {
+      return 'Recurring expense saved.';
     }
     return 'Expense saved';
   }
-
-  String _formatDate(DateTime d) =>
-      '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
 
   // ── Build ─────────────────────────────────────────────────────────────────
 
@@ -553,7 +564,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    _formatDate(_data.transactionDate),
+                                    formatExpenseDate(_data.transactionDate),
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
@@ -634,10 +645,21 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
                           const SizedBox(height: 12),
                           const Divider(height: 1, color: Color(0xFFEEEEEE)),
                           const SizedBox(height: 12),
-                          RecurringMonthlyOption(
-                            value: _isRecurringMonthly,
+                          RecurringExpenseOption(
+                            value: _isRecurringExpense,
+                            startDate: _recurringStartDate,
+                            frequency: _recurringFrequency,
                             onChanged: (value) {
-                              setState(() => _isRecurringMonthly = value);
+                              setState(() {
+                                _isRecurringExpense = value;
+                                if (value) {
+                                  _recurringStartDate = _data.transactionDate;
+                                }
+                              });
+                            },
+                            onPickStartDate: _pickRecurringStartDate,
+                            onFrequencyChanged: (value) {
+                              setState(() => _recurringFrequency = value);
                             },
                           ),
                           const SizedBox(height: 12),

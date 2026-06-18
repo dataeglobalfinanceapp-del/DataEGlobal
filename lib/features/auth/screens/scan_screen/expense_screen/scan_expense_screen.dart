@@ -63,14 +63,37 @@ class ScannedExpenseData {
 
 enum ScanExpenseEntryMode { automatic, manual }
 
-enum ExpenseReminderFrequency {
+enum ExpenseScheduleFrequency {
   weekly('Weekly'),
   biweekly('Biweekly'),
   semiMonthly('Semi-monthly'),
   monthly('Monthly');
 
-  const ExpenseReminderFrequency(this.label);
+  const ExpenseScheduleFrequency(this.label);
   final String label;
+}
+
+String formatExpenseDate(DateTime d) =>
+    '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
+
+Future<DateTime?> pickExpenseScheduleDate(
+  BuildContext context, {
+  required DateTime initialDate,
+  required DateTime firstDate,
+  required DateTime lastDate,
+}) {
+  return showDatePicker(
+    context: context,
+    initialDate: initialDate,
+    firstDate: firstDate,
+    lastDate: lastDate,
+    builder: (context, child) => Theme(
+      data: Theme.of(context).copyWith(
+        colorScheme: const ColorScheme.light(primary: Color(0xFF1A2340)),
+      ),
+      child: child!,
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -102,75 +125,39 @@ class InfoRow extends StatelessWidget {
   }
 }
 
-class RecurringMonthlyOption extends StatelessWidget {
+class RecurringExpenseOption extends StatelessWidget {
   final bool value;
+  final DateTime startDate;
+  final ExpenseScheduleFrequency frequency;
   final ValueChanged<bool> onChanged;
+  final VoidCallback onPickStartDate;
+  final ValueChanged<ExpenseScheduleFrequency> onFrequencyChanged;
 
-  const RecurringMonthlyOption({
+  const RecurringExpenseOption({
     super.key,
     required this.value,
+    required this.startDate,
+    required this.frequency,
     required this.onChanged,
+    required this.onPickStartDate,
+    required this.onFrequencyChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => onChanged(!value),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.repeat,
-                color: Color(0xFF2563EB),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'RECURRING MONTHLY',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                      color: Color(0xFF555555),
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'This expense repeats until you delete or edit it. Future monthly entries appear only when each new month starts.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.35,
-                      color: Color(0xFF666666),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Switch.adaptive(
-              value: value,
-              activeThumbColor: Color(0xFF1A2340),
-              activeTrackColor: Color(0x551A2340),
-              onChanged: onChanged,
-            ),
-          ],
-        ),
-      ),
+    return ExpenseScheduleOption(
+      value: value,
+      title: 'RECURRING EXPENSE',
+      description: 'Repeat this expense from a start date and frequency.',
+      icon: Icons.repeat,
+      iconColor: const Color(0xFF2563EB),
+      iconBackgroundColor: const Color(0xFFEFF6FF),
+      activeColor: const Color(0xFF1A2340),
+      startDate: startDate,
+      frequency: frequency,
+      onChanged: onChanged,
+      onPickStartDate: onPickStartDate,
+      onFrequencyChanged: onFrequencyChanged,
     );
   }
 }
@@ -178,14 +165,64 @@ class RecurringMonthlyOption extends StatelessWidget {
 class ExpenseReminderOption extends StatelessWidget {
   final bool value;
   final DateTime startDate;
-  final ExpenseReminderFrequency frequency;
+  final ExpenseScheduleFrequency frequency;
   final ValueChanged<bool> onChanged;
   final VoidCallback onPickStartDate;
-  final ValueChanged<ExpenseReminderFrequency> onFrequencyChanged;
+  final ValueChanged<ExpenseScheduleFrequency> onFrequencyChanged;
 
   const ExpenseReminderOption({
     super.key,
     required this.value,
+    required this.startDate,
+    required this.frequency,
+    required this.onChanged,
+    required this.onPickStartDate,
+    required this.onFrequencyChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpenseScheduleOption(
+      value: value,
+      title: 'ADD TO REMINDERS',
+      description:
+          'Create recurring payment reminders from a custom start date.',
+      icon: Icons.notifications_active_outlined,
+      iconColor: const Color(0xFF0F766E),
+      iconBackgroundColor: const Color(0xFFEFFCF8),
+      activeColor: const Color(0xFF0F766E),
+      startDate: startDate,
+      frequency: frequency,
+      onChanged: onChanged,
+      onPickStartDate: onPickStartDate,
+      onFrequencyChanged: onFrequencyChanged,
+    );
+  }
+}
+
+class ExpenseScheduleOption extends StatelessWidget {
+  final bool value;
+  final String title;
+  final String description;
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackgroundColor;
+  final Color activeColor;
+  final DateTime startDate;
+  final ExpenseScheduleFrequency frequency;
+  final ValueChanged<bool> onChanged;
+  final VoidCallback onPickStartDate;
+  final ValueChanged<ExpenseScheduleFrequency> onFrequencyChanged;
+
+  const ExpenseScheduleOption({
+    super.key,
+    required this.value,
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackgroundColor,
+    required this.activeColor,
     required this.startDate,
     required this.frequency,
     required this.onChanged,
@@ -209,33 +246,29 @@ class ExpenseReminderOption extends StatelessWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFFCF8),
+                    color: iconBackgroundColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
-                    Icons.notifications_active_outlined,
-                    color: Color(0xFF0F766E),
-                    size: 20,
-                  ),
+                  child: Icon(icon, color: iconColor, size: 20),
                 ),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'ADD TO REMINDERS',
-                        style: TextStyle(
+                        title,
+                        style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.5,
                           color: Color(0xFF555555),
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        'Create recurring payment reminders from a custom start date.',
-                        style: TextStyle(
+                        description,
+                        style: const TextStyle(
                           fontSize: 12,
                           height: 1.35,
                           color: Color(0xFF666666),
@@ -247,8 +280,8 @@ class ExpenseReminderOption extends StatelessWidget {
                 const SizedBox(width: 8),
                 Switch.adaptive(
                   value: value,
-                  activeThumbColor: Color(0xFF0F766E),
-                  activeTrackColor: Color(0x550F766E),
+                  activeThumbColor: activeColor,
+                  activeTrackColor: activeColor.withValues(alpha: 0.34),
                   onChanged: onChanged,
                 ),
               ],
@@ -261,7 +294,7 @@ class ExpenseReminderOption extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _ExpenseReminderField(
+                child: _ExpenseScheduleField(
                   label: 'START DATE',
                   child: InkWell(
                     onTap: onPickStartDate,
@@ -269,7 +302,7 @@ class ExpenseReminderOption extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            _formatDate(startDate),
+                            formatExpenseDate(startDate),
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 13,
@@ -291,10 +324,10 @@ class ExpenseReminderOption extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _ExpenseReminderField(
+                child: _ExpenseScheduleField(
                   label: 'FREQUENCY',
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<ExpenseReminderFrequency>(
+                    child: DropdownButton<ExpenseScheduleFrequency>(
                       value: frequency,
                       isExpanded: true,
                       icon: const Icon(
@@ -302,10 +335,10 @@ class ExpenseReminderOption extends StatelessWidget {
                         size: 18,
                         color: Color(0xFF4A90D9),
                       ),
-                      items: ExpenseReminderFrequency.values
+                      items: ExpenseScheduleFrequency.values
                           .map(
                             (option) =>
-                                DropdownMenuItem<ExpenseReminderFrequency>(
+                                DropdownMenuItem<ExpenseScheduleFrequency>(
                                   value: option,
                                   child: Text(
                                     option.label,
@@ -328,16 +361,13 @@ class ExpenseReminderOption extends StatelessWidget {
       ],
     );
   }
-
-  String _formatDate(DateTime d) =>
-      '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
 }
 
-class _ExpenseReminderField extends StatelessWidget {
+class _ExpenseScheduleField extends StatelessWidget {
   final String label;
   final Widget child;
 
-  const _ExpenseReminderField({required this.label, required this.child});
+  const _ExpenseScheduleField({required this.label, required this.child});
 
   @override
   Widget build(BuildContext context) {
