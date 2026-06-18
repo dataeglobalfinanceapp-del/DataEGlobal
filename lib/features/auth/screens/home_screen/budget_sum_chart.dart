@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/budget_data.dart';
+import '../../../../services/deposit_allocation.dart';
 import '../../../../services/liability_service.dart';
 import '../../../../services/local_store_test/local_store.dart';
 import '../../../../services/money_formatter.dart';
@@ -503,7 +504,10 @@ class BudgetTotalsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reserveColor = data.reserve >= 0
+    final availableColor = data.available >= 0
+        ? const Color(0xFF76C95F)
+        : const Color(0xFFFF5E63);
+    final incomeColor = data.income >= 0
         ? const Color(0xFF76C95F)
         : const Color(0xFFFF5E63);
 
@@ -553,7 +557,7 @@ class BudgetTotalsCard extends StatelessWidget {
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          _fmtMoney(data.total),
+                          _fmtMoney(data.available),
                           maxLines: 1,
                           style: const TextStyle(
                             color: Color(0xFFFFC84D),
@@ -567,19 +571,19 @@ class BudgetTotalsCard extends StatelessWidget {
                       Row(
                         children: [
                           Icon(
-                            data.reserve >= 0
+                            data.available >= 0
                                 ? Icons.arrow_drop_up
                                 : Icons.arrow_drop_down,
-                            color: reserveColor,
+                            color: availableColor,
                             size: 18,
                           ),
                           Expanded(
                             child: Text(
-                              '${data.surplusPercent}% reserved in range',
+                              '${data.surplusPercent}% available from income',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: reserveColor,
+                                color: availableColor,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0,
@@ -624,11 +628,26 @@ class BudgetTotalsCard extends StatelessWidget {
                 ),
                 Expanded(
                   child: _SummaryMetric(
-                    label: 'TOTAL RESERVES',
-                    amount: data.reserve,
-                    icon: Icons.trending_up_rounded,
-                    iconColor: reserveColor,
-                    amountColor: reserveColor,
+                    label: 'SAVING',
+                    amount: data.saving,
+                    icon: Icons.savings_outlined,
+                    iconColor: const Color(0xFFFFC84D),
+                    amountColor: const Color(0xFFFFC84D),
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 54,
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  color: const Color(0xFFBCA052).withValues(alpha: 0.28),
+                ),
+                Expanded(
+                  child: _SummaryMetric(
+                    label: 'INCOME',
+                    amount: data.income,
+                    icon: Icons.account_balance_wallet_outlined,
+                    iconColor: incomeColor,
+                    amountColor: incomeColor,
                   ),
                 ),
               ],
@@ -722,7 +741,11 @@ class BudgetTopCards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BudgetTotalsCard(
-      data: BudgetData(deposit: deposit, expense: expense, total: deposit),
+      data: BudgetData(
+        deposit: deposit,
+        expense: expense,
+        total: DepositAllocation.incomeFor(deposit),
+      ),
     );
   }
 }
@@ -1013,13 +1036,13 @@ class _CenterBudgetText extends StatelessWidget {
   const _CenterBudgetText({required this.data, required this.width});
   @override
   Widget build(BuildContext context) {
-    final availableColor = data.reserve >= 0
+    final availableColor = data.available >= 0
         ? const Color(0xFF16A34A)
         : const Color(0xFFDC2626);
     final scale = (width / 122).clamp(0.65, 1.0).toDouble();
-    final surplusPercent = data.deposit > 0
-    ? ((data.reserve / data.deposit) * 100).round()
-    : 0;
+    final surplusPercent = data.income > 0
+        ? ((data.available / data.income) * 100).round()
+        : 0;
     return SizedBox(
       width: width,
       child: Column(
@@ -1039,7 +1062,7 @@ class _CenterBudgetText extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              _fmtMoney(data.reserve),
+              _fmtMoney(data.available),
               maxLines: 1,
               style: TextStyle(
                 color: availableColor,
@@ -1065,7 +1088,7 @@ class _CenterBudgetText extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              '${_fmtMoney(data.expense)} / ${_fmtMoney(data.deposit)}',
+              '${_fmtMoney(data.expense)} / ${_fmtMoney(data.income)}',
               maxLines: 1,
               style: TextStyle(
                 color: Colors.black,

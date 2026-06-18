@@ -42,10 +42,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Transaction'), findsOneWidget);
-    expect(find.text('TOTAL RESERVES'), findsOneWidget);
-    expect(find.text(r'$80.00'), findsOneWidget);
+    expect(find.text('AVAILABLE INCOME'), findsOneWidget);
+    expect(find.text(r'$67.50'), findsOneWidget);
+    expect(find.text(r'$112.50'), findsOneWidget);
+    expect(find.text(r'$12.50'), findsOneWidget);
     expect(find.text(r'$125.00'), findsWidgets);
     expect(find.text(r'$45.00'), findsOneWidget);
+
+    await tester.dragUntilVisible(
+      find.text('PDF'),
+      find.byType(ListView),
+      const Offset(0, -260),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('PDF'), findsOneWidget);
     expect(find.text('Print'), findsOneWidget);
     expect(find.text('Excel'), findsOneWidget);
@@ -66,6 +76,13 @@ void main() {
     );
 
     await tester.pumpWidget(const MaterialApp(home: TransactionScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Week 24'),
+      find.byType(ListView),
+      const Offset(0, -180),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Week 24'));

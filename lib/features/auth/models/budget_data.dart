@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../services/deposit_allocation.dart';
+
 class BudgetCategory {
   final String label;
   final double percentage;
@@ -144,7 +146,15 @@ class BudgetData {
     this.recurringExpenses = const [],
   });
 
-  double get reserve => deposit - expense;
+  double get saving => DepositAllocation.savingFor(deposit);
+
+  double get income => DepositAllocation.incomeFor(deposit);
+
+  double get reserves => income;
+
+  double get available => income - expense;
+
+  double get reserve => available;
 
   bool get hasActivity => total > 0 || expense > 0 || deposit != 0;
 }

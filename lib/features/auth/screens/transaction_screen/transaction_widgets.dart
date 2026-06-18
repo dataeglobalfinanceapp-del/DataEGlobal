@@ -119,8 +119,10 @@ class _TransactionHeader extends StatelessWidget {
       children: <Widget>[
         _SummaryPanel(
           totalDeposits: state.totalDeposits,
+          totalSaving: state.totalSaving,
+          totalDepositIncome: state.totalDepositIncome,
           totalExpenses: state.totalExpenses,
-          totalReserves: state.totalReserves,
+          totalAvailableIncome: state.totalAvailableIncome,
         ),
         const SizedBox(height: 10),
         _KindToggle(kind: state.kind, onChanged: onKindChanged),
@@ -146,18 +148,22 @@ class _TransactionHeader extends StatelessWidget {
 
 class _SummaryPanel extends StatelessWidget {
   final double totalDeposits;
+  final double totalSaving;
+  final double totalDepositIncome;
   final double totalExpenses;
-  final double totalReserves;
+  final double totalAvailableIncome;
 
   const _SummaryPanel({
     required this.totalDeposits,
+    required this.totalSaving,
+    required this.totalDepositIncome,
     required this.totalExpenses,
-    required this.totalReserves,
+    required this.totalAvailableIncome,
   });
 
   @override
   Widget build(BuildContext context) {
-    final Color reservesColor = totalReserves > 0
+    final Color incomeColor = totalAvailableIncome > 0
         ? _TransactionTokens.success
         : _TransactionTokens.expenseHot;
 
@@ -172,11 +178,11 @@ class _SummaryPanel extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              const Expanded(child: _SummaryLabel(label: 'TOTAL RESERVES')),
+              const Expanded(child: _SummaryLabel(label: 'AVAILABLE INCOME')),
               Text(
-                formatMoney(totalReserves),
+                formatMoney(totalAvailableIncome),
                 style: _TransactionTokens.reserveValue.copyWith(
-                  color: reservesColor,
+                  color: incomeColor,
                 ),
               ),
             ],
@@ -189,6 +195,26 @@ class _SummaryPanel extends StatelessWidget {
                   label: 'TOTAL EXPENSE',
                   value: formatMoney(totalExpenses),
                   color: _TransactionTokens.expenseHot,
+                ),
+              ),
+              Expanded(
+                child: _SummaryValue(
+                  label: 'INCOME',
+                  value: formatMoney(totalDepositIncome),
+                  color: _TransactionTokens.primaryBlue,
+                  alignRight: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _SummaryValue(
+                  label: 'SAVING',
+                  value: formatMoney(totalSaving),
+                  color: _TransactionTokens.warning,
                 ),
               ),
               Expanded(

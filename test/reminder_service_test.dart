@@ -79,7 +79,8 @@ void main() {
       ),
     ]);
 
-    final List<ReminderRecord> reminders = await ReminderService.loadReminders();
+    final List<ReminderRecord> reminders =
+        await ReminderService.loadReminders();
     final List<String> juneDates = reminders
         .where((ReminderRecord record) => record.date.month == 6)
         .map((ReminderRecord record) => _dateKey(record.date))
@@ -92,36 +93,39 @@ void main() {
     );
   });
 
-  test('semi-monthly recurring reminders use the selected start date pair',
-      () async {
-    await ReminderService.saveReminders(<ReminderDraft>[
-      ReminderDraft(
-        date: DateTime(2026, 6, 20),
-        category: 'Rent',
-        amount: 600,
-        reminderCount: 'Semi-monthly',
-        payee: 'Studio rent',
-      ),
-    ]);
+  test(
+    'semi-monthly recurring reminders use the selected start date pair',
+    () async {
+      await ReminderService.saveReminders(<ReminderDraft>[
+        ReminderDraft(
+          date: DateTime(2026, 6, 20),
+          category: 'Rent',
+          amount: 600,
+          reminderCount: 'Semi-monthly',
+          payee: 'Studio rent',
+        ),
+      ]);
 
-    final List<ReminderRecord> reminders = await ReminderService.loadReminders();
-    final List<String> firstDates = reminders
-        .take(5)
-        .map((ReminderRecord record) => _dateKey(record.date))
-        .toList(growable: false);
+      final List<ReminderRecord> reminders =
+          await ReminderService.loadReminders();
+      final List<String> firstDates = reminders
+          .take(5)
+          .map((ReminderRecord record) => _dateKey(record.date))
+          .toList(growable: false);
 
-    expect(firstDates, <String>[
-      '2026-06-20',
-      '2026-07-05',
-      '2026-07-20',
-      '2026-08-05',
-      '2026-08-20',
-    ]);
-    expect(
-      reminders.every((ReminderRecord record) => record.isRecurring),
-      true,
-    );
-  });
+      expect(firstDates, <String>[
+        '2026-06-20',
+        '2026-07-05',
+        '2026-07-20',
+        '2026-08-05',
+        '2026-08-20',
+      ]);
+      expect(
+        reminders.every((ReminderRecord record) => record.isRecurring),
+        true,
+      );
+    },
+  );
 
   test('marking one-time reminder finished removes it', () async {
     await ReminderService.saveReminders(<ReminderDraft>[

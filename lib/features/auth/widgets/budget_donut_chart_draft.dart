@@ -141,9 +141,9 @@ class _CenterBudgetText extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              '${formatMoney(data.deposit)} deposit',
+              '${formatMoney(data.income)} income',
               style: TextStyle(
-                color: data.deposit >= 0
+                color: data.income >= 0
                     ? const Color(0xFF16A34A)
                     : const Color(0xFFFF1744),
                 fontWeight: FontWeight.w800,

@@ -10,8 +10,9 @@ void main() {
     const data = BudgetData(
       deposit: 1000,
       expense: 400,
-      total: 1000,
-      utilizationPercent: 40,
+      total: 900,
+      surplusPercent: 56,
+      utilizationPercent: 44,
       categories: [
         BudgetCategory(
           label: 'Payroll',
@@ -34,17 +35,18 @@ void main() {
 
     expect(find.text('OVERVIEW'), findsOneWidget);
     expect(find.text('TOTAL EXPENSE'), findsOneWidget);
-    expect(find.text('TOTAL RESERVES'), findsOneWidget);
+    expect(find.text('SAVING'), findsOneWidget);
+    expect(find.text('INCOME'), findsOneWidget);
     expect(find.text('Payroll'), findsOneWidget);
     expect(find.text('Rent'), findsOneWidget);
     expect(find.text('60%'), findsOneWidget);
     expect(find.text('40%'), findsOneWidget);
-    expect(find.text('Total Budget'), findsOneWidget);
-    expect(find.text(r'$1,000.00'), findsWidgets);
+    expect(find.text(r'$1,000.00'), findsNothing);
+    expect(find.text(r'$900.00'), findsWidgets);
     expect(find.text(r'$400.00'), findsOneWidget);
-    expect(find.text(r'$600.00'), findsOneWidget);
-    expect(find.text(r'Available $600.00'), findsOneWidget);
-    expect(find.text('40% utilized'), findsOneWidget);
+    expect(find.text(r'$500.00'), findsWidgets);
+    expect(find.text('Available'), findsOneWidget);
+    expect(find.text('44% utilized'), findsOneWidget);
     expect(find.text('Deposits'), findsNothing);
     expect(find.text('Expenses'), findsNothing);
   });
@@ -60,8 +62,9 @@ void main() {
     const data = BudgetData(
       deposit: 100000,
       expense: 13000,
-      total: 100000,
-      utilizationPercent: 13,
+      total: 90000,
+      surplusPercent: 86,
+      utilizationPercent: 14,
       categories: [
         BudgetCategory(
           label: 'Utilities',
@@ -88,9 +91,10 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('OVERVIEW'), findsOneWidget);
-    expect(find.text('Total Budget'), findsOneWidget);
-    expect(find.text(r'$100,000.00'), findsWidgets);
-    expect(find.text(r'Available $87,000.00'), findsOneWidget);
-    expect(find.text('13% utilized'), findsOneWidget);
+    expect(find.text(r'$100,000.00'), findsNothing);
+    expect(find.text(r'$90,000.00'), findsWidgets);
+    expect(find.text(r'$77,000.00'), findsWidgets);
+    expect(find.text('Available'), findsOneWidget);
+    expect(find.text('14% utilized'), findsOneWidget);
   });
 }

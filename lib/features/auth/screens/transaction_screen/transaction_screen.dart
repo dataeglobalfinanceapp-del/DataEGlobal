@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../../services/app_clock.dart';
+import '../../../../services/deposit_allocation.dart';
 import '../../../../services/excel_transaction_report.dart';
 import '../../../../services/exporter/file_exporter.dart';
 import '../../../../services/exporter/pdf_exporter.dart';

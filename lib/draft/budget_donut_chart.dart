@@ -315,7 +315,7 @@ class _CenterBudgetText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final balanceColor = data.reserve >= 0
+    final balanceColor = data.available >= 0
         ? const Color(0xFF0F766E)
         : const Color(0xFFDC2626);
 
@@ -350,7 +350,7 @@ class _CenterBudgetText extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              'Available ${formatMoney(data.reserve)}',
+              'Available ${formatMoney(data.available)}',
               maxLines: 1,
               style: TextStyle(
                 color: balanceColor,

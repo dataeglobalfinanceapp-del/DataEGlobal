@@ -85,7 +85,11 @@ class _TransactionViewState {
     );
   }
 
-  double get totalReserves => totalDeposits - totalExpenses;
+  double get totalSaving => DepositAllocation.savingFor(totalDeposits);
+
+  double get totalDepositIncome => DepositAllocation.incomeFor(totalDeposits);
+
+  double get totalAvailableIncome => totalDepositIncome - totalExpenses;
 }
 
 class _MutableGroup<T> {

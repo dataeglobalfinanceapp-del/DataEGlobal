@@ -23,7 +23,7 @@ class MenuGrid extends StatelessWidget {
       'color': Color(0xFFF5F3FF),
     },
     {
-      'label': 'RESERVES',
+      'label': 'INCOME',
       'icon': Icons.savings,
       'badge': 0,
       'color': Color(0xFFECFDF5),

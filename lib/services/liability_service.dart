@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../features/auth/models/budget_data.dart';
 import '../features/auth/models/liability_model.dart';
 import 'app_clock.dart';
+import 'deposit_allocation.dart';
 import '../services/local_store_test/local_store.dart';
 
 part 'save_future_expense.dart';
@@ -334,17 +335,18 @@ class LiabilityService {
       0,
       (total, record) => total + record.totalAmount,
     );
+    final incomeTotal = DepositAllocation.incomeFor(depositTotal);
     final expenseTotal = expenses.fold<double>(
       0,
       (total, record) => total + record.totalAmount,
     );
-    final balance = depositTotal - expenseTotal;
-    final total = depositTotal > 0 ? depositTotal : expenseTotal;
-    final utilization = depositTotal > 0
-        ? (expenseTotal / depositTotal * 100).round()
+    final available = incomeTotal - expenseTotal;
+    final total = incomeTotal > 0 ? incomeTotal : expenseTotal;
+    final utilization = incomeTotal > 0
+        ? (expenseTotal / incomeTotal * 100).round()
         : 0;
-    final surplus = depositTotal > 0
-        ? (balance / depositTotal * 100).round()
+    final surplus = incomeTotal > 0
+        ? (available / incomeTotal * 100).round()
         : 0;
 
     final categoryTotals = <String, double>{};
@@ -792,6 +794,12 @@ class DepositRecord {
     'transactionDate': transactionDate.toIso8601String(),
     'isManual': isManual,
   };
+
+  double get saving => DepositAllocation.savingFor(totalAmount);
+
+  double get income => DepositAllocation.incomeFor(totalAmount);
+
+  double get reserves => income;
 }
 
 class ExpenseRecord {

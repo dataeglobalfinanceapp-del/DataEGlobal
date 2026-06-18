@@ -409,9 +409,9 @@ class _BudgetMetrics extends StatelessWidget {
       runSpacing: 8,
       children: [
         _MetricBlock(
-          label: 'Deposits',
-          value: _fmtMoney(data.deposit),
-          color: const Color(0xFF16A34A),
+          label: 'Saving',
+          value: _fmtMoney(data.saving),
+          color: const Color(0xFFCA8A04),
         ),
         _MetricBlock(
           label: 'Expenses',
@@ -419,9 +419,9 @@ class _BudgetMetrics extends StatelessWidget {
           color: const Color(0xFFFF1744),
         ),
         _MetricBlock(
-          label: 'Reserves',
-          value: _fmtMoney(data.reserve),
-          color: data.reserve > 0
+          label: 'Income',
+          value: _fmtMoney(data.income),
+          color: data.income > 0
               ? const Color(0xFF16A34A)
               : const Color(0xFFFF1744),
         ),

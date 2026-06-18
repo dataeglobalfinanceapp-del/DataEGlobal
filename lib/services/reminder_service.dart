@@ -394,10 +394,7 @@ class ReminderService {
     return dates;
   }
 
-  static List<DateTime> _semiMonthlyDatesForYear(
-    DateTime startDate,
-    int year,
-  ) {
+  static List<DateTime> _semiMonthlyDatesForYear(DateTime startDate, int year) {
     final List<DateTime> dates = <DateTime>[];
     final int firstMonth = year == startDate.year ? startDate.month : 1;
     final List<int> anchorDays = _semiMonthlyAnchorDays(startDate.day);

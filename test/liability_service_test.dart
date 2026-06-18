@@ -186,6 +186,14 @@ void main() {
     );
 
     expect(data.transactionCount, 2);
+    expect(data.deposit, 100);
+    expect(data.saving, 10);
+    expect(data.income, 90);
+    expect(data.expense, 40);
+    expect(data.available, 50);
+    expect(data.total, 90);
+    expect(data.surplusPercent, 56);
+    expect(data.utilizationPercent, 44);
   });
 
   test('default budget seed uses the created month', () async {
@@ -202,10 +210,14 @@ void main() {
     final cash = deposits.singleWhere((record) => record.cash == 100000);
     expect(cash.transactionDate.day, 1);
     expect(cash.totalAmount, 100000);
+    expect(cash.saving, 10000);
+    expect(cash.income, 90000);
 
     final credit = deposits.singleWhere((record) => record.creditDebt == 20000);
     expect(credit.transactionDate.day, 15);
     expect(credit.totalAmount, 20000);
+    expect(credit.saving, 2000);
+    expect(credit.income, 18000);
 
     final insurance = expenses.singleWhere(
       (record) => record.category == 'Insurance',
@@ -233,7 +245,13 @@ void main() {
       );
 
       expect(data.deposit, 120000);
+      expect(data.saving, 12000);
+      expect(data.income, 108000);
+      expect(data.available, closeTo(54457.56, 0.001));
+      expect(data.total, 108000);
       expect(data.expense, closeTo(53542.44, 0.001));
+      expect(data.surplusPercent, 50);
+      expect(data.utilizationPercent, 50);
       expect(data.transactionCount, 10);
       expect(data.recurringExpenses.map((item) => item.category).toSet(), {
         'Insurance',

@@ -149,11 +149,9 @@ class _ScanExpenseManualScreenState extends State<ScanExpenseManualScreen> {
       );
       await _saveExpenseReminder(updatedData);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_saveMessage()),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_saveMessage())));
       Navigator.pop(context, updatedData);
     } catch (e) {
       if (!mounted) return;

@@ -35,24 +35,24 @@ class _TaxScreenState extends State<TaxScreen> {
     });
   }
 
-  double get _yearDeposits => _deposits
+  double get _yearIncome => _deposits
       .where((record) => record.transactionDate.year == _year)
-      .fold(0, (sum, record) => sum + record.totalAmount);
+      .fold<double>(0, (sum, record) => sum + record.income);
 
   double get _yearExpenses => _expenses
       .where((record) => record.transactionDate.year == _year)
-      .fold(0, (sum, record) => sum + record.totalAmount);
+      .fold<double>(0, (sum, record) => sum + record.totalAmount);
 
-  double get _totalReserves => _yearDeposits - _yearExpenses;
+  double get _totalIncome => _yearIncome - _yearExpenses;
 
   _TaxEstimate get _estimate {
-    final taxableReserves = _totalReserves > 0 ? _totalReserves : 0.0;
-    final bracket = _TaxBracket.forAmount(taxableReserves);
-    final taxDue = taxableReserves * bracket.rate / 100;
+    final taxableIncome = _totalIncome > 0 ? _totalIncome : 0.0;
+    final bracket = _TaxBracket.forAmount(taxableIncome);
+    final taxDue = taxableIncome * bracket.rate / 100;
     return _TaxEstimate(
       bracket: bracket,
       taxDue: taxDue,
-      remaining: _totalReserves - taxDue,
+      remaining: _totalIncome - taxDue,
     );
   }
 
@@ -93,7 +93,7 @@ class _TaxScreenState extends State<TaxScreen> {
                 children: [
                   _TaxSummaryCard(
                     year: _year,
-                    totalReserves: _totalReserves,
+                    totalIncome: _totalIncome,
                     estimate: estimate,
                   ),
                   const SizedBox(height: 12),
@@ -115,7 +115,7 @@ class _TaxScreenState extends State<TaxScreen> {
                     icon: Icons.receipt_long_outlined,
                     label: 'ESTIMATE TAX TO PAY',
                     value: formatMoney(estimate.taxDue),
-                    detail: 'Calculated from total reserves',
+                    detail: 'Calculated from total income',
                     color: const Color(0xFFDC2626),
                   ),
                   const SizedBox(height: 10),
@@ -123,7 +123,7 @@ class _TaxScreenState extends State<TaxScreen> {
                     icon: Icons.account_balance_wallet_outlined,
                     label: 'LEFT AFTER TAX',
                     value: formatMoney(estimate.remaining),
-                    detail: 'Reserves after estimated tax',
+                    detail: 'Income after estimated tax',
                     color: estimate.remaining >= 0
                         ? const Color(0xFF16A34A)
                         : const Color(0xFFDC2626),
@@ -137,12 +137,12 @@ class _TaxScreenState extends State<TaxScreen> {
 
 class _TaxSummaryCard extends StatelessWidget {
   final int year;
-  final double totalReserves;
+  final double totalIncome;
   final _TaxEstimate estimate;
 
   const _TaxSummaryCard({
     required this.year,
-    required this.totalReserves,
+    required this.totalIncome,
     required this.estimate,
   });
 
@@ -174,9 +174,9 @@ class _TaxSummaryCard extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    formatMoney(totalReserves),
+                    formatMoney(totalIncome),
                     style: TextStyle(
-                      color: totalReserves >= 0
+                      color: totalIncome >= 0
                           ? const Color(0xFF22C55E)
                           : const Color(0xFFEF4444),
                       fontSize: 28,
