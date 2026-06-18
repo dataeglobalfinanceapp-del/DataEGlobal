@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:biztrack/features/auth/screens/scan_screen/expense_screen/scan_expense_manual_screen.dart';
-import 'package:biztrack/features/auth/screens/scan_screen/expense_screen/scan_expense_screen.dart';
 import 'package:biztrack/services/app_clock.dart';
 import 'package:biztrack/services/liability_service.dart';
+import 'package:biztrack/services/recurring_expense_reminder_service.dart';
 import 'package:biztrack/services/reminder_service.dart';
 
 void main() {
@@ -99,19 +99,20 @@ void main() {
   });
 
   test('recurring expense reminder uses selected future start date', () async {
-    await saveRecurringExpenseReminder(
-      data: ScannedExpenseData(
-        totalAmount: 150,
-        transactionDate: AppClock.now,
-        category: ExpenseCategory.utilities,
-        payee: 'Power Co',
-      ),
+    await RecurringExpenseReminderService.saveRecurringExpenseWithReminder(
+      checkNumber: '',
+      totalAmount: 150,
+      transactionDate: AppClock.now,
       startDate: DateTime(2026, 7, 1),
-      frequency: ExpenseScheduleFrequency.biweekly,
+      category: 'Utilities',
+      payee: 'Power Co',
+      isManual: true,
+      frequency: 'Biweekly',
     );
 
     final List<ReminderRecord> reminders =
         await ReminderService.loadReminders();
+    final List<ExpenseRecord> expenses = await LiabilityService.loadExpenses();
     final List<String> firstReminderDates = reminders
         .take(3)
         .map((ReminderRecord record) => _dateKey(record.date))
@@ -125,6 +126,11 @@ void main() {
     expect(
       reminders.map((ReminderRecord record) => record.reminderCount).toSet(),
       <String>{'Biweekly'},
+    );
+    expect(_expenseDateKeys(expenses), <String>['2026-07-01']);
+    expect(
+      reminders.first.recurringSeriesId,
+      expenses.single.recurringSeriesId,
     );
   });
 }

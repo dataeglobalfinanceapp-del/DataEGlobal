@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../../services/reminder_service.dart';
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Models
 // ─────────────────────────────────────────────────────────────────────────────
@@ -101,22 +99,6 @@ Future<DateTime?> pickExpenseScheduleDate(
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared widgets
 // ─────────────────────────────────────────────────────────────────────────────
-
-Future<void> saveRecurringExpenseReminder({
-  required ScannedExpenseData data,
-  required DateTime startDate,
-  required ExpenseScheduleFrequency frequency,
-}) {
-  return ReminderService.saveReminders(<ReminderDraft>[
-    ReminderDraft(
-      date: startDate,
-      category: data.category.label,
-      amount: data.totalAmount,
-      reminderCount: frequency.label,
-      payee: data.payee,
-    ),
-  ]);
-}
 
 class InfoRow extends StatelessWidget {
   final String label;

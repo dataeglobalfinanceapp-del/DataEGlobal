@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../../services/app_clock.dart';
 import '../../../../../services/liability_service.dart';
 import '../../../../../services/money_formatter.dart';
+import '../../../../../services/recurring_expense_reminder_service.dart';
 import 'scan_expense_screen.dart';
 
 class ScanExpenseAutoScreen extends StatefulWidget {
@@ -213,22 +214,25 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
 
     setState(() => _isSaving = true);
     try {
-      await LiabilityService.saveExpense(
-        checkNumber: updatedData.checkNumber,
-        totalAmount: updatedData.totalAmount,
-        transactionDate: updatedData.transactionDate,
-        category: updatedData.category.label,
-        payee: updatedData.payee,
-        isManual: false,
-        isRecurringMonthly: _isRecurringExpense,
-        recurringStartDate: _recurringStartDate,
-        recurringFrequency: _recurringFrequency.label,
-      );
       if (_isRecurringExpense) {
-        await saveRecurringExpenseReminder(
-          data: updatedData,
+        await RecurringExpenseReminderService.saveRecurringExpenseWithReminder(
+          checkNumber: updatedData.checkNumber,
+          totalAmount: updatedData.totalAmount,
+          transactionDate: updatedData.transactionDate,
           startDate: _recurringStartDate,
-          frequency: _recurringFrequency,
+          category: updatedData.category.label,
+          payee: updatedData.payee,
+          isManual: false,
+          frequency: _recurringFrequency.label,
+        );
+      } else {
+        await LiabilityService.saveExpense(
+          checkNumber: updatedData.checkNumber,
+          totalAmount: updatedData.totalAmount,
+          transactionDate: updatedData.transactionDate,
+          category: updatedData.category.label,
+          payee: updatedData.payee,
+          isManual: false,
         );
       }
       if (!mounted) return;

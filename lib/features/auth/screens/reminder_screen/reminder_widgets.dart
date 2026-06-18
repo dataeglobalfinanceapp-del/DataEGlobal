@@ -350,15 +350,15 @@ class _ReminderCard extends StatelessWidget {
                 child: _ReminderAmountText(amount: record.amount),
               ),
               const SizedBox(width: 6),
-              _ReminderTextActionButton(
-                label: 'Completed',
+              _ReminderIconActionButton(
+                tooltip: 'Completed',
                 icon: Icons.check_circle,
                 iconColor: _ReminderTokens.success,
                 onPressed: onMarkFinished,
               ),
               const SizedBox(width: 6),
-              _ReminderTextActionButton(
-                label: 'Postpone',
+              _ReminderIconActionButton(
+                tooltip: 'Postpone',
                 icon: Icons.close,
                 iconColor: _ReminderTokens.dangerDark,
                 onPressed: onPostpone,
@@ -428,49 +428,6 @@ class _ReminderAmountText extends StatelessWidget {
           child: Text(
             formatMoney(amount),
             style: _ReminderTokens.compactAmount,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ReminderTextActionButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color iconColor;
-  final VoidCallback onPressed;
-
-  const _ReminderTextActionButton({
-    required this.label,
-    required this.icon,
-    required this.iconColor,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 28,
-      child: OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: _ReminderTokens.textStrong,
-          backgroundColor: _ReminderTokens.compactActionBackground,
-          side: BorderSide.none,
-          minimumSize: const Size(84, 28),
-          padding: const EdgeInsets.symmetric(horizontal: 5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(_ReminderTokens.controlRadius),
-          ),
-        ),
-        onPressed: onPressed,
-        icon: Icon(icon, size: 14, color: iconColor),
-        label: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            label,
-            maxLines: 1,
-            style: _ReminderTokens.compactActionLabel,
           ),
         ),
       ),
@@ -632,25 +589,21 @@ class _DeleteRecurringReminderDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Delete recurring reminder?'),
+      title: const Text('Delete recurring schedule?'),
       content: const Text(
-        'Do you want to delete only this reminder or every reminder in this recurring series?',
+        'This removes future reminders and linked recurring expenses. Completed expense history is kept.',
       ),
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, ReminderDeleteScope.single),
-          child: const Text('Just this one'),
-        ),
         FilledButton(
           style: FilledButton.styleFrom(
             backgroundColor: _ReminderTokens.dangerDark,
           ),
           onPressed: () => Navigator.pop(context, ReminderDeleteScope.series),
-          child: const Text('Delete all'),
+          child: const Text('Delete schedule'),
         ),
       ],
     );

@@ -11,9 +11,12 @@ class SaveFutureExpense {
     required String payee,
     required bool isManual,
     required String frequency,
+    String recurringSeriesId = '',
   }) {
     final transactionDate = RecurrenceSchedule.dateOnly(startDate);
-    final recurringSeriesId = LiabilityService._newId('recurring-expense');
+    final seriesId = recurringSeriesId.isEmpty
+        ? LiabilityService._newId('recurring-expense')
+        : recurringSeriesId;
     final recurringFrequency = _normalizedFrequency(frequency);
     return ExpenseRecord(
       id: LiabilityService._newId('expense-${_dateToken(transactionDate)}'),
@@ -23,7 +26,7 @@ class SaveFutureExpense {
       category: category,
       payee: payee,
       isManual: isManual,
-      recurringSeriesId: recurringSeriesId,
+      recurringSeriesId: seriesId,
       recurringIndex: 0,
       recurringFrequency: recurringFrequency,
     );
@@ -38,8 +41,11 @@ class SaveFutureExpense {
     required bool isManual,
     required String frequency,
     required DateTime now,
+    String recurringSeriesId = '',
   }) {
-    final recurringSeriesId = LiabilityService._newId('recurring-expense');
+    final seriesId = recurringSeriesId.isEmpty
+        ? LiabilityService._newId('recurring-expense')
+        : recurringSeriesId;
     final recurringFrequency = _normalizedFrequency(frequency);
     final dates = _dueRecurringDates(
       startDate: startDate,
@@ -56,7 +62,7 @@ class SaveFutureExpense {
           category: category,
           payee: payee,
           isManual: isManual,
-          recurringSeriesId: recurringSeriesId,
+          recurringSeriesId: seriesId,
           recurringIndex: index,
           recurringFrequency: recurringFrequency,
         ),

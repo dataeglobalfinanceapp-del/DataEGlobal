@@ -42,9 +42,9 @@ class _ReminderController extends ChangeNotifier {
     ReminderRecord record,
     _AmountEditResult result,
   ) async {
-    await ReminderService.updateAmount(
-      record.id,
-      result.amount,
+    await RecurringExpenseReminderService.updateReminderAmount(
+      reminderId: record.id,
+      amount: result.amount,
       scope: result.applyToSeries
           ? ReminderEditScope.series
           : ReminderEditScope.single,
@@ -57,8 +57,8 @@ class _ReminderController extends ChangeNotifier {
     ReminderRecord record,
     ReminderDeleteScope scope,
   ) async {
-    final bool deleted = await ReminderService.deleteReminder(
-      record.id,
+    final bool deleted = await RecurringExpenseReminderService.deleteReminder(
+      reminderId: record.id,
       scope: scope,
     );
     if (_isDisposed) return deleted;
@@ -227,7 +227,7 @@ class _CreateReminderController extends ChangeNotifier {
 
     _setSaving(true);
     try {
-      await ReminderService.saveReminders(drafts);
+      await RecurringExpenseReminderService.saveReminderDrafts(drafts);
       return true;
     } finally {
       _setSaving(false);

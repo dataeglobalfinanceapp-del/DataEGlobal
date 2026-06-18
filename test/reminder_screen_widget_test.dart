@@ -47,8 +47,8 @@ void main() {
     expect(find.text('Just one'), findsOneWidget);
     expect(find.text('06/10/2026'), findsOneWidget);
     expect(find.text(r'$120.00'), findsOneWidget);
-    expect(find.text('Completed'), findsOneWidget);
-    expect(find.text('Postpone'), findsOneWidget);
+    expect(find.byTooltip('Completed'), findsOneWidget);
+    expect(find.byTooltip('Postpone'), findsOneWidget);
     expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
     expect(find.byIcon(Icons.delete_outline), findsOneWidget);
   });
@@ -71,7 +71,7 @@ void main() {
 
     expect(find.text(r'$240.00'), findsOneWidget);
 
-    await tester.tap(find.text('Completed'));
+    await tester.tap(find.byTooltip('Completed'));
     await tester.pumpAndSettle();
 
     expect(find.text(r'$240.00'), findsNothing);

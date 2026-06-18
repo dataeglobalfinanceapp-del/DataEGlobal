@@ -35,8 +35,11 @@ class ReminderService {
       if (draft.amount <= 0) continue;
 
       if (RecurrenceSchedule.isRecurringFrequency(draft.reminderCount)) {
+        final seriesId = draft.recurringSeriesId.isEmpty
+            ? _newId('reminder-series')
+            : draft.recurringSeriesId;
         final series = ReminderSeries(
-          id: _newId('reminder-series'),
+          id: seriesId,
           startDate: _dateOnly(draft.date),
           category: draft.category,
           amount: draft.amount,
@@ -386,6 +389,7 @@ class ReminderDraft {
   final double amount;
   final String reminderCount;
   final String payee;
+  final String recurringSeriesId;
 
   const ReminderDraft({
     required this.date,
@@ -393,6 +397,7 @@ class ReminderDraft {
     required this.amount,
     required this.reminderCount,
     required this.payee,
+    this.recurringSeriesId = '',
   });
 }
 

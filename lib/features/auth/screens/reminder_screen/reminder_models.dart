@@ -216,11 +216,6 @@ class _ReminderTokens {
     fontSize: 12,
     fontWeight: FontWeight.w900,
   );
-  static const TextStyle compactActionLabel = TextStyle(
-    color: textStrong,
-    fontSize: 10,
-    fontWeight: FontWeight.w800,
-  );
   static const TextStyle addButtonLabel = TextStyle(
     color: textStrong,
     fontSize: 13,

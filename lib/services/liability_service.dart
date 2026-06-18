@@ -68,6 +68,7 @@ class LiabilityService {
     bool isRecurringMonthly = false,
     DateTime? recurringStartDate,
     String recurringFrequency = RecurrenceSchedule.monthly,
+    String recurringSeriesId = '',
   }) async {
     await _ensureLoaded();
 
@@ -81,6 +82,7 @@ class LiabilityService {
               payee: payee,
               isManual: isManual,
               frequency: recurringFrequency,
+              recurringSeriesId: recurringSeriesId,
             ),
           ]
         : [
@@ -126,6 +128,54 @@ class LiabilityService {
     return removed;
   }
 
+  static Future<bool> updateRecurringExpenseAmount({
+    required String recurringSeriesId,
+    required double amount,
+    DateTime? occurrenceDate,
+    DateTime? fromDate,
+  }) async {
+    if (recurringSeriesId.isEmpty || amount <= 0) return false;
+
+    await _ensureLoaded();
+    final DateTime? occurrence = occurrenceDate == null
+        ? null
+        : RecurrenceSchedule.dateOnly(occurrenceDate);
+    final DateTime cutoff = RecurrenceSchedule.dateOnly(
+      fromDate ?? AppClock.now,
+    );
+    final List<ExpenseRecord> expensesToUpdate = _expenses
+        .where(
+          (record) =>
+              record.recurringSeriesId == recurringSeriesId &&
+              (occurrence == null
+                  ? !RecurrenceSchedule.dateOnly(
+                      record.transactionDate,
+                    ).isBefore(cutoff)
+                  : RecurrenceSchedule.isSameDate(
+                      record.transactionDate,
+                      occurrence,
+                    )),
+        )
+        .toList(growable: false);
+    if (expensesToUpdate.isEmpty) return false;
+
+    final Set<String> expenseIds = expensesToUpdate
+        .map((record) => record.id)
+        .toSet();
+    _removeExpenseLiabilities(expensesToUpdate);
+
+    for (var index = 0; index < _expenses.length; index++) {
+      final ExpenseRecord record = _expenses[index];
+      if (!expenseIds.contains(record.id)) continue;
+      _expenses[index] = record.copyWith(totalAmount: amount);
+      _addExpenseLiability(_expenses[index]);
+    }
+
+    await _persist();
+    _notifyDataChanged();
+    return true;
+  }
+
   static Future<bool> deleteExpense(String id) async {
     await _ensureLoaded();
     final matching = _expenses.where((record) => record.id == id).toList();
@@ -141,6 +191,71 @@ class LiabilityService {
 
     _expenses.removeWhere((record) => expenseIds.contains(record.id));
     _removeExpenseLiabilities(expensesToDelete);
+    await _persist();
+    _notifyDataChanged();
+    return true;
+  }
+
+  static Future<bool> deleteFutureRecurringExpenses({
+    required String recurringSeriesId,
+    DateTime? fromDate,
+  }) async {
+    if (recurringSeriesId.isEmpty) return false;
+
+    await _ensureLoaded();
+    final DateTime cutoff = RecurrenceSchedule.dateOnly(
+      fromDate ?? AppClock.now,
+    );
+    final int cutoffMonthKey = SaveFutureExpense._monthKey(cutoff);
+    final List<ExpenseRecord> expensesToDelete = _expenses
+        .where(
+          (record) =>
+              record.recurringSeriesId == recurringSeriesId &&
+              !RecurrenceSchedule.dateOnly(
+                record.transactionDate,
+              ).isBefore(cutoff),
+        )
+        .toList(growable: false);
+    final List<ExpenseRecord> retainedExpenses = _expenses
+        .where(
+          (record) =>
+              record.recurringSeriesId == recurringSeriesId &&
+              RecurrenceSchedule.dateOnly(
+                record.transactionDate,
+              ).isBefore(cutoff),
+        )
+        .toList(growable: false);
+
+    final bool retainedEndMonthChanged = retainedExpenses.any(
+      (record) =>
+          _earlierRecurringEndMonthKey(
+            record.recurringEndMonthKey,
+            cutoffMonthKey,
+          ) !=
+          record.recurringEndMonthKey,
+    );
+    if (expensesToDelete.isEmpty && !retainedEndMonthChanged) return false;
+
+    final Set<String> expenseIdsToDelete = expensesToDelete
+        .map((record) => record.id)
+        .toSet();
+    _expenses.removeWhere((record) => expenseIdsToDelete.contains(record.id));
+    _removeExpenseLiabilities(expensesToDelete);
+
+    final Set<String> retainedExpenseIds = retainedExpenses
+        .map((record) => record.id)
+        .toSet();
+    for (var index = 0; index < _expenses.length; index++) {
+      final ExpenseRecord record = _expenses[index];
+      if (!retainedExpenseIds.contains(record.id)) continue;
+      _expenses[index] = record.copyWith(
+        recurringEndMonthKey: _earlierRecurringEndMonthKey(
+          record.recurringEndMonthKey,
+          cutoffMonthKey,
+        ),
+      );
+    }
+
     await _persist();
     _notifyDataChanged();
     return true;
