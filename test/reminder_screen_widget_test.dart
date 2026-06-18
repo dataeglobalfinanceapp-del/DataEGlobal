@@ -27,7 +27,7 @@ void main() {
     expect(find.text('Tap a date to create a reminder.'), findsOneWidget);
   });
 
-  testWidgets('ReminderScreen shows a neutral date label for past reminders', (
+  testWidgets('ReminderScreen shows reminder details inline on the card', (
     WidgetTester tester,
   ) async {
     await ReminderService.saveReminders(<ReminderDraft>[
@@ -43,15 +43,17 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: ReminderScreen()));
     await tester.pumpAndSettle();
 
+    expect(find.text('Utilities'), findsWidgets);
+    expect(find.text('Just one'), findsOneWidget);
+    expect(find.text('06/10/2026'), findsOneWidget);
     expect(find.text(r'$120.00'), findsOneWidget);
-
-    await tester.tap(find.text(r'$120.00'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Due on 06/10/2026'), findsOneWidget);
+    expect(find.text('Completed'), findsOneWidget);
+    expect(find.text('Postpone'), findsOneWidget);
+    expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
   });
 
-  testWidgets('Mark as Finished removes the selected payment obligation card', (
+  testWidgets('Completed removes the selected payment obligation card', (
     WidgetTester tester,
   ) async {
     await ReminderService.saveReminders(<ReminderDraft>[
@@ -69,12 +71,7 @@ void main() {
 
     expect(find.text(r'$240.00'), findsOneWidget);
 
-    await tester.tap(find.text(r'$240.00'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Mark as Finished'), findsOneWidget);
-
-    await tester.tap(find.text('Mark as Finished'));
+    await tester.tap(find.text('Completed'));
     await tester.pumpAndSettle();
 
     expect(find.text(r'$240.00'), findsNothing);

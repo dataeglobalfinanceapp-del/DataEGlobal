@@ -59,8 +59,6 @@ class _CalendarDayModel {
   bool get hasReminders => reminders.isNotEmpty;
 }
 
-enum _ReminderDetailAction { editAmount, delete, markFinished, postpone }
-
 class _AmountEditResult {
   final double amount;
   final bool applyToSeries;
@@ -130,18 +128,6 @@ class _ReminderDateUtils {
       growable: false,
     );
   }
-
-  static String dueLabel(DateTime date) {
-    final DateTime today = dateOnly(AppClock.now);
-    final DateTime dueDate = dateOnly(date);
-    final int difference = dueDate.difference(today).inDays;
-    return switch (difference) {
-      < 0 => 'Due on ${fullDate(date)}',
-      0 => 'Due today',
-      1 => 'Due tomorrow',
-      _ => 'Due in $difference days',
-    };
-  }
 }
 
 class _ReminderTokens {
@@ -149,37 +135,25 @@ class _ReminderTokens {
 
   static const Color screenBackground = Color(0xFFF5F5F5);
   static const Color surface = Colors.white;
-  static const Color primary = Color(0xFF171638);
   static const Color appBarIcon = Color(0xFF1F2937);
   static const Color textStrong = Color(0xFF111827);
   static const Color textMuted = Color(0xFF64748B);
   static const Color textSubtle = Color(0xFF6B7280);
   static const Color textInactive = Color(0xFF9CA3AF);
   static const Color labelStrong = Color(0xFF283154);
-  static const Color amountStrong = Color(0xFF202124);
+  static const Color paymentObligationBackground = Color(0xFFB91C1C);
+  static const Color compactActionBackground = Colors.white;
   static const Color danger = Color(0xFFEF4444);
   static const Color dangerDark = Color(0xFFDC2626);
-  static const Color dangerBorder = Color(0xFFFCA5A5);
   static const Color success = Color(0xFF16A34A);
-  static const Color successAccent = Color(0xFF22C55E);
   static const Color warning = Color(0xFFF59E0B);
-  static const Color warningDark = Color(0xFFD97706);
-  static const Color warningSoft = Color(0xFFFFFBEB);
   static const Color today = Color(0xFFFACC15);
   static const Color blue = Color(0xFF2563EB);
   static const Color iconBlue = Color(0xFF60A5FA);
-  static const Color border = Color(0xFFE5E7EB);
   static const Color inputBorder = Color(0xFF9CA3AF);
-  static const Color softPanel = Color(0xFFF3F4F6);
-  static const Color alertPanel = Color(0xFFE8EEF7);
-  static const Color alertIcon = Color(0xFF293154);
-  static const Color recurringSoft = Color(0xFFEFFCF8);
-  static const Color recurringBorder = Color(0xFFA7F3D0);
-  static const Color recurringText = Color(0xFF0F766E);
 
   static const double cardRadius = 4;
   static const double controlRadius = 3;
-  static const double dialogRadius = 8;
 
   static const EdgeInsets pagePadding = EdgeInsets.fromLTRB(16, 10, 16, 20);
   static const EdgeInsets createPagePadding = EdgeInsets.fromLTRB(
@@ -188,7 +162,6 @@ class _ReminderTokens {
     16,
     24,
   );
-  static const EdgeInsets cardTilePadding = EdgeInsets.fromLTRB(12, 8, 12, 8);
 
   static const List<BoxShadow> cardShadow = <BoxShadow>[
     BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, 2)),
@@ -228,61 +201,25 @@ class _ReminderTokens {
     fontWeight: FontWeight.w900,
     letterSpacing: 2,
   );
-  static const TextStyle cardTitle = TextStyle(
-    color: textMuted,
-    fontSize: 10,
-    fontWeight: FontWeight.w700,
-  );
-  static const TextStyle cardBody = TextStyle(
-    color: textStrong,
-    fontSize: 12,
-    fontWeight: FontWeight.w700,
-  );
   static const TextStyle emptyLabel = TextStyle(
     color: textSubtle,
     fontSize: 13,
     fontWeight: FontWeight.w700,
   );
-  static const TextStyle sheetTitle = TextStyle(
-    fontSize: 16,
+  static const TextStyle compactLineText = TextStyle(
+    color: Colors.white,
+    fontSize: 11,
     fontWeight: FontWeight.w800,
   );
-  static const TextStyle amountLabel = TextStyle(
-    color: labelStrong,
-    fontSize: 13,
-    fontWeight: FontWeight.w900,
-    letterSpacing: 2,
-  );
-  static const TextStyle amountValue = TextStyle(
-    color: amountStrong,
-    fontSize: 30,
-    fontWeight: FontWeight.w900,
-  );
-  static const TextStyle detailDate = TextStyle(
-    color: textMuted,
-    fontSize: 11,
-    fontWeight: FontWeight.w600,
-  );
-  static const TextStyle payeeLabel = TextStyle(
-    color: Color(0xFF374151),
+  static const TextStyle compactAmount = TextStyle(
+    color: Colors.white,
     fontSize: 12,
-    fontWeight: FontWeight.w800,
-    letterSpacing: 1.6,
+    fontWeight: FontWeight.w900,
   );
-  static const TextStyle payeeValue = TextStyle(
+  static const TextStyle compactActionLabel = TextStyle(
     color: textStrong,
-    fontSize: 13,
-    fontWeight: FontWeight.w700,
-  );
-  static const TextStyle alertTitle = TextStyle(
-    color: textStrong,
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: FontWeight.w800,
-  );
-  static const TextStyle alertBody = TextStyle(
-    color: textSubtle,
-    fontSize: 11,
-    fontWeight: FontWeight.w500,
   );
   static const TextStyle addButtonLabel = TextStyle(
     color: textStrong,

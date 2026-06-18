@@ -38,12 +38,6 @@ class _ReminderController extends ChangeNotifier {
         const <ReminderRecord>[];
   }
 
-  Future<void> updateAlert(ReminderRecord record, bool enabled) async {
-    await ReminderService.updateAlert(record.id, enabled);
-    if (_isDisposed) return;
-    await loadReminders(showLoading: false);
-  }
-
   Future<void> updateAmount(
     ReminderRecord record,
     _AmountEditResult result,

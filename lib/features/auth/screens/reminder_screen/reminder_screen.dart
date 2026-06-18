@@ -123,57 +123,6 @@ class _ReminderScreenState extends State<ReminderScreen> {
     final List<ReminderRecord> reminders = _controller.remindersForDate(date);
     if (reminders.isEmpty) {
       await _openCreate(initialDate: date);
-      return;
-    }
-
-    if (reminders.length == 1) {
-      await _showReminderDialog(reminders.first);
-      return;
-    }
-
-    final ReminderRecord? selected = await showModalBottomSheet<ReminderRecord>(
-      context: context,
-      backgroundColor: _ReminderTokens.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (BuildContext context) {
-        return _ReminderPickerSheet(date: date, reminders: reminders);
-      },
-    );
-
-    if (!mounted) return;
-    if (selected == null) {
-      await _openCreate(initialDate: date);
-    } else {
-      await _showReminderDialog(selected);
-    }
-  }
-
-  Future<void> _showReminderDialog(ReminderRecord record) async {
-    final _ReminderDetailAction? action =
-        await showDialog<_ReminderDetailAction>(
-          context: context,
-          builder: (BuildContext context) {
-            return _ReminderDetailDialog(
-              record: record,
-              onAlertChanged: (bool value) {
-                return _controller.updateAlert(record, value);
-              },
-            );
-          },
-        );
-    if (!mounted || action == null) return;
-
-    switch (action) {
-      case _ReminderDetailAction.editAmount:
-        await _editReminderAmount(record);
-      case _ReminderDetailAction.delete:
-        await _deleteReminder(record);
-      case _ReminderDetailAction.markFinished:
-        await _markReminderFinished(record);
-      case _ReminderDetailAction.postpone:
-        await _postponeReminder(record);
     }
   }
 
@@ -210,7 +159,10 @@ class _ReminderScreenState extends State<ReminderScreen> {
                     onPreviousMonth: () => _controller.changeMonth(-1),
                     onNextMonth: () => _controller.changeMonth(1),
                     onTapDate: _handleDateTap,
-                    onTapReminder: _showReminderDialog,
+                    onEditAmount: _editReminderAmount,
+                    onDelete: _deleteReminder,
+                    onMarkFinished: _markReminderFinished,
+                    onPostpone: _postponeReminder,
                   ),
           );
         },
