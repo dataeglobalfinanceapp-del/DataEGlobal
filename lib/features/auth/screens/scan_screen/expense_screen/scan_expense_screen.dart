@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../../services/reminder_service.dart';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Models
 // ─────────────────────────────────────────────────────────────────────────────
@@ -100,6 +102,22 @@ Future<DateTime?> pickExpenseScheduleDate(
 // Shared widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
+Future<void> saveRecurringExpenseReminder({
+  required ScannedExpenseData data,
+  required DateTime startDate,
+  required ExpenseScheduleFrequency frequency,
+}) {
+  return ReminderService.saveReminders(<ReminderDraft>[
+    ReminderDraft(
+      date: startDate,
+      category: data.category.label,
+      amount: data.totalAmount,
+      reminderCount: frequency.label,
+      payee: data.payee,
+    ),
+  ]);
+}
+
 class InfoRow extends StatelessWidget {
   final String label;
   final Widget child;
@@ -153,44 +171,6 @@ class RecurringExpenseOption extends StatelessWidget {
       iconColor: const Color(0xFF2563EB),
       iconBackgroundColor: const Color(0xFFEFF6FF),
       activeColor: const Color(0xFF1A2340),
-      startDate: startDate,
-      frequency: frequency,
-      onChanged: onChanged,
-      onPickStartDate: onPickStartDate,
-      onFrequencyChanged: onFrequencyChanged,
-    );
-  }
-}
-
-class ExpenseReminderOption extends StatelessWidget {
-  final bool value;
-  final DateTime startDate;
-  final ExpenseScheduleFrequency frequency;
-  final ValueChanged<bool> onChanged;
-  final VoidCallback onPickStartDate;
-  final ValueChanged<ExpenseScheduleFrequency> onFrequencyChanged;
-
-  const ExpenseReminderOption({
-    super.key,
-    required this.value,
-    required this.startDate,
-    required this.frequency,
-    required this.onChanged,
-    required this.onPickStartDate,
-    required this.onFrequencyChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ExpenseScheduleOption(
-      value: value,
-      title: 'ADD TO REMINDERS',
-      description:
-          'Create recurring payment reminders from a custom start date.',
-      icon: Icons.notifications_active_outlined,
-      iconColor: const Color(0xFF0F766E),
-      iconBackgroundColor: const Color(0xFFEFFCF8),
-      activeColor: const Color(0xFF0F766E),
       startDate: startDate,
       frequency: frequency,
       onChanged: onChanged,

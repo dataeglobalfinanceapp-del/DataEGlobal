@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import '../../../../../services/app_clock.dart';
 import '../../../../../services/liability_service.dart';
 import '../../../../../services/money_formatter.dart';
-import '../../../../../services/reminder_service.dart';
 import 'scan_expense_screen.dart';
 
 class ScanExpenseManualScreen extends StatefulWidget {
@@ -18,15 +17,11 @@ class ScanExpenseManualScreen extends StatefulWidget {
 class _ScanExpenseManualScreenState extends State<ScanExpenseManualScreen> {
   bool _isSaving = false;
   bool _isRecurringExpense = false;
-  bool _addToReminders = false;
   ExpenseScheduleFrequency _recurringFrequency =
-      ExpenseScheduleFrequency.monthly;
-  ExpenseScheduleFrequency _reminderFrequency =
       ExpenseScheduleFrequency.monthly;
 
   late ScannedExpenseData _data;
   late DateTime _recurringStartDate;
-  late DateTime _reminderStartDate;
   late TextEditingController _checkNumberController;
   late TextEditingController _totalAmountController;
   late TextEditingController _payeeController;
@@ -36,7 +31,6 @@ class _ScanExpenseManualScreenState extends State<ScanExpenseManualScreen> {
     super.initState();
     _data = ScannedExpenseData(transactionDate: AppClock.now);
     _recurringStartDate = _data.transactionDate;
-    _reminderStartDate = _data.transactionDate;
     _checkNumberController = TextEditingController();
     _totalAmountController = TextEditingController();
     _payeeController = TextEditingController();
@@ -62,11 +56,8 @@ class _ScanExpenseManualScreenState extends State<ScanExpenseManualScreen> {
       final emptyData = ScannedExpenseData(transactionDate: AppClock.now);
       setState(() {
         _isRecurringExpense = false;
-        _addToReminders = false;
         _recurringStartDate = emptyData.transactionDate;
-        _reminderStartDate = emptyData.transactionDate;
         _recurringFrequency = ExpenseScheduleFrequency.monthly;
-        _reminderFrequency = ExpenseScheduleFrequency.monthly;
         _data = emptyData;
       });
       _checkNumberController.text = '';
@@ -90,9 +81,6 @@ class _ScanExpenseManualScreenState extends State<ScanExpenseManualScreen> {
         if (!_isRecurringExpense) {
           _recurringStartDate = picked;
         }
-        if (!_addToReminders) {
-          _reminderStartDate = picked;
-        }
       });
     }
   }
@@ -106,18 +94,6 @@ class _ScanExpenseManualScreenState extends State<ScanExpenseManualScreen> {
     );
     if (picked != null && mounted) {
       setState(() => _recurringStartDate = picked);
-    }
-  }
-
-  Future<void> _pickReminderStartDate() async {
-    final picked = await pickExpenseScheduleDate(
-      context,
-      initialDate: _reminderStartDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null && mounted) {
-      setState(() => _reminderStartDate = picked);
     }
   }
 
@@ -158,7 +134,13 @@ class _ScanExpenseManualScreenState extends State<ScanExpenseManualScreen> {
         recurringStartDate: _recurringStartDate,
         recurringFrequency: _recurringFrequency.label,
       );
-      await _saveExpenseReminder(updatedData);
+      if (_isRecurringExpense) {
+        await saveRecurringExpenseReminder(
+          data: updatedData,
+          startDate: _recurringStartDate,
+          frequency: _recurringFrequency,
+        );
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -174,29 +156,9 @@ class _ScanExpenseManualScreenState extends State<ScanExpenseManualScreen> {
     }
   }
 
-  Future<void> _saveExpenseReminder(ScannedExpenseData data) async {
-    if (!_addToReminders) return;
-
-    await ReminderService.saveReminders(<ReminderDraft>[
-      ReminderDraft(
-        date: _reminderStartDate,
-        category: data.category.label,
-        amount: data.totalAmount,
-        reminderCount: _reminderFrequency.label,
-        payee: data.payee,
-      ),
-    ]);
-  }
-
   String _saveMessage() {
-    if (_addToReminders && _isRecurringExpense) {
-      return 'Recurring expense and reminder schedule saved.';
-    }
-    if (_addToReminders) {
-      return 'Expense saved and reminder schedule added.';
-    }
     if (_isRecurringExpense) {
-      return 'Recurring expense saved.';
+      return 'Recurring expense and reminder schedule saved.';
     }
     return 'Expense saved';
   }
@@ -525,26 +487,6 @@ class _ScanExpenseManualScreenState extends State<ScanExpenseManualScreen> {
                           onPickStartDate: _pickRecurringStartDate,
                           onFrequencyChanged: (value) {
                             setState(() => _recurringFrequency = value);
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                        const SizedBox(height: 12),
-                        ExpenseReminderOption(
-                          value: _addToReminders,
-                          startDate: _reminderStartDate,
-                          frequency: _reminderFrequency,
-                          onChanged: (value) {
-                            setState(() {
-                              _addToReminders = value;
-                              if (value) {
-                                _reminderStartDate = _data.transactionDate;
-                              }
-                            });
-                          },
-                          onPickStartDate: _pickReminderStartDate,
-                          onFrequencyChanged: (value) {
-                            setState(() => _reminderFrequency = value);
                           },
                         ),
                       ],

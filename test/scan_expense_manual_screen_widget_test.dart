@@ -19,7 +19,28 @@ void main() {
     ReminderService.resetForTesting(disablePersistence: false);
   });
 
-  testWidgets('manual expense can add a recurring reminder schedule', (
+  testWidgets(
+    'manual expense does not show a separate add to reminders option',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: ScanExpenseManualScreen()),
+      );
+
+      await tester.enterText(find.byType(TextField).at(1), '150.00');
+      await tester.enterText(find.byType(TextField).at(2), 'Power Co');
+
+      expect(find.text('ADD TO REMINDERS'), findsNothing);
+
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+
+      final List<ReminderRecord> reminders =
+          await ReminderService.loadReminders();
+      expect(reminders, isEmpty);
+    },
+  );
+
+  testWidgets('manual recurring expense automatically adds reminders', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: ScanExpenseManualScreen()));
@@ -27,8 +48,10 @@ void main() {
     await tester.enterText(find.byType(TextField).at(1), '150.00');
     await tester.enterText(find.byType(TextField).at(2), 'Power Co');
 
-    await tester.ensureVisible(find.text('ADD TO REMINDERS'));
-    await tester.tap(find.text('ADD TO REMINDERS'));
+    expect(find.text('ADD TO REMINDERS'), findsNothing);
+
+    await tester.ensureVisible(find.text('RECURRING EXPENSE'));
+    await tester.tap(find.text('RECURRING EXPENSE'));
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('Monthly'));
@@ -57,28 +80,6 @@ void main() {
       <String>{'Biweekly'},
     );
     expect(reminders.first.payee, 'Power Co');
-  });
-
-  testWidgets('manual expense can add a recurring expense schedule', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const MaterialApp(home: ScanExpenseManualScreen()));
-
-    await tester.enterText(find.byType(TextField).at(1), '150.00');
-    await tester.enterText(find.byType(TextField).at(2), 'Power Co');
-
-    await tester.ensureVisible(find.text('RECURRING EXPENSE'));
-    await tester.tap(find.text('RECURRING EXPENSE'));
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(find.text('Monthly'));
-    await tester.tap(find.text('Monthly'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Biweekly').last);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Confirm'));
-    await tester.pumpAndSettle();
 
     var expenses = await LiabilityService.loadExpenses();
 
