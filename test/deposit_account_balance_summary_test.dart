@@ -21,13 +21,21 @@ void main() {
     await _saveDeposit(amount: 100, date: DateTime(2026, 5, 30));
     await _saveDeposit(amount: 75, date: DateTime(2026, 6, 10));
     await _saveDeposit(amount: 50, date: DateTime(2026, 7, 1));
+    await _saveExpense(amount: 40, date: DateTime(2026, 6, 12));
 
     final DepositBalanceSummary summary =
         await LiabilityService.loadDepositBalanceSummary(year: 2026, month: 6);
 
     expect(summary.beginningBalance, 100);
     expect(summary.monthCredits, 75);
-    expect(summary.endingBalance, 175);
+    expect(summary.monthExpenses, 40);
+    expect(summary.endingBalance, 135);
+
+    final List<DepositBalanceSummary> summaries =
+        await LiabilityService.loadDepositBalanceSummariesForYear(year: 2026);
+    expect(summaries[6].beginningBalance, 135);
+    expect(summaries[6].monthCredits, 50);
+    expect(summaries[6].endingBalance, 185);
 
     final budget = await LiabilityService.loadBudgetData(
       startDate: DateTime(2026, 6),
@@ -37,13 +45,16 @@ void main() {
     expect(budget.deposit, 75);
     expect(budget.saving, 7.5);
     expect(budget.income, 67.5);
+    expect(budget.expense, 40);
   });
 
-  testWidgets('Deposit account balance summary renders monthly balances', (
+  testWidgets('Deposit account balance summary expands monthly balances', (
     WidgetTester tester,
   ) async {
     await _saveDeposit(amount: 100, date: DateTime(2026, 5, 30));
     await _saveDeposit(amount: 75, date: DateTime(2026, 6, 10));
+    await _saveDeposit(amount: 50, date: DateTime(2026, 7, 1));
+    await _saveExpense(amount: 40, date: DateTime(2026, 6, 12));
 
     await tester.pumpWidget(
       const MaterialApp(home: DepositAccountBalanceSummaryScreen()),
@@ -51,16 +62,39 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Deposit account balance summary'), findsWidgets);
-    expect(find.text('June 2026'), findsOneWidget);
-    expect(find.text('Beginning balance from previous month'), findsOneWidget);
+    expect(find.text('2026'), findsOneWidget);
+    expect(find.text('January'), findsOneWidget);
+    expect(find.text('June'), findsOneWidget);
+    expect(find.text('July'), findsNothing);
+    expect(find.text(r'$0.00'), findsWidgets);
+    expect(find.text(r'$135.00'), findsWidgets);
+    expect(find.text(r'$185.00'), findsNothing);
+
+    await tester.tap(find.text('June'));
+    await tester.pumpAndSettle();
+
     expect(
-      find.text('Deposits and other credits for selected month'),
+      find.text(
+        'Beginning deposit balance from the previous month ending balance',
+      ),
       findsOneWidget,
     );
-    expect(find.text('Ending deposit balance'), findsOneWidget);
-    expect(find.text(r'$100.00'), findsOneWidget);
+    expect(
+      find.text('Deposits added during the selected month'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Total expenses during the selected month'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Ending deposit balance for the selected month'),
+      findsOneWidget,
+    );
+    expect(find.text(r'$100.00'), findsWidgets);
     expect(find.text(r'$75.00'), findsOneWidget);
-    expect(find.text(r'$175.00'), findsOneWidget);
+    expect(find.text(r'$40.00'), findsOneWidget);
+    expect(find.text(r'$135.00'), findsWidgets);
   });
 
   testWidgets('Deposit tab exposes account balance summary option', (
@@ -85,6 +119,17 @@ Future<void> _saveDeposit({required double amount, required DateTime date}) {
     giftCard: 0,
     other: 0,
     transactionDate: date,
+    isManual: true,
+  );
+}
+
+Future<void> _saveExpense({required double amount, required DateTime date}) {
+  return LiabilityService.saveExpense(
+    checkNumber: 'E-${date.month}-${date.day}',
+    totalAmount: amount,
+    transactionDate: date,
+    category: 'Fuel',
+    payee: 'Fuel',
     isManual: true,
   );
 }

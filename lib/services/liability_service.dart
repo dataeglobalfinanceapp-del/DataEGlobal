@@ -363,32 +363,15 @@ class LiabilityService {
   }) async {
     await _ensureLoaded();
     final DateTime monthStart = DateTime(year, month);
-    final DateTime nextMonthStart = DateTime(year, month + 1);
-    final double beginningBalance = _deposits
-        .where(
-          (DepositRecord record) => record.transactionDate.isBefore(monthStart),
-        )
-        .fold<double>(
-          0,
-          (double total, DepositRecord record) => total + record.totalAmount,
-        );
-    final double monthCredits = _deposits
-        .where(
-          (DepositRecord record) =>
-              !record.transactionDate.isBefore(monthStart) &&
-              record.transactionDate.isBefore(nextMonthStart),
-        )
-        .fold<double>(
-          0,
-          (double total, DepositRecord record) => total + record.totalAmount,
-        );
+    final List<DepositBalanceSummary> summaries =
+        _depositBalanceSummariesForYear(monthStart.year);
+    return summaries[monthStart.month - 1];
+  }
 
-    return DepositBalanceSummary(
-      year: monthStart.year,
-      month: monthStart.month,
-      beginningBalance: beginningBalance,
-      monthCredits: monthCredits,
-    );
+  static Future<List<DepositBalanceSummary>>
+  loadDepositBalanceSummariesForYear({required int year}) async {
+    await _ensureLoaded();
+    return _depositBalanceSummariesForYear(year);
   }
 
   static Future<List<ExpenseRecord>> loadExpenses() async {
@@ -729,6 +712,84 @@ class LiabilityService {
     return !date.isBefore(first) && !date.isAfter(last);
   }
 
+  static List<DepositBalanceSummary> _depositBalanceSummariesForYear(int year) {
+    double runningBalance =
+        _sumDepositsBefore(DateTime(year)) - _sumExpensesBefore(DateTime(year));
+    final List<DepositBalanceSummary> summaries = <DepositBalanceSummary>[];
+
+    for (int month = 1; month <= 12; month += 1) {
+      final DateTime monthStart = DateTime(year, month);
+      final DateTime nextMonthStart = DateTime(year, month + 1);
+      final double monthCredits = _sumDepositsInRange(
+        monthStart,
+        nextMonthStart,
+      );
+      final double monthExpenses = _sumExpensesInRange(
+        monthStart,
+        nextMonthStart,
+      );
+      final DepositBalanceSummary summary = DepositBalanceSummary(
+        year: year,
+        month: month,
+        beginningBalance: runningBalance,
+        monthCredits: monthCredits,
+        monthExpenses: monthExpenses,
+      );
+      summaries.add(summary);
+      runningBalance = summary.endingBalance;
+    }
+
+    return List<DepositBalanceSummary>.unmodifiable(summaries);
+  }
+
+  static double _sumDepositsBefore(DateTime cutoff) {
+    return _deposits
+        .where(
+          (DepositRecord record) => record.transactionDate.isBefore(cutoff),
+        )
+        .fold<double>(
+          0,
+          (double total, DepositRecord record) => total + record.totalAmount,
+        );
+  }
+
+  static double _sumExpensesBefore(DateTime cutoff) {
+    return _expenses
+        .where(
+          (ExpenseRecord record) => record.transactionDate.isBefore(cutoff),
+        )
+        .fold<double>(
+          0,
+          (double total, ExpenseRecord record) => total + record.totalAmount,
+        );
+  }
+
+  static double _sumDepositsInRange(DateTime start, DateTime end) {
+    return _deposits
+        .where(
+          (DepositRecord record) =>
+              !record.transactionDate.isBefore(start) &&
+              record.transactionDate.isBefore(end),
+        )
+        .fold<double>(
+          0,
+          (double total, DepositRecord record) => total + record.totalAmount,
+        );
+  }
+
+  static double _sumExpensesInRange(DateTime start, DateTime end) {
+    return _expenses
+        .where(
+          (ExpenseRecord record) =>
+              !record.transactionDate.isBefore(start) &&
+              record.transactionDate.isBefore(end),
+        )
+        .fold<double>(
+          0,
+          (double total, ExpenseRecord record) => total + record.totalAmount,
+        );
+  }
+
   static String _newId(String prefix) =>
       '$prefix-${AppClock.now.microsecondsSinceEpoch}-${_idCounter++}';
 
@@ -855,15 +916,17 @@ class DepositBalanceSummary {
   final int month;
   final double beginningBalance;
   final double monthCredits;
+  final double monthExpenses;
 
   const DepositBalanceSummary({
     required this.year,
     required this.month,
     required this.beginningBalance,
     required this.monthCredits,
+    required this.monthExpenses,
   });
 
-  double get endingBalance => beginningBalance + monthCredits;
+  double get endingBalance => beginningBalance + monthCredits - monthExpenses;
 }
 
 class ExpenseRecord {

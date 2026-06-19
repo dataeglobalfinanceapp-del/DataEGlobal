@@ -14,36 +14,48 @@ class DepositAccountBalanceSummaryScreen extends StatefulWidget {
 
 class _DepositAccountBalanceSummaryScreenState
     extends State<DepositAccountBalanceSummaryScreen> {
-  late DateTime _selectedMonth;
-  late Future<DepositBalanceSummary> _summaryFuture;
+  late int _selectedYear;
+  late Future<List<DepositBalanceSummary>> _summaryFuture;
+  final Set<int> _expandedMonths = <int>{};
 
   @override
   void initState() {
     super.initState();
-    final DateTime now = AppClock.now;
-    _selectedMonth = DateTime(now.year, now.month);
-    _summaryFuture = _loadSummary();
+    _selectedYear = AppClock.now.year;
+    _summaryFuture = _loadSummaries();
   }
 
-  Future<DepositBalanceSummary> _loadSummary() {
-    return LiabilityService.loadDepositBalanceSummary(
-      year: _selectedMonth.year,
-      month: _selectedMonth.month,
+  Future<List<DepositBalanceSummary>> _loadSummaries() {
+    return LiabilityService.loadDepositBalanceSummariesForYear(
+      year: _selectedYear,
     );
   }
 
-  void _changeMonth(int delta) {
+  void _changeYear(int delta) {
+    final int currentYear = AppClock.now.year;
+    final int nextYear = _selectedYear + delta;
+    if (nextYear > currentYear) {
+      return;
+    }
+
     setState(() {
-      _selectedMonth = DateTime(
-        _selectedMonth.year,
-        _selectedMonth.month + delta,
-      );
-      _summaryFuture = _loadSummary();
+      _selectedYear = nextYear;
+      _expandedMonths.clear();
+      _summaryFuture = _loadSummaries();
+    });
+  }
+
+  void _toggleMonth(int month) {
+    setState(() {
+      if (!_expandedMonths.add(month)) {
+        _expandedMonths.remove(month);
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final DateTime now = AppClock.now;
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
@@ -65,42 +77,54 @@ class _DepositAccountBalanceSummaryScreenState
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          setState(() => _summaryFuture = _loadSummary());
+          setState(() => _summaryFuture = _loadSummaries());
           await _summaryFuture;
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          padding: const EdgeInsets.fromLTRB(8, 12, 8, 24),
           children: <Widget>[
-            _MonthSelector(
-              selectedMonth: _selectedMonth,
-              onPrevious: () => _changeMonth(-1),
-              onNext: () => _changeMonth(1),
+            _YearSelector(
+              year: _selectedYear,
+              onPrevious: () => _changeYear(-1),
+              onNext: _selectedYear < now.year ? () => _changeYear(1) : null,
             ),
-            const SizedBox(height: 12),
-            FutureBuilder<DepositBalanceSummary>(
+            const SizedBox(height: 10),
+            FutureBuilder<List<DepositBalanceSummary>>(
               future: _summaryFuture,
               builder:
                   (
                     BuildContext context,
-                    AsyncSnapshot<DepositBalanceSummary> snapshot,
+                    AsyncSnapshot<List<DepositBalanceSummary>> snapshot,
                   ) {
                     if (snapshot.connectionState != ConnectionState.done) {
                       return const SizedBox(
-                        height: 220,
+                        height: 260,
                         child: Center(child: CircularProgressIndicator()),
                       );
                     }
 
-                    final DepositBalanceSummary summary =
-                        snapshot.data ??
-                        DepositBalanceSummary(
-                          year: _selectedMonth.year,
-                          month: _selectedMonth.month,
-                          beginningBalance: 0,
-                          monthCredits: 0,
-                        );
-                    return _DepositBalanceSummaryCard(summary: summary);
+                    final List<DepositBalanceSummary> summaries =
+                        snapshot.data ?? const <DepositBalanceSummary>[];
+                    final List<DepositBalanceSummary> visibleSummaries =
+                        summaries
+                            .where(
+                              (DepositBalanceSummary summary) =>
+                                  _selectedYear < now.year ||
+                                  summary.month <= now.month,
+                            )
+                            .toList(growable: false);
+                    return Column(
+                      children: <Widget>[
+                        for (final DepositBalanceSummary summary
+                            in visibleSummaries)
+                          _MonthSummaryTile(
+                            summary: summary,
+                            isExpanded: _expandedMonths.contains(summary.month),
+                            onTap: () => _toggleMonth(summary.month),
+                          ),
+                      ],
+                    );
                   },
             ),
           ],
@@ -110,13 +134,13 @@ class _DepositAccountBalanceSummaryScreenState
   }
 }
 
-class _MonthSelector extends StatelessWidget {
-  final DateTime selectedMonth;
+class _YearSelector extends StatelessWidget {
+  final int year;
   final VoidCallback onPrevious;
-  final VoidCallback onNext;
+  final VoidCallback? onNext;
 
-  const _MonthSelector({
-    required this.selectedMonth,
+  const _YearSelector({
+    required this.year,
     required this.onPrevious,
     required this.onNext,
   });
@@ -124,10 +148,11 @@ class _MonthSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Row(
@@ -137,28 +162,14 @@ class _MonthSelector extends StatelessWidget {
             icon: const Icon(Icons.chevron_left, size: 22),
           ),
           Expanded(
-            child: Column(
-              children: <Widget>[
-                Text(
-                  '${_monthNames[selectedMonth.month]} ${selectedMonth.year}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF111827),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  _dateRangeLabel(selectedMonth),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+            child: Text(
+              '$year',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF111827),
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           IconButton(
@@ -169,32 +180,26 @@ class _MonthSelector extends StatelessWidget {
       ),
     );
   }
-
-  static String _dateRangeLabel(DateTime month) {
-    final DateTime end = DateTime(month.year, month.month + 1, 0);
-    return '${_shortDate(month)} - ${_shortDate(end)}';
-  }
-
-  static String _shortDate(DateTime date) {
-    return '${date.month.toString().padLeft(2, '0')}/'
-        '${date.day.toString().padLeft(2, '0')}/${date.year}';
-  }
 }
 
-class _DepositBalanceSummaryCard extends StatelessWidget {
+class _MonthSummaryTile extends StatelessWidget {
   final DepositBalanceSummary summary;
+  final bool isExpanded;
+  final VoidCallback onTap;
 
-  const _DepositBalanceSummaryCard({required this.summary});
+  const _MonthSummaryTile({
+    required this.summary,
+    required this.isExpanded,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(4),
         boxShadow: const <BoxShadow>[
           BoxShadow(
             color: Color(0x0F000000),
@@ -204,44 +209,76 @@ class _DepositBalanceSummaryCard extends StatelessWidget {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Row(
-            children: <Widget>[
-              Icon(
-                Icons.account_balance_wallet_outlined,
-                color: Color(0xFF1E40AF),
-                size: 20,
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Deposit account balance summary',
-                  style: TextStyle(
-                    color: Color(0xFF111827),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+          InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+              child: Row(
+                children: <Widget>[
+                  Icon(
+                    isExpanded ? Icons.expand_more : Icons.chevron_right,
+                    color: const Color(0xFF111827),
+                    size: 18,
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _monthNames[summary.month],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF111827),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    formatMoney(summary.endingBalance),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      color: Color(0xFF111827),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 16),
-          _SummaryAmountRow(
-            label: 'Beginning balance from previous month',
-            amount: summary.beginningBalance,
-          ),
-          const Divider(height: 22, color: Color(0xFFE5E7EB)),
-          _SummaryAmountRow(
-            label: 'Deposits and other credits for selected month',
-            amount: summary.monthCredits,
-          ),
-          const Divider(height: 22, color: Color(0xFFE5E7EB)),
-          _SummaryAmountRow(
-            label: 'Ending deposit balance',
-            amount: summary.endingBalance,
-            isEmphasis: true,
-          ),
+          if (isExpanded) ...<Widget>[
+            const Divider(height: 1, color: Color(0xFFE5E7EB)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+              child: Column(
+                children: <Widget>[
+                  _SummaryAmountRow(
+                    label:
+                        'Beginning deposit balance from the previous month ending balance',
+                    amount: summary.beginningBalance,
+                  ),
+                  const SizedBox(height: 10),
+                  _SummaryAmountRow(
+                    label: 'Deposits added during the selected month',
+                    amount: summary.monthCredits,
+                  ),
+                  const SizedBox(height: 10),
+                  _SummaryAmountRow(
+                    label: 'Total expenses during the selected month',
+                    amount: summary.monthExpenses,
+                  ),
+                  const SizedBox(height: 10),
+                  _SummaryAmountRow(
+                    label: 'Ending deposit balance for the selected month',
+                    amount: summary.endingBalance,
+                    isEmphasis: true,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -270,10 +307,10 @@ class _SummaryAmountRow extends StatelessWidget {
             style: TextStyle(
               color: isEmphasis
                   ? const Color(0xFF111827)
-                  : const Color(0xFF6B7280),
+                  : const Color(0xFF4B5563),
               fontSize: isEmphasis ? 13 : 12,
-              fontWeight: isEmphasis ? FontWeight.w800 : FontWeight.w700,
-              height: 1.2,
+              fontWeight: isEmphasis ? FontWeight.w800 : FontWeight.w600,
+              height: 1.25,
             ),
           ),
         ),
@@ -282,11 +319,9 @@ class _SummaryAmountRow extends StatelessWidget {
           formatMoney(amount),
           textAlign: TextAlign.right,
           style: TextStyle(
-            color: isEmphasis
-                ? const Color(0xFF16A34A)
-                : const Color(0xFF111827),
-            fontSize: isEmphasis ? 18 : 14,
-            fontWeight: isEmphasis ? FontWeight.w900 : FontWeight.w800,
+            color: const Color(0xFF111827),
+            fontSize: isEmphasis ? 15 : 13,
+            fontWeight: isEmphasis ? FontWeight.w900 : FontWeight.w700,
           ),
         ),
       ],
