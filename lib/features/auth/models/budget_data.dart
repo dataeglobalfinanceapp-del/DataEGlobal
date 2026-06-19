@@ -66,12 +66,6 @@ class DefaultBudgetSeedData {
     BudgetSeedExpense(dayOfMonth: 9, category: 'COGS', amount: 3000),
     BudgetSeedExpense(
       dayOfMonth: 2,
-      category: 'Insurance',
-      amount: 3000,
-      isRecurringMonthly: true,
-    ),
-    BudgetSeedExpense(
-      dayOfMonth: 2,
       category: 'Consumable Supplies',
       amount: 3185.82,
     ),
@@ -98,12 +92,6 @@ class DefaultBudgetSeedData {
     BudgetSeedExpense(dayOfMonth: 8, category: 'Fuel', amount: 156.35),
     BudgetSeedExpense(dayOfMonth: 17, category: 'Fuel', amount: 256.57),
     BudgetSeedExpense(dayOfMonth: 23, category: 'Fuel', amount: 189.22),
-    BudgetSeedExpense(
-      dayOfMonth: 1,
-      category: 'Rent',
-      amount: 20000,
-      isRecurringMonthly: true,
-    ),
   ];
 }
 
