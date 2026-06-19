@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../services/app_clock.dart';
-import '../../../../../services/liability_service.dart';
-import '../../../../../services/money_formatter.dart';
+import 'package:biztrack/services/app_clock.dart';
+import 'package:biztrack/services/liability_service.dart';
+import 'package:biztrack/services/money_formatter.dart';
 import 'scan_deposit_screen.dart';
 
 class ScanDepositManualScreen extends StatefulWidget {

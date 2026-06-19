@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../../services/app_clock.dart';
-import '../../../../../services/liability_service.dart';
-import '../../../../../services/money_formatter.dart';
-import '../../../../../services/recurring_expense_reminder_service.dart';
+import 'package:biztrack/services/app_clock.dart';
+import 'package:biztrack/services/liability_service.dart';
+import 'package:biztrack/services/money_formatter.dart';
+import 'package:biztrack/services/recurring_expense_reminder_service.dart';
 import 'scan_expense_screen.dart';
 
 class ScanExpenseManualScreen extends StatefulWidget {

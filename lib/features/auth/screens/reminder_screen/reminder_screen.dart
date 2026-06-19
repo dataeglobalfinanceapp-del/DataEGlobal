@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../services/app_clock.dart';
-import '../../../../services/money_formatter.dart';
-import '../../../../services/recurring_expense_reminder_service.dart';
-import '../../../../services/reminder_service.dart';
+import 'package:biztrack/services/app_clock.dart';
+import 'package:biztrack/services/money_formatter.dart';
+import 'package:biztrack/services/recurring_expense_reminder_service.dart';
+import 'package:biztrack/services/reminder_service.dart';
 import '../../widgets/app_bottom_navigation_bar.dart';
 
 part 'reminder_controller.dart';

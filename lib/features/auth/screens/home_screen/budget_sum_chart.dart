@@ -4,10 +4,11 @@ import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../models/budget_data.dart';
-import '../../../../services/deposit_allocation.dart';
-import '../../../../services/local_store_test/local_store.dart';
-import '../../../../services/money_formatter.dart';
+
+import 'package:biztrack/features/auth/models/budget_data.dart';
+import 'package:biztrack/services/deposit_allocation.dart';
+import 'package:biztrack/services/local_store_test/local_store.dart';
+import 'package:biztrack/services/money_formatter.dart';
 
 class BudgetSumChart extends StatefulWidget {
   final BudgetData data;

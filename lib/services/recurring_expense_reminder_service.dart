@@ -79,23 +79,23 @@ class RecurringExpenseReminderService {
     final ReminderRecord? reminder = await _reminderById(reminderId);
     if (reminder == null) return false;
 
-    await ReminderService.updateAmount(reminderId, amount, scope: scope);
-    if (!reminder.isRecurring) return true;
-
-    if (scope == ReminderEditScope.series) {
-      await LiabilityService.updateRecurringExpenseAmount(
-        recurringSeriesId: reminder.recurringSeriesId,
-        amount: amount,
-        fromDate: reminder.date,
-      );
+    if (!reminder.isRecurring) {
+      await ReminderService.updateAmount(reminderId, amount, scope: scope);
       return true;
     }
 
-    await LiabilityService.updateRecurringExpenseAmount(
-      recurringSeriesId: reminder.recurringSeriesId,
-      amount: amount,
-      occurrenceDate: reminder.date,
-    );
+    final bool expenseUpdated =
+        await LiabilityService.updateRecurringExpenseAmount(
+          recurringSeriesId: reminder.recurringSeriesId,
+          amount: amount,
+          occurrenceDate: scope == ReminderEditScope.single
+              ? reminder.date
+              : null,
+          fromDate: scope == ReminderEditScope.series ? reminder.date : null,
+        );
+    if (!expenseUpdated) return false;
+
+    await ReminderService.updateAmount(reminderId, amount, scope: scope);
     return true;
   }
 

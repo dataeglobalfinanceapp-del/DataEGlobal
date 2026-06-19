@@ -151,6 +151,49 @@ void main() {
   );
 
   test(
+    'editing recurring reminder fails without changing reminder when expense is missing',
+    () async {
+      AppClock.set(DateTime(2026, 6, 15));
+      await RecurringExpenseReminderService.saveRecurringExpenseWithReminder(
+        checkNumber: '207',
+        totalAmount: 80,
+        transactionDate: DateTime(2026, 6, 1),
+        startDate: DateTime(2026, 6, 1),
+        category: 'Utilities',
+        payee: 'Power Co',
+        isManual: true,
+        frequency: 'Biweekly',
+      );
+
+      await LiabilityService.loadExpenses();
+      final ReminderRecord reminder = (await ReminderService.loadReminders())
+          .singleWhere(
+            (ReminderRecord record) => _dateKey(record.date) == '2026-06-15',
+          );
+      await LiabilityService.deleteFutureRecurringExpenses(
+        recurringSeriesId: reminder.recurringSeriesId,
+        fromDate: reminder.date,
+      );
+
+      final bool updated =
+          await RecurringExpenseReminderService.updateReminderAmount(
+            reminderId: reminder.id,
+            amount: 95,
+            scope: ReminderEditScope.single,
+          );
+
+      expect(updated, isFalse);
+      expect(
+        _reminderAmountFor(await ReminderService.loadReminders(), reminder.id),
+        80,
+      );
+      expect(_dateKeys(await LiabilityService.loadExpenses()), <String>[
+        '2026-06-01',
+      ]);
+    },
+  );
+
+  test(
     'deleting one recurring reminder occurrence keeps the schedule active',
     () async {
       AppClock.set(DateTime(2026, 6, 29));
@@ -247,6 +290,12 @@ double _amountFor(List<ExpenseRecord> expenses, DateTime date) {
             record.transactionDate.day == date.day,
       )
       .totalAmount;
+}
+
+double _reminderAmountFor(List<ReminderRecord> reminders, String reminderId) {
+  return reminders
+      .singleWhere((ReminderRecord record) => record.id == reminderId)
+      .amount;
 }
 
 List<String> _dateKeys(List<ExpenseRecord> expenses) {

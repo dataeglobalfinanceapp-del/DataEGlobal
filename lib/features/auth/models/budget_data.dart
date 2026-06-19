@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../services/deposit_allocation.dart';
+import 'package:biztrack/services/deposit_allocation.dart';
 
 class BudgetCategory {
   final String label;

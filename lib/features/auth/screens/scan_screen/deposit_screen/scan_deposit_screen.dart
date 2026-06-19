@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../../services/deposit_allocation.dart';
-import '../../../../../services/money_formatter.dart';
+import 'package:biztrack/services/deposit_allocation.dart';
+import 'package:biztrack/services/money_formatter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Models
