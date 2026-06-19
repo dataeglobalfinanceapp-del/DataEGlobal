@@ -401,15 +401,16 @@ class LiabilityService {
           (record) => _isInRange(record.transactionDate, startDate, endDate),
         )
         .toList();
+    final budgetExpenses = _budgetExpenseAmountsForRange(startDate, endDate);
 
     final depositTotal = deposits.fold<double>(
       0,
       (total, record) => total + record.totalAmount,
     );
     final incomeTotal = DepositAllocation.incomeFor(depositTotal);
-    final expenseTotal = expenses.fold<double>(
+    final expenseTotal = budgetExpenses.fold<double>(
       0,
-      (total, record) => total + record.totalAmount,
+      (total, entry) => total + entry.amount,
     );
     final available = incomeTotal - expenseTotal;
     final total = incomeTotal > 0 ? incomeTotal : expenseTotal;
@@ -421,11 +422,11 @@ class LiabilityService {
         : 0;
 
     final categoryTotals = <String, double>{};
-    for (final expense in expenses) {
+    for (final entry in budgetExpenses) {
       categoryTotals.update(
-        expense.category,
-        (value) => value + expense.totalAmount,
-        ifAbsent: () => expense.totalAmount,
+        entry.expense.category,
+        (value) => value + entry.amount,
+        ifAbsent: () => entry.amount,
       );
     }
 
@@ -712,6 +713,136 @@ class LiabilityService {
     return !date.isBefore(first) && !date.isAfter(last);
   }
 
+  static List<_BudgetExpenseAmount> _budgetExpenseAmountsForRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) {
+    final rangeStart = RecurrenceSchedule.dateOnly(startDate);
+    final rangeEndExclusive = RecurrenceSchedule.dateOnly(
+      endDate,
+    ).add(const Duration(days: 1));
+    if (!rangeStart.isBefore(rangeEndExclusive)) {
+      return const <_BudgetExpenseAmount>[];
+    }
+
+    final amounts = <_BudgetExpenseAmount>[];
+    for (final expense in _expenses) {
+      final amount = expense.isRecurring
+          ? _recurringExpenseAmountForRange(
+              expense,
+              rangeStart,
+              rangeEndExclusive,
+            )
+          : _oneTimeExpenseAmountForRange(
+              expense,
+              rangeStart,
+              rangeEndExclusive,
+            );
+      if (amount <= 0) continue;
+      amounts.add(_BudgetExpenseAmount(expense: expense, amount: amount));
+    }
+    return List<_BudgetExpenseAmount>.unmodifiable(amounts);
+  }
+
+  static double _oneTimeExpenseAmountForRange(
+    ExpenseRecord expense,
+    DateTime rangeStart,
+    DateTime rangeEndExclusive,
+  ) {
+    final expenseDate = RecurrenceSchedule.dateOnly(expense.transactionDate);
+    if (expenseDate.isBefore(rangeStart) ||
+        !expenseDate.isBefore(rangeEndExclusive)) {
+      return 0;
+    }
+    return expense.totalAmount;
+  }
+
+  static double _recurringExpenseAmountForRange(
+    ExpenseRecord expense,
+    DateTime rangeStart,
+    DateTime rangeEndExclusive,
+  ) {
+    final periodStart = RecurrenceSchedule.dateOnly(expense.transactionDate);
+    final periodEndExclusive = _recurringExpensePeriodEndExclusive(expense);
+    final periodDays = periodEndExclusive.difference(periodStart).inDays;
+    if (periodDays <= 0) return 0;
+
+    final overlapStart = _laterDate(periodStart, rangeStart);
+    final overlapEnd = _earlierDate(periodEndExclusive, rangeEndExclusive);
+    final overlapDays = overlapEnd.difference(overlapStart).inDays;
+    if (overlapDays <= 0) return 0;
+
+    return expense.totalAmount / periodDays * overlapDays;
+  }
+
+  static DateTime _recurringExpensePeriodEndExclusive(ExpenseRecord expense) {
+    final occurrenceDate = RecurrenceSchedule.dateOnly(expense.transactionDate);
+    final frequency = expense.normalizedRecurringFrequency;
+
+    final seriesStartDate = _recurringSeriesStartDate(expense);
+    final searchThrough = _recurringSearchThrough(occurrenceDate, frequency);
+    final dates = RecurrenceSchedule.dueDates(
+      startDate: seriesStartDate,
+      through: searchThrough,
+      frequency: frequency,
+    );
+
+    for (final date in dates) {
+      if (date.isAfter(occurrenceDate)) return date;
+    }
+
+    return _fallbackRecurringPeriodEnd(occurrenceDate, frequency);
+  }
+
+  static DateTime _recurringSeriesStartDate(ExpenseRecord expense) {
+    var startDate = RecurrenceSchedule.dateOnly(expense.transactionDate);
+    for (final record in _expenses) {
+      if (record.recurringSeriesId != expense.recurringSeriesId) continue;
+      final recordDate = RecurrenceSchedule.dateOnly(record.transactionDate);
+      if (recordDate.isBefore(startDate)) startDate = recordDate;
+    }
+    return startDate;
+  }
+
+  static DateTime _recurringSearchThrough(DateTime date, String frequency) {
+    return switch (frequency) {
+      RecurrenceSchedule.weekly => date.add(const Duration(days: 14)),
+      RecurrenceSchedule.biweekly => date.add(const Duration(days: 28)),
+      RecurrenceSchedule.semiMonthly => _addMonthsClamped(date, 2),
+      RecurrenceSchedule.quarterly => _addMonthsClamped(date, 6),
+      RecurrenceSchedule.yearly => _addMonthsClamped(date, 24),
+      _ => _addMonthsClamped(date, 2),
+    };
+  }
+
+  static DateTime _fallbackRecurringPeriodEnd(DateTime date, String frequency) {
+    return switch (frequency) {
+      RecurrenceSchedule.weekly => date.add(const Duration(days: 7)),
+      RecurrenceSchedule.biweekly => date.add(const Duration(days: 14)),
+      RecurrenceSchedule.semiMonthly => date.add(const Duration(days: 15)),
+      RecurrenceSchedule.quarterly => _addMonthsClamped(date, 3),
+      RecurrenceSchedule.yearly => _addMonthsClamped(date, 12),
+      _ => _addMonthsClamped(date, 1),
+    };
+  }
+
+  static DateTime _addMonthsClamped(DateTime date, int months) {
+    final totalMonths = date.year * 12 + date.month - 1 + months;
+    final year = totalMonths ~/ 12;
+    final month = totalMonths % 12 + 1;
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+    final day = date.day < daysInMonth ? date.day : daysInMonth;
+    return DateTime(year, month, day);
+  }
+
+  static DateTime _laterDate(DateTime left, DateTime right) {
+    return left.isAfter(right) ? left : right;
+  }
+
+  static DateTime _earlierDate(DateTime left, DateTime right) {
+    return left.isBefore(right) ? left : right;
+  }
+
   static List<DepositBalanceSummary> _depositBalanceSummariesForYear(int year) {
     double runningBalance =
         _sumDepositsBefore(DateTime(year)) - _sumExpensesBefore(DateTime(year));
@@ -853,6 +984,13 @@ class LiabilityService {
       _ => const Color(0xFF374151),
     };
   }
+}
+
+class _BudgetExpenseAmount {
+  final ExpenseRecord expense;
+  final double amount;
+
+  const _BudgetExpenseAmount({required this.expense, required this.amount});
 }
 
 class DepositRecord {

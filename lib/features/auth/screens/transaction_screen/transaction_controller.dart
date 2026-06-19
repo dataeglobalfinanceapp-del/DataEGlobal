@@ -1,8 +1,8 @@
 part of 'transaction_screen.dart';
 
 class _TransactionController extends ChangeNotifier {
-  _TransactionKind _kind = _TransactionKind.deposit;
-  _TransactionFilter _filter = _TransactionFilter.weekly;
+  _TransactionKind _kind = _TransactionKind.expense;
+  _TransactionFilter _filter = _TransactionFilter.monthly;
   int _year = AppClock.now.year;
   String? _category;
   bool _isLoading = true;

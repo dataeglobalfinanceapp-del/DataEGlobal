@@ -75,8 +75,8 @@ class _TransactionViewState {
   factory _TransactionViewState.initial(int year) {
     return _TransactionViewState(
       isLoading: true,
-      kind: _TransactionKind.deposit,
-      filter: _TransactionFilter.weekly,
+      kind: _TransactionKind.expense,
+      filter: _TransactionFilter.monthly,
       year: year,
       category: null,
       totalDeposits: 0,

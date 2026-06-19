@@ -16,7 +16,7 @@ void main() {
     LiabilityService.resetForTesting(disablePersistence: false);
   });
 
-  testWidgets('TransactionScreen renders seeded yearly totals and exports', (
+  testWidgets('TransactionScreen opens on expense monthly view and exports', (
     WidgetTester tester,
   ) async {
     await LiabilityService.saveDeposit(
@@ -42,12 +42,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Transaction'), findsOneWidget);
+    expect(find.text('June'), findsOneWidget);
     expect(find.text('AVAILABLE INCOME'), findsOneWidget);
     expect(find.text(r'$67.50'), findsOneWidget);
     expect(find.text(r'$112.50'), findsOneWidget);
     expect(find.text(r'$12.50'), findsOneWidget);
     expect(find.text(r'$125.00'), findsWidgets);
-    expect(find.text(r'$45.00'), findsOneWidget);
+    expect(find.text(r'$45.00'), findsWidgets);
 
     await tester.dragUntilVisible(
       find.text('PDF'),
@@ -78,14 +79,17 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: TransactionScreen()));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Deposit'));
+    await tester.pumpAndSettle();
+
     await tester.dragUntilVisible(
-      find.text('Week 24'),
+      find.text('June'),
       find.byType(ListView),
       const Offset(0, -180),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Week 24'));
+    await tester.tap(find.text('June'));
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
@@ -131,11 +135,8 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: TransactionScreen()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Expense'));
-    await tester.pumpAndSettle();
-
     await tester.dragUntilVisible(
-      find.text('Week 24'),
+      find.text('June'),
       find.byType(ListView),
       const Offset(0, -180),
     );
@@ -143,7 +144,7 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -120));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Week 24'));
+    await tester.tap(find.text('June'));
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
