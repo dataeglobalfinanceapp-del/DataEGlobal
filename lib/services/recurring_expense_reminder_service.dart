@@ -109,6 +109,10 @@ class RecurringExpenseReminderService {
       return ReminderService.deleteReminder(reminderId, scope: scope);
     }
 
+    if (scope == ReminderDeleteScope.single) {
+      return ReminderService.deleteReminder(reminderId, scope: scope);
+    }
+
     await LiabilityService.deleteFutureRecurringExpenses(
       recurringSeriesId: reminder.recurringSeriesId,
       fromDate: AppClock.now,

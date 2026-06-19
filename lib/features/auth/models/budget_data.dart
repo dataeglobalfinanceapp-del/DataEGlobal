@@ -59,8 +59,6 @@ class DefaultBudgetSeedData {
   ];
 
   static const List<BudgetSeedExpense> expenses = [
-    BudgetSeedExpense(dayOfMonth: 5, category: 'Payroll', amount: 20000),
-    BudgetSeedExpense(dayOfMonth: 17, category: 'Payroll', amount: 22000),
     BudgetSeedExpense(dayOfMonth: 10, category: 'Utilities', amount: 1200),
     BudgetSeedExpense(dayOfMonth: 16, category: 'Equipment', amount: 800),
     BudgetSeedExpense(dayOfMonth: 9, category: 'COGS', amount: 3000),

@@ -109,19 +109,9 @@ class _ReminderSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        const Expanded(
-          child: Text(
-            'PAYMENT OBLIGATIONS',
-            style: _ReminderTokens.sectionLabel,
-          ),
-        ),
-        TextButton(
-          onPressed: () {},
-          child: const Text('View all', style: _ReminderTokens.viewAllLabel),
-        ),
-      ],
+    return const Align(
+      alignment: Alignment.centerLeft,
+      child: Text('PAYMENT OBLIGATIONS', style: _ReminderTokens.sectionLabel),
     );
   }
 }

@@ -24,6 +24,7 @@ void main() {
 
     expect(find.text('Reminder'), findsOneWidget);
     expect(find.text('PAYMENT OBLIGATIONS'), findsOneWidget);
+    expect(find.text('View all'), findsNothing);
     expect(find.text('Tap a date to create a reminder.'), findsOneWidget);
   });
 

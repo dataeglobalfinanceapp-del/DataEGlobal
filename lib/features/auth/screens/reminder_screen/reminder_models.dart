@@ -146,7 +146,6 @@ class _ReminderTokens {
   static const Color danger = Color(0xFFEF4444);
   static const Color dangerDark = Color(0xFFDC2626);
   static const Color success = Color(0xFF16A34A);
-  static const Color warning = Color(0xFFF59E0B);
   static const Color today = Color(0xFFFACC15);
   static const Color blue = Color(0xFF2563EB);
   static const Color iconBlue = Color(0xFF60A5FA);
@@ -184,11 +183,6 @@ class _ReminderTokens {
     fontSize: 10,
     fontWeight: FontWeight.w900,
     letterSpacing: 1.3,
-  );
-  static const TextStyle viewAllLabel = TextStyle(
-    color: warning,
-    fontSize: 10,
-    fontWeight: FontWeight.w800,
   );
   static const TextStyle weekdayLabel = TextStyle(
     color: textMuted,

@@ -151,6 +151,49 @@ void main() {
   );
 
   test(
+    'deleting one recurring reminder occurrence keeps the schedule active',
+    () async {
+      AppClock.set(DateTime(2026, 6, 29));
+      await RecurringExpenseReminderService.saveRecurringExpenseWithReminder(
+        checkNumber: '206',
+        totalAmount: 90,
+        transactionDate: DateTime(2026, 6, 1),
+        startDate: DateTime(2026, 6, 1),
+        category: 'Payroll',
+        payee: 'Team payroll',
+        isManual: true,
+        frequency: 'Biweekly',
+      );
+
+      final ReminderRecord reminderToDelete =
+          (await ReminderService.loadReminders()).singleWhere(
+            (ReminderRecord record) => _dateKey(record.date) == '2026-06-15',
+          );
+
+      final bool deleted = await RecurringExpenseReminderService.deleteReminder(
+        reminderId: reminderToDelete.id,
+        scope: ReminderDeleteScope.single,
+      );
+
+      expect(deleted, isTrue);
+      expect(
+        _juneReminderDateKeys(await ReminderService.loadReminders()),
+        <String>['2026-06-01', '2026-06-29'],
+      );
+
+      AppClock.set(DateTime(2026, 7, 13));
+      final List<ExpenseRecord> expenses =
+          await LiabilityService.loadExpenses();
+      expect(_dateKeys(expenses), <String>[
+        '2026-06-01',
+        '2026-06-15',
+        '2026-06-29',
+        '2026-07-13',
+      ]);
+    },
+  );
+
+  test(
     'deleting recurring reminder keeps history and stops future expenses',
     () async {
       AppClock.set(DateTime(2026, 6, 29));
@@ -209,6 +252,14 @@ double _amountFor(List<ExpenseRecord> expenses, DateTime date) {
 List<String> _dateKeys(List<ExpenseRecord> expenses) {
   return expenses
       .map((ExpenseRecord record) => _dateKey(record.transactionDate))
+      .toList(growable: false)
+    ..sort();
+}
+
+List<String> _juneReminderDateKeys(List<ReminderRecord> reminders) {
+  return reminders
+      .where((ReminderRecord record) => record.date.month == 6)
+      .map((ReminderRecord record) => _dateKey(record.date))
       .toList(growable: false)
     ..sort();
 }
