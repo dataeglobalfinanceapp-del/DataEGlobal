@@ -139,20 +139,6 @@ class ReminderService {
     return deleteReminder(id);
   }
 
-  static Future<void> postpone(String id, {int days = 1}) async {
-    await _ensureLoaded();
-    final index = _reminders.indexWhere((record) => record.id == id);
-    if (index == -1) return;
-    final record = _reminders[index];
-    if (record.isRecurring) {
-      _deletedRecurringKeys.add(record.recurringOccurrenceKey);
-    }
-    _reminders[index] = record.copyWith(
-      date: _dateOnly(record.date.add(Duration(days: days))),
-    );
-    await _persist();
-  }
-
   @visibleForTesting
   static void resetForTesting({bool disablePersistence = true}) {
     _reminders.clear();
@@ -382,6 +368,28 @@ class ReminderService {
 
   static String _newId(String prefix) =>
       '$prefix-${AppClock.now.microsecondsSinceEpoch}-${_idCounter++}';
+
+  static double remainingBalanceThisYear(
+    ReminderRecord record, {
+    required int year,
+  }) {
+    if (!record.isRecurring ||
+        !RecurrenceSchedule.isRecurringFrequency(record.reminderCount)) {
+      return 0;
+    }
+
+    final ReminderSeries? series = _series[record.recurringSeriesId];
+    final DateTime startDate = _dateOnly(series?.startDate ?? record.date);
+    if (startDate.year > year) return 0;
+
+    final int occurrenceCount = RecurrenceSchedule.occurrenceDatesForYear(
+      startDate: startDate,
+      frequency: record.reminderCount,
+      year: year,
+    ).length;
+
+    return record.amount * occurrenceCount;
+  }
 }
 
 class ReminderDraft {

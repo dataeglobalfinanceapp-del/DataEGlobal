@@ -28,7 +28,6 @@ class _ReminderList extends StatelessWidget {
   final ValueChanged<ReminderRecord> onEditAmount;
   final ValueChanged<ReminderRecord> onDelete;
   final ValueChanged<ReminderRecord> onMarkFinished;
-  final ValueChanged<ReminderRecord> onPostpone;
 
   const _ReminderList({
     required this.state,
@@ -38,7 +37,6 @@ class _ReminderList extends StatelessWidget {
     required this.onEditAmount,
     required this.onDelete,
     required this.onMarkFinished,
-    required this.onPostpone,
   });
 
   @override
@@ -59,13 +57,17 @@ class _ReminderList extends StatelessWidget {
 
         final _ReminderListEntry entry = state.entries[index - 1];
         return switch (entry) {
-          _ReminderRecordEntry(:final ReminderRecord record) => _ReminderCard(
-            record: record,
-            onEditAmount: () => onEditAmount(record),
-            onDelete: () => onDelete(record),
-            onMarkFinished: () => onMarkFinished(record),
-            onPostpone: () => onPostpone(record),
-          ),
+          _ReminderRecordEntry(
+            :final ReminderRecord record,
+            :final double remainingBalanceThisYear,
+          ) =>
+            _ReminderCard(
+              record: record,
+              remainingBalanceThisYear: remainingBalanceThisYear,
+              onEditAmount: () => onEditAmount(record),
+              onDelete: () => onDelete(record),
+              onMarkFinished: () => onMarkFinished(record),
+            ),
           _EmptyReminderEntry() => const _EmptyReminderList(),
         };
       },
@@ -272,17 +274,17 @@ class _CalendarDayCell extends StatelessWidget {
 
 class _ReminderCard extends StatelessWidget {
   final ReminderRecord record;
+  final double remainingBalanceThisYear;
   final VoidCallback onEditAmount;
   final VoidCallback onDelete;
   final VoidCallback onMarkFinished;
-  final VoidCallback onPostpone;
 
   const _ReminderCard({
     required this.record,
+    required this.remainingBalanceThisYear,
     required this.onEditAmount,
     required this.onDelete,
     required this.onMarkFinished,
-    required this.onPostpone,
   });
 
   @override
@@ -339,19 +341,21 @@ class _ReminderCard extends StatelessWidget {
                 flex: 2,
                 child: _ReminderAmountText(amount: record.amount),
               ),
+              if (record.isRecurring) ...<Widget>[
+                const SizedBox(width: 6),
+                Expanded(
+                  flex: 4,
+                  child: _ReminderRemainingBalanceText(
+                    amount: remainingBalanceThisYear,
+                  ),
+                ),
+              ],
               const SizedBox(width: 6),
               _ReminderIconActionButton(
                 tooltip: 'Completed',
                 icon: Icons.check_circle,
                 iconColor: _ReminderTokens.success,
                 onPressed: onMarkFinished,
-              ),
-              const SizedBox(width: 6),
-              _ReminderIconActionButton(
-                tooltip: 'Postpone',
-                icon: Icons.close,
-                iconColor: _ReminderTokens.dangerDark,
-                onPressed: onPostpone,
               ),
               const SizedBox(width: 6),
               _ReminderIconActionButton(
@@ -420,6 +424,40 @@ class _ReminderAmountText extends StatelessWidget {
             style: _ReminderTokens.compactAmount,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ReminderRemainingBalanceText extends StatelessWidget {
+  final double amount;
+
+  const _ReminderRemainingBalanceText({required this.amount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Remaining balance this year ${formatMoney(amount)}',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Text(
+            'Remaining balance this year',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _ReminderTokens.compactBalanceLabel,
+          ),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              formatMoney(amount),
+              style: _ReminderTokens.compactBalanceAmount,
+            ),
+          ),
+        ],
       ),
     );
   }

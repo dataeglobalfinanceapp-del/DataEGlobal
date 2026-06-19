@@ -6,8 +6,12 @@ sealed class _ReminderListEntry {
 
 final class _ReminderRecordEntry extends _ReminderListEntry {
   final ReminderRecord record;
+  final double remainingBalanceThisYear;
 
-  const _ReminderRecordEntry(this.record);
+  const _ReminderRecordEntry({
+    required this.record,
+    required this.remainingBalanceThisYear,
+  });
 }
 
 final class _EmptyReminderEntry extends _ReminderListEntry {
@@ -206,6 +210,16 @@ class _ReminderTokens {
     fontWeight: FontWeight.w800,
   );
   static const TextStyle compactAmount = TextStyle(
+    color: Colors.white,
+    fontSize: 12,
+    fontWeight: FontWeight.w900,
+  );
+  static const TextStyle compactBalanceLabel = TextStyle(
+    color: Colors.white,
+    fontSize: 9,
+    fontWeight: FontWeight.w700,
+  );
+  static const TextStyle compactBalanceAmount = TextStyle(
     color: Colors.white,
     fontSize: 12,
     fontWeight: FontWeight.w900,

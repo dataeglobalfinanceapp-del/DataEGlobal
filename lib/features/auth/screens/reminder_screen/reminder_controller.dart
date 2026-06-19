@@ -73,12 +73,6 @@ class _ReminderController extends ChangeNotifier {
     return finished;
   }
 
-  Future<void> postpone(ReminderRecord record) async {
-    await ReminderService.postpone(record.id);
-    if (_isDisposed) return;
-    await loadReminders(showLoading: false);
-  }
-
   void _setLoading(bool isLoading) {
     if (_isLoading == isLoading) return;
 
@@ -99,6 +93,7 @@ class _ReminderController extends ChangeNotifier {
         );
     final List<_ReminderListEntry> entries = _ReminderDataMapper.listEntries(
       monthReminders,
+      year: _visibleMonth.year,
     );
 
     _state = _ReminderViewState(
@@ -188,14 +183,23 @@ class _ReminderDataMapper {
   }
 
   static List<_ReminderListEntry> listEntries(
-    List<ReminderRecord> monthReminders,
-  ) {
+    List<ReminderRecord> monthReminders, {
+    required int year,
+  }) {
     if (monthReminders.isEmpty) {
       return const <_ReminderListEntry>[_EmptyReminderEntry()];
     }
 
     return List<_ReminderListEntry>.unmodifiable(
-      monthReminders.map<_ReminderListEntry>(_ReminderRecordEntry.new),
+      monthReminders.map<_ReminderListEntry>(
+        (ReminderRecord record) => _ReminderRecordEntry(
+          record: record,
+          remainingBalanceThisYear: ReminderService.remainingBalanceThisYear(
+            record,
+            year: year,
+          ),
+        ),
+      ),
     );
   }
 }

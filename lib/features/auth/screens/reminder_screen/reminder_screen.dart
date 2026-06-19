@@ -111,15 +111,6 @@ class _ReminderScreenState extends State<ReminderScreen> {
     );
   }
 
-  Future<void> _postponeReminder(ReminderRecord record) async {
-    await _controller.postpone(record);
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Reminder postponed.')));
-  }
-
   Future<void> _handleDateTap(DateTime date) async {
     final List<ReminderRecord> reminders = _controller.remindersForDate(date);
     if (reminders.isEmpty) {
@@ -163,7 +154,6 @@ class _ReminderScreenState extends State<ReminderScreen> {
                     onEditAmount: _editReminderAmount,
                     onDelete: _deleteReminder,
                     onMarkFinished: _markReminderFinished,
-                    onPostpone: _postponeReminder,
                   ),
           );
         },

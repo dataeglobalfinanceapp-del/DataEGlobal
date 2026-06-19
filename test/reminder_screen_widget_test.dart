@@ -49,9 +49,31 @@ void main() {
     expect(find.text('06/10/2026'), findsOneWidget);
     expect(find.text(r'$120.00'), findsOneWidget);
     expect(find.byTooltip('Completed'), findsOneWidget);
-    expect(find.byTooltip('Postpone'), findsOneWidget);
     expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
     expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+  });
+
+  testWidgets('ReminderScreen shows recurring remaining balance this year', (
+    WidgetTester tester,
+  ) async {
+    await ReminderService.saveReminders(<ReminderDraft>[
+      ReminderDraft(
+        date: DateTime(2026, 6, 10),
+        category: 'Rent',
+        amount: 100,
+        reminderCount: 'Monthly',
+        payee: 'Studio Rent',
+      ),
+    ]);
+
+    await tester.pumpWidget(const MaterialApp(home: ReminderScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rent'), findsWidgets);
+    expect(find.text('Monthly'), findsOneWidget);
+    expect(find.text(r'$100.00'), findsOneWidget);
+    expect(find.text('Remaining balance this year'), findsOneWidget);
+    expect(find.text(r'$700.00'), findsOneWidget);
   });
 
   testWidgets('Completed removes the selected payment obligation card', (

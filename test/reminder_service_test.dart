@@ -280,7 +280,7 @@ void main() {
   });
 
   test(
-    'postponing recurring reminder preserves series and moves only selected',
+    'remaining balance uses recurring occurrences in the selected year',
     () async {
       await ReminderService.saveReminders(<ReminderDraft>[
         ReminderDraft(
@@ -297,16 +297,22 @@ void main() {
         (ReminderRecord record) => record.date.month == 6,
       );
 
-      await ReminderService.postpone(june.id, days: 2);
-
-      reminders = await ReminderService.loadReminders();
-      final ReminderRecord postponed = reminders.singleWhere(
-        (ReminderRecord record) => record.date.month == 6,
+      expect(
+        ReminderService.remainingBalanceThisYear(june, year: 2026),
+        closeTo(630, 0.001),
       );
 
-      expect(_months(reminders), <int>[6, 7, 8, 9, 10, 11, 12]);
-      expect(postponed.date, DateTime(2026, 6, 12));
-      expect(postponed.isRecurring, true);
+      AppClock.set(DateTime(2027, 1, 1));
+      reminders = await ReminderService.loadReminders();
+      final ReminderRecord january = reminders.singleWhere(
+        (ReminderRecord record) =>
+            record.date.year == 2027 && record.date.month == 1,
+      );
+
+      expect(
+        ReminderService.remainingBalanceThisYear(january, year: 2027),
+        closeTo(1080, 0.001),
+      );
     },
   );
 }
