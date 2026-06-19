@@ -26,7 +26,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
   late ScannedDepositData _data;
   late TextEditingController _orderNumberController;
   late TextEditingController _totalAmountController;
-  late TextEditingController _creditDebtController;
+  late TextEditingController _creditDepositController;
   late TextEditingController _cashController;
   late TextEditingController _giftCardController;
   late TextEditingController _otherController;
@@ -37,11 +37,11 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
     _data = ScannedDepositData(transactionDate: AppClock.now);
     _orderNumberController = TextEditingController(text: _data.orderNumber);
     _totalAmountController = TextEditingController();
-    _creditDebtController = TextEditingController();
+    _creditDepositController = TextEditingController();
     _cashController = TextEditingController();
     _giftCardController = TextEditingController();
     _otherController = TextEditingController();
-    _creditDebtController.addListener(_updateTotalAmount);
+    _creditDepositController.addListener(_updateTotalAmount);
     _cashController.addListener(_updateTotalAmount);
     _giftCardController.addListener(_updateTotalAmount);
     _otherController.addListener(_updateTotalAmount);
@@ -52,13 +52,13 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
 
   @override
   void dispose() {
-    _creditDebtController.removeListener(_updateTotalAmount);
+    _creditDepositController.removeListener(_updateTotalAmount);
     _cashController.removeListener(_updateTotalAmount);
     _giftCardController.removeListener(_updateTotalAmount);
     _otherController.removeListener(_updateTotalAmount);
     _orderNumberController.dispose();
     _totalAmountController.dispose();
-    _creditDebtController.dispose();
+    _creditDepositController.dispose();
     _cashController.dispose();
     _giftCardController.dispose();
     _otherController.dispose();
@@ -129,7 +129,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
     return ScannedDepositData(
       orderNumber: '01',
       totalAmount: 1072.00,
-      creditDebt: 558.00,
+      creditDeposit: 558.00,
       cash: 514.00,
       giftCard: 0,
       other: 0,
@@ -140,8 +140,8 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
 
   void _syncControllers(ScannedDepositData data) {
     _orderNumberController.text = data.orderNumber;
-    _creditDebtController.text = data.creditDebt > 0
-        ? data.creditDebt.toStringAsFixed(2)
+    _creditDepositController.text = data.creditDeposit > 0
+        ? data.creditDeposit.toStringAsFixed(2)
         : '';
     _cashController.text = data.cash > 0 ? data.cash.toStringAsFixed(2) : '';
     _giftCardController.text = data.giftCard > 0
@@ -154,7 +154,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
   double _parseAmount(TextEditingController c) => parseMoney(c.text);
 
   double get _paymentTotal =>
-      _parseAmount(_creditDebtController) +
+      _parseAmount(_creditDepositController) +
       _parseAmount(_cashController) +
       _parseAmount(_giftCardController) +
       _parseAmount(_otherController);
@@ -216,7 +216,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
     final updatedData = _data.copyWith(
       orderNumber: _orderNumberController.text.trim(),
       totalAmount: _paymentTotal,
-      creditDebt: parseMoney(_creditDebtController.text),
+      creditDeposit: parseMoney(_creditDepositController.text),
       cash: parseMoney(_cashController.text),
       giftCard: parseMoney(_giftCardController.text),
       other: parseMoney(_otherController.text),
@@ -234,7 +234,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
       await LiabilityService.saveDeposit(
         orderNumber: updatedData.orderNumber,
         totalAmount: updatedData.totalAmount,
-        creditDebt: updatedData.creditDebt,
+        creditDeposit: updatedData.creditDeposit,
         cash: updatedData.cash,
         giftCard: updatedData.giftCard,
         other: updatedData.other,
@@ -353,7 +353,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
                     DepositDataCard(
                       orderNumberController: _orderNumberController,
                       totalAmountController: _totalAmountController,
-                      creditDebtController: _creditDebtController,
+                      creditDepositController: _creditDepositController,
                       cashController: _cashController,
                       giftCardController: _giftCardController,
                       otherController: _otherController,

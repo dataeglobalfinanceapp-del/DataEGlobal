@@ -66,7 +66,6 @@ void main() {
     expect(expenses.map((record) => record.transactionDate.day).toSet(), {2});
   });
 
-
   test('future recurring expense starts on the selected date only', () async {
     await LiabilityService.saveExpense(
       checkNumber: '107',
@@ -130,7 +129,7 @@ void main() {
     await LiabilityService.saveDeposit(
       orderNumber: 'd1',
       totalAmount: 100,
-      creditDebt: 100,
+      creditDeposit: 100,
       cash: 0,
       giftCard: 0,
       other: 0,
@@ -188,7 +187,9 @@ void main() {
     expect(cash.saving, 10000);
     expect(cash.income, 90000);
 
-    final credit = deposits.singleWhere((record) => record.creditDebt == 20000);
+    final credit = deposits.singleWhere(
+      (record) => record.creditDeposit == 20000,
+    );
     expect(credit.transactionDate.day, 15);
     expect(credit.totalAmount, 20000);
     expect(credit.saving, 2000);

@@ -358,7 +358,7 @@ class _TransactionDataMapper {
 
     addMethod(
       label: 'Credit/Debit',
-      amount: record.creditDebt,
+      amount: record.creditDeposit,
       icon: Icons.credit_card,
       color: _TransactionTokens.depositBlue,
     );
@@ -575,7 +575,7 @@ class _TransactionReportBuilder {
             category: 'Deposit',
             amount: record.totalAmount,
             detail:
-                'Cash ${formatMoney(record.cash)}, Credit ${formatMoney(record.creditDebt)}, Gift ${formatMoney(record.giftCard)}, Other ${formatMoney(record.other)}',
+                'Cash ${formatMoney(record.cash)}, Credit ${formatMoney(record.creditDeposit)}, Gift ${formatMoney(record.giftCard)}, Other ${formatMoney(record.other)}',
           ),
         )
         .toList(growable: false);

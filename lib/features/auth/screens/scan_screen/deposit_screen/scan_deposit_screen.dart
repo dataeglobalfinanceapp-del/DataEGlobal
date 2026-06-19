@@ -12,7 +12,7 @@ import '../../../../../services/money_formatter.dart';
 class ScannedDepositData {
   final String orderNumber;
   final double totalAmount;
-  final double creditDebt;
+  final double creditDeposit;
   final double cash;
   final double giftCard;
   final double other;
@@ -22,7 +22,7 @@ class ScannedDepositData {
   const ScannedDepositData({
     this.orderNumber = '01',
     this.totalAmount = 0,
-    this.creditDebt = 0,
+    this.creditDeposit = 0,
     this.cash = 0,
     this.giftCard = 0,
     this.other = 0,
@@ -33,7 +33,7 @@ class ScannedDepositData {
   ScannedDepositData copyWith({
     String? orderNumber,
     double? totalAmount,
-    double? creditDebt,
+    double? creditDeposit,
     double? cash,
     double? giftCard,
     double? other,
@@ -43,7 +43,7 @@ class ScannedDepositData {
     return ScannedDepositData(
       orderNumber: orderNumber ?? this.orderNumber,
       totalAmount: totalAmount ?? this.totalAmount,
-      creditDebt: creditDebt ?? this.creditDebt,
+      creditDeposit: creditDeposit ?? this.creditDeposit,
       cash: cash ?? this.cash,
       giftCard: giftCard ?? this.giftCard,
       other: other ?? this.other,
@@ -92,7 +92,7 @@ class DepositDuplicateWarning extends StatelessWidget {
 class DepositDataCard extends StatelessWidget {
   final TextEditingController orderNumberController;
   final TextEditingController totalAmountController;
-  final TextEditingController creditDebtController;
+  final TextEditingController creditDepositController;
   final TextEditingController cashController;
   final TextEditingController giftCardController;
   final TextEditingController otherController;
@@ -105,7 +105,7 @@ class DepositDataCard extends StatelessWidget {
     super.key,
     required this.orderNumberController,
     required this.totalAmountController,
-    required this.creditDebtController,
+    required this.creditDepositController,
     required this.cashController,
     required this.giftCardController,
     required this.otherController,
@@ -198,7 +198,7 @@ class DepositDataCard extends StatelessWidget {
               Expanded(
                 child: _SmallAmountField(
                   label: 'CREDIT/DEBT',
-                  controller: creditDebtController,
+                  controller: creditDepositController,
                 ),
               ),
               const SizedBox(width: 12),
@@ -730,7 +730,7 @@ class DepositReviewDialog extends StatelessWidget {
             const Divider(height: 22, color: Color(0xFFE5E7EB)),
             DepositReviewRow(
               label: 'Credit/Debt',
-              value: _fmtCurrency(data.creditDebt),
+              value: _fmtCurrency(data.creditDeposit),
             ),
             DepositReviewRow(label: 'Cash', value: _fmtCurrency(data.cash)),
             DepositReviewRow(

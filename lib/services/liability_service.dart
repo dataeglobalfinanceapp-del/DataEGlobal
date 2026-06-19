@@ -33,7 +33,7 @@ class LiabilityService {
   static Future<void> saveDeposit({
     required String orderNumber,
     required double totalAmount,
-    required double creditDebt,
+    required double creditDeposit,
     required double cash,
     required double giftCard,
     required double other,
@@ -46,7 +46,7 @@ class LiabilityService {
         id: _newId('deposit'),
         orderNumber: orderNumber,
         totalAmount: totalAmount,
-        creditDebt: creditDebt,
+        creditDeposit: creditDeposit,
         cash: cash,
         giftCard: giftCard,
         other: other,
@@ -586,7 +586,7 @@ class LiabilityService {
           id: _newId('seed-deposit'),
           orderNumber: _seedOrderNumber(seed),
           totalAmount: seed.totalAmount,
-          creditDebt: seed.creditDebt,
+          creditDeposit: seed.creditDeposit,
           cash: seed.cash,
           giftCard: seed.giftCard,
           other: seed.other,
@@ -763,7 +763,7 @@ class DepositRecord {
   final String id;
   final String orderNumber;
   final double totalAmount;
-  final double creditDebt;
+  final double creditDeposit;
   final double cash;
   final double giftCard;
   final double other;
@@ -774,7 +774,7 @@ class DepositRecord {
     required this.id,
     required this.orderNumber,
     required this.totalAmount,
-    required this.creditDebt,
+    required this.creditDeposit,
     required this.cash,
     required this.giftCard,
     required this.other,
@@ -787,7 +787,7 @@ class DepositRecord {
       id: _asString(json['id'], fallback: _fallbackId('deposit')),
       orderNumber: _asString(json['orderNumber']),
       totalAmount: _asDouble(json['totalAmount']),
-      creditDebt: _asDouble(json['creditDebt']),
+      creditDeposit: _asDouble(json['creditDeposit']),
       cash: _asDouble(json['cash']),
       giftCard: _asDouble(json['giftCard']),
       other: _asDouble(json['other']),
@@ -800,7 +800,7 @@ class DepositRecord {
     'id': id,
     'orderNumber': orderNumber,
     'totalAmount': totalAmount,
-    'creditDebt': creditDebt,
+    'creditDeposit': creditDeposit,
     'cash': cash,
     'giftCard': giftCard,
     'other': other,

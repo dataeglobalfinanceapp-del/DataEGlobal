@@ -22,7 +22,7 @@ void main() {
     await LiabilityService.saveDeposit(
       orderNumber: 'A100',
       totalAmount: 125,
-      creditDebt: 100,
+      creditDeposit: 100,
       cash: 25,
       giftCard: 0,
       other: 0,
@@ -67,7 +67,7 @@ void main() {
     await LiabilityService.saveDeposit(
       orderNumber: 'A100',
       totalAmount: 125,
-      creditDebt: 100,
+      creditDeposit: 100,
       cash: 25,
       giftCard: 0,
       other: 0,
