@@ -354,6 +354,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     onKindChanged: _controller.setKind,
                     onFilterChanged: _controller.setFilter,
                     onCategoryTap: _chooseCategory,
+                    onCategorySelected: _controller.selectExpenseCategory,
                     onYearChanged: _controller.changeYear,
                     onToggleGroup: _controller.toggleGroup,
                     onDelete: _confirmDeleteItem,

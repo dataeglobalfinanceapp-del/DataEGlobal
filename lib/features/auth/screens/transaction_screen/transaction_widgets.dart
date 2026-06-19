@@ -22,6 +22,7 @@ class _TransactionList extends StatelessWidget {
   final ValueChanged<_TransactionKind> onKindChanged;
   final ValueChanged<_TransactionFilter> onFilterChanged;
   final VoidCallback onCategoryTap;
+  final ValueChanged<String> onCategorySelected;
   final ValueChanged<int> onYearChanged;
   final ValueChanged<String> onToggleGroup;
   final ValueChanged<_TransactionItem> onDelete;
@@ -34,6 +35,7 @@ class _TransactionList extends StatelessWidget {
     required this.onKindChanged,
     required this.onFilterChanged,
     required this.onCategoryTap,
+    required this.onCategorySelected,
     required this.onYearChanged,
     required this.onToggleGroup,
     required this.onDelete,
@@ -89,6 +91,7 @@ class _TransactionList extends StatelessWidget {
               item: item,
               isExpense: state.kind == _TransactionKind.expense,
               isLastInGroup: isLastInGroup,
+              onCategorySelected: onCategorySelected,
               onDelete: () => onDelete(item),
             ),
           _EmptyTransactionEntry() => _EmptyTransactions(kind: state.kind),
@@ -140,6 +143,14 @@ class _TransactionHeader extends StatelessWidget {
           onPrev: () => onYearChanged(-1),
           onNext: () => onYearChanged(1),
         ),
+        if (state.kind == _TransactionKind.expense &&
+            state.category != null) ...<Widget>[
+          const SizedBox(height: 8),
+          _SelectedCategoryTotal(
+            category: state.category!,
+            total: state.selectedCategoryExpenseTotal,
+          ),
+        ],
         const SizedBox(height: 12),
       ],
     );
@@ -530,6 +541,52 @@ class _YearSelector extends StatelessWidget {
   }
 }
 
+class _SelectedCategoryTotal extends StatelessWidget {
+  final String category;
+  final double total;
+
+  const _SelectedCategoryTotal({required this.category, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: _TransactionTokens.surface,
+        borderRadius: BorderRadius.circular(_TransactionTokens.cardRadius),
+        border: Border.all(color: _TransactionTokens.border),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(
+            Icons.summarize_outlined,
+            size: 17,
+            color: _TransactionTokens.primaryBlue,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$category total',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _TransactionTokens.filterLabel.copyWith(
+                color: _TransactionTokens.textStrong,
+              ),
+            ),
+          ),
+          Text(
+            formatMoney(total),
+            style: _TransactionTokens.groupAmount.copyWith(
+              color: _TransactionTokens.danger,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TransactionGroupHeaderCard extends StatelessWidget {
   final _TransactionGroup group;
   final bool isExpanded;
@@ -612,12 +669,14 @@ class _TransactionItemCard extends StatelessWidget {
   final _TransactionItem item;
   final bool isExpense;
   final bool isLastInGroup;
+  final ValueChanged<String> onCategorySelected;
   final VoidCallback onDelete;
 
   const _TransactionItemCard({
     required this.item,
     required this.isExpense,
     required this.isLastInGroup,
+    required this.onCategorySelected,
     required this.onDelete,
   });
 
@@ -638,6 +697,7 @@ class _TransactionItemCard extends StatelessWidget {
           _TransactionItemRow(
             item: item,
             isExpense: isExpense,
+            onCategorySelected: onCategorySelected,
             onDelete: onDelete,
           ),
           if (!isLastInGroup)
@@ -706,11 +766,13 @@ class _TableHeaderText extends StatelessWidget {
 class _TransactionItemRow extends StatelessWidget {
   final _TransactionItem item;
   final bool isExpense;
+  final ValueChanged<String> onCategorySelected;
   final VoidCallback onDelete;
 
   const _TransactionItemRow({
     required this.item,
     required this.isExpense,
+    required this.onCategorySelected,
     required this.onDelete,
   });
 
@@ -732,11 +794,10 @@ class _TransactionItemRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              item.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: _TransactionTokens.tableCell,
+            child: _TransactionDescriptionCell(
+              item: item,
+              isExpense: isExpense,
+              onCategorySelected: onCategorySelected,
             ),
           ),
           const SizedBox(width: 8),
@@ -785,6 +846,57 @@ class _TransactionItemRow extends StatelessWidget {
   static String _shortDate(DateTime date) {
     return '${date.month.toString().padLeft(2, '0')}/'
         '${date.day.toString().padLeft(2, '0')}';
+  }
+}
+
+class _TransactionDescriptionCell extends StatelessWidget {
+  final _TransactionItem item;
+  final bool isExpense;
+  final ValueChanged<String> onCategorySelected;
+
+  const _TransactionDescriptionCell({
+    required this.item,
+    required this.isExpense,
+    required this.onCategorySelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isExpense || item.subtitle.trim().isEmpty) {
+      return Text(
+        item.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: _TransactionTokens.tableCell,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          item.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: _TransactionTokens.tableCell,
+        ),
+        const SizedBox(height: 2),
+        InkWell(
+          onTap: () => onCategorySelected(item.subtitle),
+          borderRadius: BorderRadius.circular(_TransactionTokens.controlRadius),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Text(
+              item.subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _TransactionTokens.tableCategory,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

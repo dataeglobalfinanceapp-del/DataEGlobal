@@ -107,4 +107,68 @@ void main() {
 
     expect(find.text('No deposit history for this view.'), findsOneWidget);
   });
+
+  testWidgets('TransactionScreen filters expenses from a category tap', (
+    WidgetTester tester,
+  ) async {
+    await LiabilityService.saveExpense(
+      checkNumber: 'E200',
+      totalAmount: 45,
+      transactionDate: DateTime(2026, 6, 10),
+      category: 'Fuel',
+      payee: 'Fuel Stop',
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'E201',
+      totalAmount: 100,
+      transactionDate: DateTime(2026, 6, 11),
+      category: 'Rent',
+      payee: 'Studio Rent',
+      isManual: true,
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: TransactionScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Expense'));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Week 24'),
+      find.byType(ListView),
+      const Offset(0, -180),
+    );
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -120));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Week 24'));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Fuel Stop'),
+      find.byType(ListView),
+      const Offset(0, -100),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fuel Stop'), findsOneWidget);
+    expect(find.text('Studio Rent'), findsOneWidget);
+
+    await tester.tap(find.text('Fuel'));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Fuel total'),
+      find.byType(ListView),
+      const Offset(0, 180),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fuel total'), findsOneWidget);
+    expect(find.text(r'$45.00'), findsWidgets);
+    expect(find.text('Fuel Stop'), findsOneWidget);
+    expect(find.text('Studio Rent'), findsNothing);
+  });
 }

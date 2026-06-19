@@ -53,6 +53,7 @@ class _TransactionViewState {
   final String? category;
   final double totalDeposits;
   final double totalExpenses;
+  final double selectedCategoryExpenseTotal;
   final List<String> expenseCategories;
   final List<_TransactionGroup> groups;
   final List<_TransactionListEntry> entries;
@@ -65,6 +66,7 @@ class _TransactionViewState {
     required this.category,
     required this.totalDeposits,
     required this.totalExpenses,
+    required this.selectedCategoryExpenseTotal,
     required this.expenseCategories,
     required this.groups,
     required this.entries,
@@ -79,6 +81,7 @@ class _TransactionViewState {
       category: null,
       totalDeposits: 0,
       totalExpenses: 0,
+      selectedCategoryExpenseTotal: 0,
       expenseCategories: const <String>[],
       groups: const <_TransactionGroup>[],
       entries: const <_TransactionListEntry>[],
@@ -287,6 +290,11 @@ class _TransactionTokens {
     fontWeight: FontWeight.w700,
   );
   static const TextStyle tableAmount = TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.w800,
+  );
+  static const TextStyle tableCategory = TextStyle(
+    color: primaryBlue,
     fontSize: 10,
     fontWeight: FontWeight.w800,
   );

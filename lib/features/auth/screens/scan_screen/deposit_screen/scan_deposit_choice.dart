@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'deposit_account_balance_summary_screen.dart';
 import 'scan_deposit_auto_screen.dart';
 import 'scan_deposit_manual_screen.dart';
 
@@ -54,6 +55,19 @@ class ScanDepositScreen extends StatelessWidget {
               subtitle: 'Scan a receipt with the camera',
               color: const Color(0xFFDEFACF),
               onTap: () => _openEntry(context, const ScanDepositAutoScreen()),
+            ),
+            const SizedBox(height: 12),
+            _ChoiceCard(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'Deposit account balance summary',
+              subtitle: 'Review beginning balance, credits, and ending balance',
+              color: const Color(0xFFEDE9FE),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const DepositAccountBalanceSummaryScreen(),
+                ),
+              ),
             ),
           ],
         ),

@@ -357,6 +357,40 @@ class LiabilityService {
     return List.unmodifiable(_deposits);
   }
 
+  static Future<DepositBalanceSummary> loadDepositBalanceSummary({
+    required int year,
+    required int month,
+  }) async {
+    await _ensureLoaded();
+    final DateTime monthStart = DateTime(year, month);
+    final DateTime nextMonthStart = DateTime(year, month + 1);
+    final double beginningBalance = _deposits
+        .where(
+          (DepositRecord record) => record.transactionDate.isBefore(monthStart),
+        )
+        .fold<double>(
+          0,
+          (double total, DepositRecord record) => total + record.totalAmount,
+        );
+    final double monthCredits = _deposits
+        .where(
+          (DepositRecord record) =>
+              !record.transactionDate.isBefore(monthStart) &&
+              record.transactionDate.isBefore(nextMonthStart),
+        )
+        .fold<double>(
+          0,
+          (double total, DepositRecord record) => total + record.totalAmount,
+        );
+
+    return DepositBalanceSummary(
+      year: monthStart.year,
+      month: monthStart.month,
+      beginningBalance: beginningBalance,
+      monthCredits: monthCredits,
+    );
+  }
+
   static Future<List<ExpenseRecord>> loadExpenses() async {
     await _ensureLoaded();
     return List.unmodifiable(_expenses);
@@ -814,6 +848,22 @@ class DepositRecord {
   double get income => DepositAllocation.incomeFor(totalAmount);
 
   double get reserves => income;
+}
+
+class DepositBalanceSummary {
+  final int year;
+  final int month;
+  final double beginningBalance;
+  final double monthCredits;
+
+  const DepositBalanceSummary({
+    required this.year,
+    required this.month,
+    required this.beginningBalance,
+    required this.monthCredits,
+  });
+
+  double get endingBalance => beginningBalance + monthCredits;
 }
 
 class ExpenseRecord {

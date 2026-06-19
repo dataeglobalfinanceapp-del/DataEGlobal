@@ -58,6 +58,15 @@ class _TransactionController extends ChangeNotifier {
     _notify();
   }
 
+  void selectExpenseCategory(String category) {
+    if (_kind == _TransactionKind.expense && _category == category) return;
+
+    _kind = _TransactionKind.expense;
+    _category = category;
+    _rebuildState();
+    _notify();
+  }
+
   void changeYear(int delta) {
     _year += delta;
     _expandedGroups.clear();
@@ -151,6 +160,12 @@ class _TransactionController extends ChangeNotifier {
     );
     final List<String> expenseCategories =
         _TransactionDataMapper.expenseCategories(_expenses);
+    final double selectedCategoryExpenseTotal =
+        _TransactionDataMapper.selectedCategoryExpenseTotal(
+          expenses: _expenses,
+          year: _year,
+          category: _category,
+        );
     final List<_TransactionGroup> groups = _TransactionDataMapper.groups(
       kind: _kind,
       filter: _filter,
@@ -173,6 +188,7 @@ class _TransactionController extends ChangeNotifier {
       category: _category,
       totalDeposits: totalDeposits,
       totalExpenses: totalExpenses,
+      selectedCategoryExpenseTotal: selectedCategoryExpenseTotal,
       expenseCategories: expenseCategories,
       groups: groups,
       entries: entries,
@@ -220,6 +236,25 @@ class _TransactionDataMapper {
         .toList(growable: false);
     categories.sort();
     return List<String>.unmodifiable(categories);
+  }
+
+  static double selectedCategoryExpenseTotal({
+    required List<ExpenseRecord> expenses,
+    required int year,
+    required String? category,
+  }) {
+    if (category == null) return 0;
+
+    return expenses
+        .where(
+          (ExpenseRecord record) =>
+              record.transactionDate.year == year &&
+              record.category == category,
+        )
+        .fold<double>(
+          0,
+          (double total, ExpenseRecord record) => total + record.totalAmount,
+        );
   }
 
   static List<_TransactionGroup> groups({
