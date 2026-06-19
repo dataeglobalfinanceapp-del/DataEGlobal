@@ -82,6 +82,42 @@ void main() {
   );
 
   test(
+    'editing a recurring reminder earlier in the month updates its transaction',
+    () async {
+      AppClock.set(DateTime(2026, 8, 15));
+
+      await RecurringExpenseReminderService.saveRecurringExpenseWithReminder(
+        checkNumber: '205',
+        totalAmount: 5000,
+        transactionDate: DateTime(2026, 8, 2),
+        startDate: DateTime(2026, 8, 2),
+        category: 'Rent',
+        payee: 'Rent',
+        isManual: true,
+        frequency: 'Monthly',
+      );
+
+      final ReminderRecord augustReminder =
+          (await ReminderService.loadReminders()).singleWhere(
+            (ReminderRecord record) => _dateKey(record.date) == '2026-08-02',
+          );
+
+      await RecurringExpenseReminderService.updateReminderAmount(
+        reminderId: augustReminder.id,
+        amount: 6000,
+        scope: ReminderEditScope.series,
+      );
+
+      var expenses = await LiabilityService.loadExpenses();
+      expect(_amountFor(expenses, DateTime(2026, 8, 2)), 6000);
+
+      AppClock.set(DateTime(2026, 9, 2));
+      expenses = await LiabilityService.loadExpenses();
+      expect(_amountFor(expenses, DateTime(2026, 9, 2)), 6000);
+    },
+  );
+
+  test(
     'editing one recurring reminder updates the linked expense occurrence',
     () async {
       AppClock.set(DateTime(2026, 6, 15));

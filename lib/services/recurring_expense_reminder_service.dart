@@ -86,7 +86,7 @@ class RecurringExpenseReminderService {
       await LiabilityService.updateRecurringExpenseAmount(
         recurringSeriesId: reminder.recurringSeriesId,
         amount: amount,
-        fromDate: AppClock.now,
+        fromDate: reminder.date,
       );
       return true;
     }
