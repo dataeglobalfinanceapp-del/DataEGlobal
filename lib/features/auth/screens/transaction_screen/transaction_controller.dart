@@ -150,7 +150,7 @@ class _TransactionController extends ChangeNotifier {
   }
 
   void _rebuildState() {
-    final double totalDeposits = _TransactionDataMapper.totalDeposits(
+    final double totalIncome = _TransactionDataMapper.totalIncome(
       _deposits,
       _year,
     );
@@ -166,6 +166,19 @@ class _TransactionController extends ChangeNotifier {
           year: _year,
           category: _category,
         );
+    final int taxProjectionMonth = _TransactionDataMapper.projectionMonth(
+      _year,
+    );
+    final double taxReserve = _TransactionDataMapper.reserveThroughMonth(
+      deposits: _deposits,
+      expenses: _expenses,
+      year: _year,
+      month: taxProjectionMonth,
+    );
+    final TaxEstimate taxEstimate = TaxEstimator.calculate(
+      totalReserve: taxReserve,
+      currentMonth: taxProjectionMonth,
+    );
     final List<_TransactionGroup> groups = _TransactionDataMapper.groups(
       kind: _kind,
       filter: _filter,
@@ -186,8 +199,10 @@ class _TransactionController extends ChangeNotifier {
       filter: _filter,
       year: _year,
       category: _category,
-      totalDeposits: totalDeposits,
+      totalIncome: totalIncome,
       totalExpenses: totalExpenses,
+      estimatedTaxRate: taxEstimate.bracket.rate,
+      estimatedTaxToPay: taxEstimate.taxDue,
       selectedCategoryExpenseTotal: selectedCategoryExpenseTotal,
       expenseCategories: expenseCategories,
       groups: groups,
@@ -210,12 +225,12 @@ class _TransactionController extends ChangeNotifier {
 class _TransactionDataMapper {
   const _TransactionDataMapper._();
 
-  static double totalDeposits(List<DepositRecord> deposits, int year) {
+  static double totalIncome(List<DepositRecord> deposits, int year) {
     return deposits
         .where((DepositRecord record) => record.transactionDate.year == year)
         .fold<double>(
           0,
-          (double total, DepositRecord record) => total + record.totalAmount,
+          (double total, DepositRecord record) => total + record.income,
         );
   }
 
@@ -226,6 +241,42 @@ class _TransactionDataMapper {
           0,
           (double total, ExpenseRecord record) => total + record.totalAmount,
         );
+  }
+
+  static int projectionMonth(int year) {
+    final DateTime now = AppClock.now;
+    return year == now.year ? now.month : 12;
+  }
+
+  static double reserveThroughMonth({
+    required List<DepositRecord> deposits,
+    required List<ExpenseRecord> expenses,
+    required int year,
+    required int month,
+  }) {
+    final int projectionMonth = month.clamp(1, 12).toInt();
+    final double income = deposits
+        .where(
+          (DepositRecord record) =>
+              record.transactionDate.year == year &&
+              record.transactionDate.month <= projectionMonth,
+        )
+        .fold<double>(
+          0,
+          (double total, DepositRecord record) => total + record.income,
+        );
+    final double expense = expenses
+        .where(
+          (ExpenseRecord record) =>
+              record.transactionDate.year == year &&
+              record.transactionDate.month <= projectionMonth,
+        )
+        .fold<double>(
+          0,
+          (double total, ExpenseRecord record) => total + record.totalAmount,
+        );
+
+    return income - expense;
   }
 
   static List<String> expenseCategories(List<ExpenseRecord> expenses) {

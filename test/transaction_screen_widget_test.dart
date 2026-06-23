@@ -46,8 +46,11 @@ void main() {
     expect(find.text('AVAILABLE INCOME'), findsOneWidget);
     expect(find.text(r'$67.50'), findsOneWidget);
     expect(find.text(r'$112.50'), findsOneWidget);
-    expect(find.text(r'$12.50'), findsOneWidget);
-    expect(find.text(r'$125.00'), findsWidgets);
+    expect(find.text('TOTAL DEPOSIT'), findsNothing);
+    expect(find.text('ESTIMATED TAX RATE (%)'), findsOneWidget);
+    expect(find.text('10%'), findsOneWidget);
+    expect(find.text(r'ESTIMATED TAX TO PAY ($)'), findsOneWidget);
+    expect(find.text(r'$6.75'), findsOneWidget);
     expect(find.text(r'$45.00'), findsWidgets);
 
     await tester.dragUntilVisible(

@@ -51,8 +51,10 @@ class _TransactionViewState {
   final _TransactionFilter filter;
   final int year;
   final String? category;
-  final double totalDeposits;
+  final double totalIncome;
   final double totalExpenses;
+  final double estimatedTaxRate;
+  final double estimatedTaxToPay;
   final double selectedCategoryExpenseTotal;
   final List<String> expenseCategories;
   final List<_TransactionGroup> groups;
@@ -64,8 +66,10 @@ class _TransactionViewState {
     required this.filter,
     required this.year,
     required this.category,
-    required this.totalDeposits,
+    required this.totalIncome,
     required this.totalExpenses,
+    required this.estimatedTaxRate,
+    required this.estimatedTaxToPay,
     required this.selectedCategoryExpenseTotal,
     required this.expenseCategories,
     required this.groups,
@@ -79,8 +83,10 @@ class _TransactionViewState {
       filter: _TransactionFilter.monthly,
       year: year,
       category: null,
-      totalDeposits: 0,
+      totalIncome: 0,
       totalExpenses: 0,
+      estimatedTaxRate: 0,
+      estimatedTaxToPay: 0,
       selectedCategoryExpenseTotal: 0,
       expenseCategories: const <String>[],
       groups: const <_TransactionGroup>[],
@@ -88,11 +94,7 @@ class _TransactionViewState {
     );
   }
 
-  double get totalSaving => DepositAllocation.savingFor(totalDeposits);
-
-  double get totalDepositIncome => DepositAllocation.incomeFor(totalDeposits);
-
-  double get totalAvailableIncome => totalDepositIncome - totalExpenses;
+  double get totalAvailableIncome => totalIncome - totalExpenses;
 }
 
 class _MutableGroup<T> {
@@ -211,7 +213,6 @@ class _TransactionTokens {
   static const Color dangerDark = Color(0xFFDC2626);
   static const Color expenseHot = Color(0xFFFF1744);
   static const Color success = Color(0xFF16A34A);
-  static const Color successBright = Color(0xFF00D26A);
   static const Color giftBlue = Color(0xFF0EA5E9);
   static const Color warning = Color(0xFFF59E0B);
   static const Color recurring = Color(0xFF0F766E);

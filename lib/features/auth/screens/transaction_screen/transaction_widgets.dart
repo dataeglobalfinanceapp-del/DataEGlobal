@@ -121,10 +121,11 @@ class _TransactionHeader extends StatelessWidget {
     return Column(
       children: <Widget>[
         _SummaryPanel(
-          totalDeposits: state.totalDeposits,
-          totalDepositIncome: state.totalDepositIncome,
+          totalIncome: state.totalIncome,
           totalExpenses: state.totalExpenses,
           totalAvailableIncome: state.totalAvailableIncome,
+          estimatedTaxRate: state.estimatedTaxRate,
+          estimatedTaxToPay: state.estimatedTaxToPay,
         ),
         const SizedBox(height: 10),
         _KindToggle(kind: state.kind, onChanged: onKindChanged),
@@ -157,16 +158,18 @@ class _TransactionHeader extends StatelessWidget {
 }
 
 class _SummaryPanel extends StatelessWidget {
-  final double totalDeposits;
-  final double totalDepositIncome;
+  final double totalIncome;
   final double totalExpenses;
   final double totalAvailableIncome;
+  final double estimatedTaxRate;
+  final double estimatedTaxToPay;
 
   const _SummaryPanel({
-    required this.totalDeposits,
-    required this.totalDepositIncome,
+    required this.totalIncome,
     required this.totalExpenses,
     required this.totalAvailableIncome,
+    required this.estimatedTaxRate,
+    required this.estimatedTaxToPay,
   });
 
   @override
@@ -208,7 +211,7 @@ class _SummaryPanel extends StatelessWidget {
               Expanded(
                 child: _SummaryValue(
                   label: 'INCOME',
-                  value: formatMoney(totalDepositIncome),
+                  value: formatMoney(totalIncome),
                   color: _TransactionTokens.primaryBlue,
                   alignRight: true,
                 ),
@@ -220,9 +223,16 @@ class _SummaryPanel extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: _SummaryValue(
-                  label: 'TOTAL DEPOSIT',
-                  value: formatMoney(totalDeposits),
-                  color: _TransactionTokens.successBright,
+                  label: 'ESTIMATED TAX RATE (%)',
+                  value: '${estimatedTaxRate.toStringAsFixed(0)}%',
+                  color: _TransactionTokens.warning,
+                ),
+              ),
+              Expanded(
+                child: _SummaryValue(
+                  label: 'ESTIMATED TAX TO PAY (\$)',
+                  value: formatMoney(estimatedTaxToPay),
+                  color: _TransactionTokens.danger,
                   alignRight: true,
                 ),
               ),
