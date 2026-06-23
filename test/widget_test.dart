@@ -16,4 +16,35 @@ void main() {
 
     expect(find.byType(MaterialApp), findsOneWidget);
   });
+
+  testWidgets('App delays startup focus until after first layout', (
+    WidgetTester tester,
+  ) async {
+    const Key gateKey = Key('startup-focus-gate');
+
+    await tester.pumpWidget(const BizTrackApp());
+
+    FocusScope gate = tester.widget<FocusScope>(find.byKey(gateKey));
+    expect(gate.canRequestFocus, isFalse);
+    expect(gate.descendantsAreFocusable, isFalse);
+    expect(gate.descendantsAreTraversable, isFalse);
+
+    await tester.pump();
+
+    gate = tester.widget<FocusScope>(find.byKey(gateKey));
+    expect(gate.canRequestFocus, isTrue);
+    expect(gate.descendantsAreFocusable, isTrue);
+    expect(gate.descendantsAreTraversable, isTrue);
+
+    final traversal = tester.widget<FocusTraversalGroup>(
+      find
+          .descendant(
+            of: find.byKey(gateKey),
+            matching: find.byType(FocusTraversalGroup),
+          )
+          .first,
+    );
+
+    expect(traversal.policy, isA<WidgetOrderTraversalPolicy>());
+  });
 }

@@ -378,15 +378,23 @@ class ReminderService {
       return 0;
     }
 
-    final ReminderSeries? series = _series[record.recurringSeriesId];
+    final String seriesId = record.recurringSeriesId;
+    final ReminderSeries? series = _series[seriesId];
     final DateTime startDate = _dateOnly(series?.startDate ?? record.date);
     if (startDate.year > year) return 0;
 
-    final int occurrenceCount = RecurrenceSchedule.occurrenceDatesForYear(
-      startDate: startDate,
-      frequency: record.reminderCount,
-      year: year,
-    ).length;
+    final int occurrenceCount =
+        RecurrenceSchedule.occurrenceDatesForYear(
+              startDate: startDate,
+              frequency: series?.reminderCount ?? record.reminderCount,
+              year: year,
+            )
+            .where(
+              (date) => !_deletedRecurringKeys.contains(
+                _occurrenceKey(seriesId, date),
+              ),
+            )
+            .length;
 
     return record.amount * occurrenceCount;
   }

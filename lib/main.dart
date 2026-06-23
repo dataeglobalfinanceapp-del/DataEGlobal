@@ -45,16 +45,18 @@ class _AmplifyConfigurationErrorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              'Error configuring Amplify: $message',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
+    return _StartupFocusGate(
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Error configuring Amplify: $message',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
+              ),
             ),
           ),
         ),
@@ -68,72 +70,114 @@ class BizTrackApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: _appNavigatorKey,
-      title: 'Save Tep',
-      debugShowCheckedModeBanner: false, // ← hides debug banner
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2563EB), // ← matches chart blue
-          brightness: Brightness.light,
+    return _StartupFocusGate(
+      child: MaterialApp(
+        navigatorKey: _appNavigatorKey,
+        title: 'Save Tep',
+        debugShowCheckedModeBanner: false, // ← hides debug banner
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF2563EB), // ← matches chart blue
+            brightness: Brightness.light,
+          ),
+          scaffoldBackgroundColor: Colors.white,
+          fontFamily: 'Poppins', // ← add Poppins to pubspec.yaml
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black87,
+            elevation: 0,
+          ),
+          useMaterial3: true,
         ),
-        scaffoldBackgroundColor: Colors.white,
-        fontFamily: 'Poppins', // ← add Poppins to pubspec.yaml
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black87,
-          elevation: 0,
-        ),
-        useMaterial3: true,
+        builder: (context, child) {
+          return FocusTraversalGroup(
+            policy: WidgetOrderTraversalPolicy(),
+            child: TestClockOverlay(
+              navigatorKey: _appNavigatorKey,
+              child: child ?? const SizedBox.shrink(),
+            ),
+          );
+        },
+        home: const SplashScreen(),
+        routes: {
+          '/login': (context) => const LoginScreen(),
+          '/signup': (context) => const SignUpScreen(),
+          '/confirm-signup': (context) {
+            final arguments = ModalRoute.of(context)!.settings.arguments;
+            if (arguments is ConfirmSignUpArguments) {
+              return ConfirmSignUpScreen(
+                email: arguments.email,
+                codeDelivery: arguments.codeDelivery,
+              );
+            }
+            return ConfirmSignUpScreen(email: arguments as String);
+          },
+          '/forgot-password': (context) => const ForgotPasswordScreen(),
+          '/confirm-reset': (context) {
+            final email = ModalRoute.of(context)!.settings.arguments as String;
+            return ConfirmResetScreen(email: email);
+          },
+          '/home': (context) => const HomeScreen(),
+          '/scan': (context) => const ScanScreen(),
+          '/scan-deposit': (context) => const ScanDepositScreen(),
+          '/scan-expense': (context) => const ScanExpenseScreen(),
+          '/transactions': (context) => const TransactionScreen(),
+          '/liabilities': (context) => const LiabilitiesScreen(),
+          '/reserves': (context) => const ReservesScreen(),
+          '/reminders': (context) => const ReminderScreen(),
+          '/tax': (context) => const TaxScreen(),
+          UserSettingsRoutes.settings: (context) => const UserSettingsScreen(),
+          UserSettingsRoutes.businessManagement: (context) =>
+              const BusinessManagementScreen(),
+          UserSettingsRoutes.enterpriseCodeId: (context) =>
+              const EnterpriseCodeIdScreen(),
+          UserSettingsRoutes.changePassword: (context) =>
+              const ChangePasswordScreen(),
+          UserSettingsRoutes.institutionSupport: (context) =>
+              const InstitutionSupportScreen(),
+          UserSettingsRoutes.managePartner: (context) =>
+              const ManagePartnerScreen(),
+          UserSettingsRoutes.deactivateAccess: (context) =>
+              const DeactivateAccessScreen(),
+        },
       ),
-      builder: (context, child) {
-        return TestClockOverlay(
-          navigatorKey: _appNavigatorKey,
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
-      home: const SplashScreen(),
-      routes: {
-        '/login': (context) => const LoginScreen(),
-        '/signup': (context) => const SignUpScreen(),
-        '/confirm-signup': (context) {
-          final arguments = ModalRoute.of(context)!.settings.arguments;
-          if (arguments is ConfirmSignUpArguments) {
-            return ConfirmSignUpScreen(
-              email: arguments.email,
-              codeDelivery: arguments.codeDelivery,
-            );
-          }
-          return ConfirmSignUpScreen(email: arguments as String);
-        },
-        '/forgot-password': (context) => const ForgotPasswordScreen(),
-        '/confirm-reset': (context) {
-          final email = ModalRoute.of(context)!.settings.arguments as String;
-          return ConfirmResetScreen(email: email);
-        },
-        '/home': (context) => const HomeScreen(),
-        '/scan': (context) => const ScanScreen(),
-        '/scan-deposit': (context) => const ScanDepositScreen(),
-        '/scan-expense': (context) => const ScanExpenseScreen(),
-        '/transactions': (context) => const TransactionScreen(),
-        '/liabilities': (context) => const LiabilitiesScreen(),
-        '/reserves': (context) => const ReservesScreen(),
-        '/reminders': (context) => const ReminderScreen(),
-        '/tax': (context) => const TaxScreen(),
-        UserSettingsRoutes.settings: (context) => const UserSettingsScreen(),
-        UserSettingsRoutes.businessManagement: (context) =>
-            const BusinessManagementScreen(),
-        UserSettingsRoutes.enterpriseCodeId: (context) =>
-            const EnterpriseCodeIdScreen(),
-        UserSettingsRoutes.changePassword: (context) =>
-            const ChangePasswordScreen(),
-        UserSettingsRoutes.institutionSupport: (context) =>
-            const InstitutionSupportScreen(),
-        UserSettingsRoutes.managePartner: (context) =>
-            const ManagePartnerScreen(),
-        UserSettingsRoutes.deactivateAccess: (context) =>
-            const DeactivateAccessScreen(),
-      },
+    );
+  }
+}
+
+class _StartupFocusGate extends StatefulWidget {
+  final Widget child;
+
+  const _StartupFocusGate({required this.child});
+
+  @override
+  State<_StartupFocusGate> createState() => _StartupFocusGateState();
+}
+
+class _StartupFocusGateState extends State<_StartupFocusGate> {
+  bool _focusReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() => _focusReady = true);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FocusScope(
+      key: const Key('startup-focus-gate'),
+      canRequestFocus: _focusReady,
+      descendantsAreFocusable: _focusReady,
+      descendantsAreTraversable: _focusReady,
+      child: FocusTraversalGroup(
+        policy: WidgetOrderTraversalPolicy(),
+        child: widget.child,
+      ),
     );
   }
 }

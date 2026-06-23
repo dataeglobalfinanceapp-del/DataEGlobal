@@ -537,6 +537,7 @@ class _AmountEditDialog extends StatefulWidget {
 
 class _AmountEditDialogState extends State<_AmountEditDialog> {
   late final TextEditingController _controller;
+  late final FocusNode _amountFocusNode;
   late bool _applyToSeries;
 
   @override
@@ -545,12 +546,19 @@ class _AmountEditDialogState extends State<_AmountEditDialog> {
     _controller = TextEditingController(
       text: widget.record.amount.toStringAsFixed(2),
     );
+    _amountFocusNode = FocusNode();
     _applyToSeries = widget.record.isRecurring;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(Duration.zero, () {
+        if (mounted) _amountFocusNode.requestFocus();
+      });
+    });
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _amountFocusNode.dispose();
     super.dispose();
   }
 
@@ -563,7 +571,7 @@ class _AmountEditDialogState extends State<_AmountEditDialog> {
         children: <Widget>[
           TextField(
             controller: _controller,
-            autofocus: true,
+            focusNode: _amountFocusNode,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: <TextInputFormatter>[_moneyInputFormatter],
             decoration: const InputDecoration(

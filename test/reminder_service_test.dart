@@ -315,6 +315,64 @@ void main() {
       );
     },
   );
+
+  test(
+    'remaining balance excludes completed recurring occurrences once',
+    () async {
+      await ReminderService.saveReminders(<ReminderDraft>[
+        ReminderDraft(
+          date: DateTime(2026, 6, 10),
+          category: 'Rent',
+          amount: 100,
+          reminderCount: 'Monthly',
+          payee: 'Studio Rent',
+        ),
+      ]);
+
+      List<ReminderRecord> reminders = await ReminderService.loadReminders();
+      final ReminderRecord june = reminders.singleWhere(
+        (ReminderRecord record) => record.date.month == 6,
+      );
+
+      expect(
+        ReminderService.remainingBalanceThisYear(june, year: 2026),
+        closeTo(700, 0.001),
+      );
+      expect(await ReminderService.markFinished(june.id), true);
+
+      reminders = await ReminderService.loadReminders();
+      final ReminderRecord july = reminders.singleWhere(
+        (ReminderRecord record) => record.date.month == 7,
+      );
+
+      expect(
+        ReminderService.remainingBalanceThisYear(july, year: 2026),
+        closeTo(600, 0.001),
+      );
+
+      AppClock.set(DateTime(2026, 7, 1));
+      reminders = await ReminderService.loadReminders();
+      final ReminderRecord currentJuly = reminders.singleWhere(
+        (ReminderRecord record) => record.date.month == 7,
+      );
+
+      expect(
+        ReminderService.remainingBalanceThisYear(currentJuly, year: 2026),
+        closeTo(600, 0.001),
+      );
+      expect(await ReminderService.markFinished(currentJuly.id), true);
+
+      reminders = await ReminderService.loadReminders();
+      final ReminderRecord august = reminders.singleWhere(
+        (ReminderRecord record) => record.date.month == 8,
+      );
+
+      expect(
+        ReminderService.remainingBalanceThisYear(august, year: 2026),
+        closeTo(500, 0.001),
+      );
+    },
+  );
 }
 
 List<int> _months(List<ReminderRecord> reminders) {

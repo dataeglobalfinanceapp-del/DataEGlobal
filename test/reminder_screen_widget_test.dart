@@ -102,6 +102,60 @@ void main() {
     expect(find.text('Reminder marked as finished.'), findsOneWidget);
   });
 
+  testWidgets(
+    'Completed recurring payment lowers balance for later reminders',
+    (WidgetTester tester) async {
+      await ReminderService.saveReminders(<ReminderDraft>[
+        ReminderDraft(
+          date: DateTime(2026, 6, 10),
+          category: 'Rent',
+          amount: 100,
+          reminderCount: 'Monthly',
+          payee: 'Studio Rent',
+        ),
+      ]);
+
+      await tester.pumpWidget(const MaterialApp(home: ReminderScreen()));
+      await tester.pumpAndSettle();
+
+      expect(find.text(r'$700.00'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Completed'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.chevron_right));
+      await tester.pumpAndSettle();
+
+      expect(find.text('July 2026'), findsOneWidget);
+      expect(find.text(r'$600.00'), findsOneWidget);
+    },
+  );
+
+  testWidgets('Edit amount dialog delays text field focus', (
+    WidgetTester tester,
+  ) async {
+    await ReminderService.saveReminders(<ReminderDraft>[
+      ReminderDraft(
+        date: DateTime(2026, 6, 10),
+        category: 'Utilities',
+        amount: 120,
+        reminderCount: 'Just one',
+        payee: 'Utilities',
+      ),
+    ]);
+
+    await tester.pumpWidget(const MaterialApp(home: ReminderScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await tester.pumpAndSettle();
+
+    final TextField amountField = tester.widget(find.byType(TextField));
+    final EditableText editableText = tester.widget(find.byType(EditableText));
+
+    expect(amountField.autofocus, false);
+    expect(editableText.focusNode.hasFocus, true);
+  });
+
   testWidgets('CreateReminderScreen renders required form fields', (
     WidgetTester tester,
   ) async {
