@@ -4,6 +4,8 @@ import 'package:biztrack/services/app_clock.dart';
 import 'package:biztrack/services/liability_service.dart';
 import 'package:biztrack/services/money_formatter.dart';
 
+import 'tax_estimator.dart';
+
 class TaxScreen extends StatefulWidget {
   const TaxScreen({super.key});
 
@@ -35,24 +37,30 @@ class _TaxScreenState extends State<TaxScreen> {
     });
   }
 
-  double get _yearIncome => _deposits
-      .where((record) => record.transactionDate.year == _year)
+  int get _reserveProjectionMonth {
+    final now = AppClock.now;
+    return _year == now.year ? now.month : 12;
+  }
+
+  double get _projectedPeriodIncome => _deposits
+      .where((record) => _isInProjectedPeriod(record.transactionDate))
       .fold<double>(0, (sum, record) => sum + record.income);
 
-  double get _yearExpenses => _expenses
-      .where((record) => record.transactionDate.year == _year)
+  double get _projectedPeriodExpenses => _expenses
+      .where((record) => _isInProjectedPeriod(record.transactionDate))
       .fold<double>(0, (sum, record) => sum + record.totalAmount);
 
-  double get _totalIncome => _yearIncome - _yearExpenses;
+  double get _totalReserve => _projectedPeriodIncome - _projectedPeriodExpenses;
 
-  _TaxEstimate get _estimate {
-    final taxableIncome = _totalIncome > 0 ? _totalIncome : 0.0;
-    final bracket = _TaxBracket.forAmount(taxableIncome);
-    final taxDue = taxableIncome * bracket.rate / 100;
-    return _TaxEstimate(
-      bracket: bracket,
-      taxDue: taxDue,
-      remaining: _totalIncome - taxDue,
+  bool _isInProjectedPeriod(DateTime transactionDate) {
+    return transactionDate.year == _year &&
+        transactionDate.month <= _reserveProjectionMonth;
+  }
+
+  TaxEstimate get _estimate {
+    return TaxEstimator.calculate(
+      totalReserve: _totalReserve,
+      currentMonth: _reserveProjectionMonth,
     );
   }
 
@@ -93,7 +101,7 @@ class _TaxScreenState extends State<TaxScreen> {
                 children: [
                   _TaxSummaryCard(
                     year: _year,
-                    totalIncome: _totalIncome,
+                    totalReserve: _totalReserve,
                     estimate: estimate,
                   ),
                   const SizedBox(height: 12),
@@ -105,7 +113,7 @@ class _TaxScreenState extends State<TaxScreen> {
                   const SizedBox(height: 12),
                   _TaxMetricCard(
                     icon: Icons.percent,
-                    label: 'ESTIMATE TAX RATE',
+                    label: 'ESTIMATE TAX RATE BASE ON CURRENT PROFIT',
                     value: '${estimate.bracket.rateLabel}%',
                     detail: ' ',
                     color: const Color(0xFF2563EB),
@@ -115,7 +123,7 @@ class _TaxScreenState extends State<TaxScreen> {
                     icon: Icons.receipt_long_outlined,
                     label: 'ESTIMATE TAX TO PAY',
                     value: formatMoney(estimate.taxDue),
-                    detail: 'Calculated from total income',
+                    detail: 'Calculated from current reserve',
                     color: const Color(0xFFDC2626),
                   ),
                   const SizedBox(height: 10),
@@ -123,7 +131,7 @@ class _TaxScreenState extends State<TaxScreen> {
                     icon: Icons.account_balance_wallet_outlined,
                     label: 'LEFT AFTER TAX',
                     value: formatMoney(estimate.remaining),
-                    detail: 'Income after estimated tax',
+                    detail: 'Reserve after estimated tax',
                     color: estimate.remaining >= 0
                         ? const Color(0xFF16A34A)
                         : const Color(0xFFDC2626),
@@ -137,12 +145,12 @@ class _TaxScreenState extends State<TaxScreen> {
 
 class _TaxSummaryCard extends StatelessWidget {
   final int year;
-  final double totalIncome;
-  final _TaxEstimate estimate;
+  final double totalReserve;
+  final TaxEstimate estimate;
 
   const _TaxSummaryCard({
     required this.year,
-    required this.totalIncome,
+    required this.totalReserve,
     required this.estimate,
   });
 
@@ -174,9 +182,9 @@ class _TaxSummaryCard extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    formatMoney(totalIncome),
+                    formatMoney(totalReserve),
                     style: TextStyle(
-                      color: totalIncome >= 0
+                      color: totalReserve >= 0
                           ? const Color(0xFF22C55E)
                           : const Color(0xFFEF4444),
                       fontSize: 28,
@@ -186,7 +194,7 @@ class _TaxSummaryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Jan 1 - Dec 31 | ${estimate.bracket.rateLabel}% estimate',
+                  'Projected annual reserve ${formatMoney(estimate.projectedAnnualReserve)}',
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 12,
@@ -333,72 +341,5 @@ class _YearSelector extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-class _TaxEstimate {
-  final _TaxBracket bracket;
-  final double taxDue;
-  final double remaining;
-
-  const _TaxEstimate({
-    required this.bracket,
-    required this.taxDue,
-    required this.remaining,
-  });
-}
-
-class _TaxBracket {
-  final double rate;
-  final double min;
-  final double? max;
-  final String label;
-
-  const _TaxBracket({
-    required this.rate,
-    required this.min,
-    required this.max,
-    required this.label,
-  });
-
-  String get rateLabel => rate.toStringAsFixed(0);
-
-  static const brackets = [
-    _TaxBracket(rate: 10, min: 0, max: 12400, label: r'$0 to $12,400'),
-    _TaxBracket(rate: 12, min: 12401, max: 50400, label: r'$12,401 to $50,400'),
-    _TaxBracket(
-      rate: 22,
-      min: 50401,
-      max: 105700,
-      label: r'$50,401 to $105,700',
-    ),
-    _TaxBracket(
-      rate: 24,
-      min: 105701,
-      max: 201775,
-      label: r'$105,701 to $201,775',
-    ),
-    _TaxBracket(
-      rate: 32,
-      min: 201776,
-      max: 256225,
-      label: r'$201,776 to $256,225',
-    ),
-    _TaxBracket(
-      rate: 35,
-      min: 256226,
-      max: 640600,
-      label: r'$256,226 to $640,600',
-    ),
-    _TaxBracket(rate: 37, min: 640601, max: null, label: r'Over $640,600'),
-  ];
-
-  static _TaxBracket forAmount(double amount) {
-    for (final bracket in brackets) {
-      if (bracket.max == null || amount <= bracket.max!) {
-        return bracket;
-      }
-    }
-    return brackets.last;
   }
 }

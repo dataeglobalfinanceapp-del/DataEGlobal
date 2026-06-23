@@ -122,7 +122,6 @@ class _TransactionHeader extends StatelessWidget {
       children: <Widget>[
         _SummaryPanel(
           totalDeposits: state.totalDeposits,
-          totalSaving: state.totalSaving,
           totalDepositIncome: state.totalDepositIncome,
           totalExpenses: state.totalExpenses,
           totalAvailableIncome: state.totalAvailableIncome,
@@ -159,14 +158,12 @@ class _TransactionHeader extends StatelessWidget {
 
 class _SummaryPanel extends StatelessWidget {
   final double totalDeposits;
-  final double totalSaving;
   final double totalDepositIncome;
   final double totalExpenses;
   final double totalAvailableIncome;
 
   const _SummaryPanel({
     required this.totalDeposits,
-    required this.totalSaving,
     required this.totalDepositIncome,
     required this.totalExpenses,
     required this.totalAvailableIncome,
@@ -221,13 +218,6 @@ class _SummaryPanel extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: <Widget>[
-              Expanded(
-                child: _SummaryValue(
-                  label: 'SAVING',
-                  value: formatMoney(totalSaving),
-                  color: _TransactionTokens.warning,
-                ),
-              ),
               Expanded(
                 child: _SummaryValue(
                   label: 'TOTAL DEPOSIT',
