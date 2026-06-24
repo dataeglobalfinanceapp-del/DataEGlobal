@@ -139,6 +139,10 @@ class _TransactionScreenState extends State<TransactionScreen> {
     ).showSnackBar(SnackBar(content: Text('Excel exported: $savedTo')));
   }
 
+  void _openProfitAndLoss() {
+    Navigator.pushNamed(context, '/tax');
+  }
+
   Future<_ExportRange?> _chooseExportRange(String actionLabel) async {
     final _ExportPeriod? period = await showModalBottomSheet<_ExportPeriod>(
       context: context,
@@ -358,6 +362,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     onYearChanged: _controller.changeYear,
                     onToggleGroup: _controller.toggleGroup,
                     onDelete: _confirmDeleteItem,
+                    onEstimatedTaxRateTap: _openProfitAndLoss,
                     onExportPdf: _exportPdf,
                     onPrintPdf: _printPdf,
                     onExportExcel: _exportExcel,

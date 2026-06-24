@@ -26,6 +26,7 @@ class _TransactionList extends StatelessWidget {
   final ValueChanged<int> onYearChanged;
   final ValueChanged<String> onToggleGroup;
   final ValueChanged<_TransactionItem> onDelete;
+  final VoidCallback onEstimatedTaxRateTap;
   final VoidCallback onExportPdf;
   final VoidCallback onPrintPdf;
   final VoidCallback onExportExcel;
@@ -39,6 +40,7 @@ class _TransactionList extends StatelessWidget {
     required this.onYearChanged,
     required this.onToggleGroup,
     required this.onDelete,
+    required this.onEstimatedTaxRateTap,
     required this.onExportPdf,
     required this.onPrintPdf,
     required this.onExportExcel,
@@ -60,6 +62,7 @@ class _TransactionList extends StatelessWidget {
             onFilterChanged: onFilterChanged,
             onCategoryTap: onCategoryTap,
             onYearChanged: onYearChanged,
+            onEstimatedTaxRateTap: onEstimatedTaxRateTap,
           );
         }
 
@@ -107,6 +110,7 @@ class _TransactionHeader extends StatelessWidget {
   final ValueChanged<_TransactionFilter> onFilterChanged;
   final VoidCallback onCategoryTap;
   final ValueChanged<int> onYearChanged;
+  final VoidCallback onEstimatedTaxRateTap;
 
   const _TransactionHeader({
     required this.state,
@@ -114,6 +118,7 @@ class _TransactionHeader extends StatelessWidget {
     required this.onFilterChanged,
     required this.onCategoryTap,
     required this.onYearChanged,
+    required this.onEstimatedTaxRateTap,
   });
 
   @override
@@ -126,6 +131,7 @@ class _TransactionHeader extends StatelessWidget {
           totalAvailableIncome: state.totalAvailableIncome,
           estimatedTaxRate: state.estimatedTaxRate,
           estimatedTaxToPay: state.estimatedTaxToPay,
+          onEstimatedTaxRateTap: onEstimatedTaxRateTap,
         ),
         const SizedBox(height: 10),
         _KindToggle(kind: state.kind, onChanged: onKindChanged),
@@ -163,6 +169,7 @@ class _SummaryPanel extends StatelessWidget {
   final double totalAvailableIncome;
   final double estimatedTaxRate;
   final double estimatedTaxToPay;
+  final VoidCallback onEstimatedTaxRateTap;
 
   const _SummaryPanel({
     required this.totalIncome,
@@ -170,6 +177,7 @@ class _SummaryPanel extends StatelessWidget {
     required this.totalAvailableIncome,
     required this.estimatedTaxRate,
     required this.estimatedTaxToPay,
+    required this.onEstimatedTaxRateTap,
   });
 
   @override
@@ -226,6 +234,7 @@ class _SummaryPanel extends StatelessWidget {
                   label: 'ESTIMATED TAX RATE (%)',
                   value: '${estimatedTaxRate.toStringAsFixed(0)}%',
                   color: _TransactionTokens.warning,
+                  onTap: onEstimatedTaxRateTap,
                 ),
               ),
               Expanded(
@@ -260,17 +269,19 @@ class _SummaryValue extends StatelessWidget {
   final String value;
   final Color color;
   final bool alignRight;
+  final VoidCallback? onTap;
 
   const _SummaryValue({
     required this.label,
     required this.value,
     required this.color,
     this.alignRight = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final Widget content = Column(
       crossAxisAlignment: alignRight
           ? CrossAxisAlignment.end
           : CrossAxisAlignment.start,
@@ -283,6 +294,17 @@ class _SummaryValue extends StatelessWidget {
           style: _TransactionTokens.summaryValue.copyWith(color: color),
         ),
       ],
+    );
+
+    if (onTap == null) return content;
+
+    return Semantics(
+      button: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: content,
+      ),
     );
   }
 }

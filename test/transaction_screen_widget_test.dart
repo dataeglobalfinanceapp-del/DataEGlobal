@@ -65,6 +65,28 @@ void main() {
     expect(find.text('Excel'), findsOneWidget);
   });
 
+  testWidgets('Estimated tax rate label opens profit and loss', (
+    WidgetTester tester,
+  ) async {
+    await _pumpTransactionScreenWithProfitAndLossRoute(tester);
+
+    await tester.tap(find.text('ESTIMATED TAX RATE (%)'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Profit and Loss'), findsOneWidget);
+  });
+
+  testWidgets('Estimated tax rate value opens profit and loss', (
+    WidgetTester tester,
+  ) async {
+    await _pumpTransactionScreenWithProfitAndLossRoute(tester);
+
+    await tester.tap(find.text('10%'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Profit and Loss'), findsOneWidget);
+  });
+
   testWidgets('TransactionScreen expands and deletes a deposit group', (
     WidgetTester tester,
   ) async {
@@ -175,4 +197,28 @@ void main() {
     expect(find.text('Fuel Stop'), findsOneWidget);
     expect(find.text('Studio Rent'), findsNothing);
   });
+}
+
+Future<void> _pumpTransactionScreenWithProfitAndLossRoute(
+  WidgetTester tester,
+) async {
+  await LiabilityService.saveDeposit(
+    orderNumber: 'A100',
+    totalAmount: 125,
+    creditDeposit: 100,
+    cash: 25,
+    giftCard: 0,
+    other: 0,
+    transactionDate: DateTime(2026, 6, 12),
+    isManual: true,
+  );
+  await tester.pumpWidget(
+    MaterialApp(
+      home: const TransactionScreen(),
+      routes: <String, WidgetBuilder>{
+        '/tax': (_) => const Scaffold(body: Text('Profit and Loss')),
+      },
+    ),
+  );
+  await tester.pumpAndSettle();
 }
