@@ -43,13 +43,13 @@ void main() {
 
     expect(find.text('Transaction'), findsOneWidget);
     expect(find.text('June'), findsOneWidget);
-    expect(find.text('AVAILABLE INCOME'), findsOneWidget);
+    expect(find.text('AVAILABLE'), findsOneWidget);
     expect(find.text(r'$67.50'), findsOneWidget);
     expect(find.text(r'$112.50'), findsOneWidget);
     expect(find.text('TOTAL DEPOSIT'), findsNothing);
-    expect(find.text('ESTIMATED TAX RATE (%)'), findsOneWidget);
+    expect(find.text('ESTIMATED TAX RATE'), findsOneWidget);
     expect(find.text('10%'), findsOneWidget);
-    expect(find.text(r'ESTIMATED TAX TO PAY ($)'), findsOneWidget);
+    expect(find.text(r'ESTIMATED TAX AT YEAR END'), findsOneWidget);
     expect(find.text(r'$6.75'), findsOneWidget);
     expect(find.text(r'$45.00'), findsWidgets);
 
@@ -70,7 +70,7 @@ void main() {
   ) async {
     await _pumpTransactionScreenWithProfitAndLossRoute(tester);
 
-    await tester.tap(find.text('ESTIMATED TAX RATE (%)'));
+    await tester.tap(find.text('ESTIMATED TAX RATE'));
     await tester.pumpAndSettle();
 
     expect(find.text('Profit and Loss'), findsOneWidget);

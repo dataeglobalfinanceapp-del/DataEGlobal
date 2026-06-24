@@ -231,7 +231,7 @@ class _SummaryPanel extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: _SummaryValue(
-                  label: 'ESTIMATED TAX RATE (%)',
+                  label: 'ESTIMATED TAX RATE',
                   value: '${estimatedTaxRate.toStringAsFixed(0)}%',
                   color: _TransactionTokens.warning,
                   onTap: onEstimatedTaxRateTap,
@@ -239,7 +239,7 @@ class _SummaryPanel extends StatelessWidget {
               ),
               Expanded(
                 child: _SummaryValue(
-                  label: 'ESTIMATED TAX TO PAY (\$)',
+                  label: 'ESTIMATED TAX AT YEAR END',
                   value: formatMoney(estimatedTaxToPay),
                   color: _TransactionTokens.danger,
                   alignRight: true,
