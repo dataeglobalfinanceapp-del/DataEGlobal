@@ -27,6 +27,8 @@ void main() {
     expect(find.text('Saving Plan'), findsOneWidget);
     expect(find.text('TOTAL DEPOSIT'), findsOneWidget);
     expect(find.text(r'$120,000.00'), findsOneWidget);
+    expect(find.text('Total Saving'), findsOneWidget);
+    expect(find.text(r'$0.00'), findsOneWidget);
     expect(find.text('Saving rate 10%'), findsOneWidget);
     expect(find.text(r'$12,000.00'), findsOneWidget);
     expect(find.text(r'$1,000.00'), findsWidgets);
@@ -34,7 +36,13 @@ void main() {
     await tester.enterText(find.byType(TextField).first, '500');
     await tester.pump();
 
-    expect(find.text(r'$500.00'), findsOneWidget);
+    expect(find.text(r'$0.00'), findsOneWidget);
+    expect(find.text(r'$1,000.00'), findsWidgets);
+
+    await tester.tap(find.byTooltip('Confirm saving amount').first);
+    await tester.pump();
+
+    expect(find.text(r'$500.00'), findsNWidgets(2));
   });
 
   testWidgets('Saving plan splits targets by day, week, and edited rate', (

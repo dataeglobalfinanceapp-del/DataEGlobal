@@ -54,6 +54,9 @@ class _SavingScreenState extends State<SavingScreen> {
 
   double get _totalSavingTarget => _yearDeposits * (_savingRate / 100);
 
+  double get _totalSaving =>
+      _savedAmounts.values.fold<double>(0, (sum, amount) => sum + amount);
+
   List<_SavingPeriodRow> get _savingRows {
     final totalTarget = _totalSavingTarget;
 
@@ -115,10 +118,20 @@ class _SavingScreenState extends State<SavingScreen> {
     setState(() => _year += delta);
   }
 
-  void _setSavedAmount(String key, String value) {
+  void _confirmSavedAmount(String key) {
+    final controller = _controllerFor(key);
+    final amount = parseMoney(controller.text);
+    final displayAmount = amount == 0 ? '' : formatMoney(amount, symbol: false);
+
     setState(() {
-      _savedAmounts[key] = parseMoney(value);
+      _savedAmounts[key] = amount;
     });
+
+    controller.value = TextEditingValue(
+      text: displayAmount,
+      selection: TextSelection.collapsed(offset: displayAmount.length),
+    );
+    FocusManager.instance.primaryFocus?.unfocus();
   }
 
   TextEditingController _controllerFor(String key) {
@@ -181,6 +194,7 @@ class _SavingScreenState extends State<SavingScreen> {
                       children: [
                         _SavingSummary(
                           totalDeposits: _yearDeposits,
+                          totalSaving: _totalSaving,
                           savingRate: _savingRate,
                           totalSavingTarget: _totalSavingTarget,
                           periodLabel: _period.label,
@@ -215,7 +229,7 @@ class _SavingScreenState extends State<SavingScreen> {
                           controller: _controllerFor(row.key),
                           requiredAmount: row.requiredAmount,
                           savedAmount: _savedAmounts[row.key] ?? 0,
-                          onChanged: (value) => _setSavedAmount(row.key, value),
+                          onConfirm: () => _confirmSavedAmount(row.key),
                         );
                       },
                     ),
@@ -230,6 +244,7 @@ class _SavingScreenState extends State<SavingScreen> {
 
 class _SavingSummary extends StatelessWidget {
   final double totalDeposits;
+  final double totalSaving;
   final double savingRate;
   final double totalSavingTarget;
   final String periodLabel;
@@ -238,6 +253,7 @@ class _SavingSummary extends StatelessWidget {
 
   const _SavingSummary({
     required this.totalDeposits,
+    required this.totalSaving,
     required this.savingRate,
     required this.totalSavingTarget,
     required this.periodLabel,
@@ -331,16 +347,45 @@ class _SavingSummary extends StatelessWidget {
             ),
           ),
           Container(
-            width: 54,
-            height: 54,
+            width: 120,
+            margin: const EdgeInsets.only(left: 14),
+            padding: const EdgeInsets.only(left: 16),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(6),
+              border: Border(
+                left: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  width: 1,
+                ),
+              ),
             ),
-            child: const Icon(
-              Icons.savings_outlined,
-              color: Color(0xFFFACC15),
-              size: 26,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Total Saving',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    formatMoney(totalSaving),
+                    style: const TextStyle(
+                      color: Color(0xFFFACC15),
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -557,7 +602,7 @@ class _SavingRowsHeader extends StatelessWidget {
           Expanded(flex: 4, child: _SavingHeaderText('DATE')),
           SizedBox(width: 10),
           SizedBox(
-            width: 104,
+            width: 148,
             child: _SavingHeaderText('SAVED', textAlign: TextAlign.right),
           ),
           SizedBox(width: 10),
@@ -576,7 +621,7 @@ class _SavingPlanRow extends StatelessWidget {
   final TextEditingController controller;
   final double requiredAmount;
   final double savedAmount;
-  final ValueChanged<String> onChanged;
+  final VoidCallback onConfirm;
 
   const _SavingPlanRow({
     super.key,
@@ -584,7 +629,7 @@ class _SavingPlanRow extends StatelessWidget {
     required this.controller,
     required this.requiredAmount,
     required this.savedAmount,
-    required this.onChanged,
+    required this.onConfirm,
   });
 
   @override
@@ -617,28 +662,54 @@ class _SavingPlanRow extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           SizedBox(
-            width: 104,
-            child: TextField(
-              controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: '0',
-                prefixText: r'$ ',
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 8,
+            width: 148,
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    textAlign: TextAlign.right,
+                    textInputAction: TextInputAction.done,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: '0.00',
+                      prefixText: r'$ ',
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 8,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(3),
+                        borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                      ),
+                    ),
+                    onSubmitted: (_) => onConfirm(),
+                  ),
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(3),
-                  borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                const SizedBox(width: 6),
+                IconButton(
+                  tooltip: 'Confirm saving amount',
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 34,
+                    minHeight: 34,
+                  ),
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(
+                    Icons.check_circle,
+                    color: Color(0xFF16A34A),
+                    size: 22,
+                  ),
+                  onPressed: onConfirm,
                 ),
-              ),
-              onChanged: onChanged,
+              ],
             ),
           ),
           const SizedBox(width: 10),
