@@ -14,14 +14,22 @@ class _TransactionController extends ChangeNotifier {
 
   late _TransactionViewState _state;
 
-  _TransactionController({DateTimeRange? initialExpenseDateRange}) {
+  _TransactionController({
+    DateTimeRange? initialExpenseDateRange,
+    String? initialExpenseCategory,
+  }) {
     _expenseDateRange = _TransactionDateUtils.normalizedRange(
       initialExpenseDateRange ?? _TransactionDateUtils.yearDateRange(_year),
     );
     _year = _expenseDateRange.start.year;
+    final String? normalizedCategory = initialExpenseCategory?.trim();
+    _category = normalizedCategory == null || normalizedCategory.isEmpty
+        ? null
+        : normalizedCategory;
     _state = _TransactionViewState.initial(
       year: _year,
       expenseDateRange: _expenseDateRange,
+      category: _category,
     );
   }
 

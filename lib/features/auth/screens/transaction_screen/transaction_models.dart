@@ -81,6 +81,7 @@ class _TransactionViewState {
   factory _TransactionViewState.initial({
     required int year,
     required DateTimeRange expenseDateRange,
+    String? category,
   }) {
     return _TransactionViewState(
       isLoading: true,
@@ -88,7 +89,7 @@ class _TransactionViewState {
       filter: _TransactionFilter.monthly,
       year: year,
       expenseDateRange: expenseDateRange,
-      category: null,
+      category: category,
       totalDeposits: 0,
       totalExpenses: 0,
       estimatedTaxRate: 0,

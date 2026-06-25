@@ -121,7 +121,16 @@ class SaveTepApp extends StatelessWidget {
           '/scan': (context) => const ScanScreen(),
           '/scan-deposit': (context) => const ScanDepositScreen(),
           '/scan-expense': (context) => const ScanExpenseScreen(),
-          '/transactions': (context) => const TransactionScreen(),
+          '/transactions': (context) {
+            final arguments = ModalRoute.of(context)?.settings.arguments;
+            if (arguments is TransactionScreenArguments) {
+              return TransactionScreen(
+                initialExpenseDateRange: arguments.initialExpenseDateRange,
+                initialExpenseCategory: arguments.initialExpenseCategory,
+              );
+            }
+            return const TransactionScreen();
+          },
           '/liabilities': (context) => const LiabilitiesScreen(),
           '/reserves': (context) => const ReservesScreen(),
           '/reminders': (context) => const ReminderScreen(),

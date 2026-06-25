@@ -6,6 +6,7 @@ import 'package:savetep/services/money_formatter.dart';
 import 'package:savetep/services/recurrence_schedule.dart';
 
 import '../../widgets/app_date_range_selector.dart';
+import '../../widgets/expense_category_report_link.dart';
 import 'tax_estimator.dart';
 
 class TaxScreen extends StatefulWidget {
@@ -318,9 +319,27 @@ class _ProfitAndTaxStatement extends StatelessWidget {
     final value = isUntracked && line.amount == 0
         ? ''
         : formatMoney(line.amount);
+    final category = line.reportCategory;
+    final TextStyle labelStyle = TextStyle(
+      color: const Color(0xFF111827),
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+    );
 
     return _row(
       label: line.label,
+      labelChild: category == null || line.amount <= 0
+          ? null
+          : ExpenseCategoryReportLink(
+              category: category,
+              label: line.label,
+              dateRange: DateTimeRange(
+                start: line.periodStart,
+                end: line.periodEnd,
+              ),
+              style: labelStyle,
+              maxLines: 2,
+            ),
       value: value,
       fill: isUntracked ? _untrackedFill : null,
       labelSemanticLabel: isUntracked
@@ -331,6 +350,7 @@ class _ProfitAndTaxStatement extends StatelessWidget {
 
   static TableRow _row({
     required String label,
+    Widget? labelChild,
     String value = '',
     bool isBold = false,
     Color? fill,
@@ -340,12 +360,14 @@ class _ProfitAndTaxStatement extends StatelessWidget {
     return TableRow(
       decoration: BoxDecoration(color: fill),
       children: [
-        _cell(
-          label,
-          isBold: isBold,
-          color: labelColor,
-          semanticLabel: labelSemanticLabel,
-        ),
+        labelChild == null
+            ? _cell(
+                label,
+                isBold: isBold,
+                color: labelColor,
+                semanticLabel: labelSemanticLabel,
+              )
+            : _cellChild(labelChild),
         _cell(value, alignRight: true, isBold: isBold),
       ],
     );
@@ -371,6 +393,14 @@ class _ProfitAndTaxStatement extends StatelessWidget {
           fontWeight: isBold ? FontWeight.w900 : FontWeight.w500,
         ),
       ),
+    );
+  }
+
+  static Widget _cellChild(Widget child) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      alignment: Alignment.centerLeft,
+      child: child,
     );
   }
 }
@@ -440,11 +470,17 @@ class _ProfitLossExpenseLine {
   final String label;
   final double amount;
   final bool trackedInApp;
+  final String? reportCategory;
+  final DateTime periodStart;
+  final DateTime periodEnd;
 
   const _ProfitLossExpenseLine({
     required this.label,
     required this.amount,
     required this.trackedInApp,
+    required this.reportCategory,
+    required this.periodStart,
+    required this.periodEnd,
   });
 }
 
@@ -462,6 +498,12 @@ class _ProfitLossExpenseDefinition {
     this.includeUnmapped = false,
     this.prorateFixedCost = false,
   });
+
+  String? get reportCategory {
+    if (includeUnmapped || categories.length != 1) return null;
+    final category = categories.single.trim();
+    return category.isEmpty ? null : category;
+  }
 }
 
 class _ProfitLossExpenseCatalog {
@@ -576,6 +618,9 @@ class _ProfitLossExpenseCatalog {
             label: definition.label,
             amount: amount,
             trackedInApp: definition.trackedInApp,
+            reportCategory: definition.reportCategory,
+            periodStart: rangeStart,
+            periodEnd: rangeEndExclusive.subtract(const Duration(days: 1)),
           );
         })
         .toList(growable: false);

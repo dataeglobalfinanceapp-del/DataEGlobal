@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/features/auth/screens/tax_screen/tax_screen.dart';
+import 'package:savetep/features/auth/screens/transaction_screen/transaction_screen.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 
@@ -81,8 +82,8 @@ void main() {
 
     final advertisingRow = table.children.singleWhere((row) {
       final labelCell = row.children.first as Container;
-      final label = labelCell.child as Text;
-      return label.data == 'Advertising';
+      final label = labelCell.child;
+      return label is Text && label.data == 'Advertising';
     });
     final decoration = advertisingRow.decoration as BoxDecoration;
     expect(decoration.color, const Color(0xFFE0F2FE));
@@ -175,5 +176,88 @@ void main() {
     expect(find.text(r'$600.00'), findsNothing);
     expect(find.text(r'$50,000.00'), findsNothing);
     expect(find.text(r'$1,600.00'), findsOneWidget);
+  });
+
+  testWidgets('TaxScreen category link opens matching expense report', (
+    WidgetTester tester,
+  ) async {
+    await LiabilityService.saveExpense(
+      checkNumber: 'fuel-in-range',
+      totalAmount: 45,
+      transactionDate: DateTime(2026, 6, 12),
+      category: 'Fuel',
+      payee: 'Fuel Stop',
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'fuel-outside-range',
+      totalAmount: 90,
+      transactionDate: DateTime(2026, 6, 20),
+      category: 'Fuel',
+      payee: 'Fuel Later',
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'rent-in-range',
+      totalAmount: 300,
+      transactionDate: DateTime(2026, 6, 10),
+      category: 'Rent',
+      payee: 'Studio Rent',
+      isManual: true,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TaxScreen(
+          initialDateRange: DateTimeRange(
+            start: DateTime(2026, 6, 10),
+            end: DateTime(2026, 6, 15),
+          ),
+        ),
+        routes: <String, WidgetBuilder>{
+          '/transactions': (BuildContext context) {
+            final arguments =
+                ModalRoute.of(context)!.settings.arguments
+                    as TransactionScreenArguments;
+            return TransactionScreen(
+              initialExpenseCategory: arguments.initialExpenseCategory,
+              initialExpenseDateRange: arguments.initialExpenseDateRange,
+            );
+          },
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Fuel'),
+      find.byType(ListView),
+      const Offset(0, -180),
+    );
+    await tester.pumpAndSettle();
+
+    final fuelLink = tester.widget<Text>(find.text('Fuel'));
+    expect(fuelLink.style?.decoration, TextDecoration.underline);
+
+    await tester.tap(find.text('Fuel'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Transaction'), findsOneWidget);
+    expect(find.text('06/10/2026 - 06/15/2026'), findsOneWidget);
+    expect(find.text('Fuel total'), findsOneWidget);
+    expect(find.text(r'$45.00'), findsWidgets);
+
+    await tester.dragUntilVisible(
+      find.text('June'),
+      find.byType(ListView),
+      const Offset(0, -180),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('June'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fuel Stop'), findsOneWidget);
+    expect(find.text('Fuel Later'), findsNothing);
+    expect(find.text('Studio Rent'), findsNothing);
   });
 }

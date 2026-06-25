@@ -923,18 +923,10 @@ class _TransactionDescriptionCell extends StatelessWidget {
           style: _TransactionTokens.tableCell,
         ),
         const SizedBox(height: 2),
-        InkWell(
+        ExpenseCategoryLink(
+          category: item.subtitle,
           onTap: () => onCategorySelected(item.subtitle),
-          borderRadius: BorderRadius.circular(_TransactionTokens.controlRadius),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Text(
-              item.subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: _TransactionTokens.tableCategory,
-            ),
-          ),
+          style: _TransactionTokens.tableCategory,
         ),
       ],
     );

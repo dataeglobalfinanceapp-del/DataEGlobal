@@ -12,17 +12,33 @@ import 'package:savetep/services/money_formatter.dart';
 import 'package:savetep/services/yearly_pdf_report.dart';
 
 import '../tax_screen/tax_estimator.dart';
-import '../../widgets/app_date_range_selector.dart';
 import '../../widgets/app_bottom_navigation_bar.dart';
+import '../../widgets/app_date_range_selector.dart';
+import '../../widgets/expense_category_link.dart';
 
 part 'transaction_controller.dart';
 part 'transaction_models.dart';
 part 'transaction_widgets.dart';
 
+class TransactionScreenArguments {
+  final DateTimeRange? initialExpenseDateRange;
+  final String? initialExpenseCategory;
+
+  const TransactionScreenArguments({
+    this.initialExpenseDateRange,
+    this.initialExpenseCategory,
+  });
+}
+
 class TransactionScreen extends StatefulWidget {
   final DateTimeRange? initialExpenseDateRange;
+  final String? initialExpenseCategory;
 
-  const TransactionScreen({super.key, this.initialExpenseDateRange});
+  const TransactionScreen({
+    super.key,
+    this.initialExpenseDateRange,
+    this.initialExpenseCategory,
+  });
 
   @override
   State<TransactionScreen> createState() => _TransactionScreenState();
@@ -36,6 +52,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
     super.initState();
     _controller = _TransactionController(
       initialExpenseDateRange: widget.initialExpenseDateRange,
+      initialExpenseCategory: widget.initialExpenseCategory,
     )..loadTransactions();
   }
 
