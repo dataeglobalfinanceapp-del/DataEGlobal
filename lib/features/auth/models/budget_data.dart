@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:biztrack/services/deposit_allocation.dart';
-
 class BudgetCategory {
   final String label;
   final double percentage;
@@ -114,13 +112,7 @@ class BudgetData {
     this.categories = const [],
   });
 
-  double get saving => DepositAllocation.savingFor(deposit);
-
-  double get income => DepositAllocation.incomeFor(deposit);
-
-  double get reserves => income;
-
-  double get available => income - expense;
+  double get available => deposit - expense;
 
   double get reserve => available;
 

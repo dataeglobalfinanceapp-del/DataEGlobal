@@ -43,9 +43,8 @@ void main() {
       period: 'June',
     );
     expect(budget.deposit, 75);
-    expect(budget.saving, 7.5);
-    expect(budget.income, 67.5);
     expect(budget.expense, 40);
+    expect(budget.available, 35);
   });
 
   testWidgets('Deposit account balance summary expands monthly balances', (

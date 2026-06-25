@@ -42,15 +42,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Transaction'), findsOneWidget);
-    expect(find.text('June'), findsOneWidget);
-    expect(find.text('AVAILABLE'), findsOneWidget);
-    expect(find.text(r'$67.50'), findsOneWidget);
-    expect(find.text(r'$112.50'), findsOneWidget);
-    expect(find.text('TOTAL DEPOSIT'), findsNothing);
+    expect(find.text('AVAILABLE FUNDS'), findsOneWidget);
+    expect(find.text(r'$80.00'), findsOneWidget);
+    expect(find.text(r'$125.00'), findsOneWidget);
+    expect(find.text('TOTAL DEPOSIT'), findsOneWidget);
     expect(find.text('ESTIMATED TAX RATE'), findsOneWidget);
     expect(find.text('10%'), findsOneWidget);
     expect(find.text(r'ESTIMATED TAX AT YEAR END'), findsOneWidget);
-    expect(find.text(r'$6.75'), findsOneWidget);
+    expect(find.text(r'$8.00'), findsOneWidget);
     expect(find.text(r'$45.00'), findsWidgets);
 
     await tester.dragUntilVisible(

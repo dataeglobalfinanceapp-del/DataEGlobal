@@ -42,15 +42,16 @@ class _TaxScreenState extends State<TaxScreen> {
     return _year == now.year ? now.month : 12;
   }
 
-  double get _projectedPeriodIncome => _deposits
+  double get _projectedPeriodDeposits => _deposits
       .where((record) => _isInProjectedPeriod(record.transactionDate))
-      .fold<double>(0, (sum, record) => sum + record.income);
+      .fold<double>(0, (sum, record) => sum + record.totalAmount);
 
   double get _projectedPeriodExpenses => _expenses
       .where((record) => _isInProjectedPeriod(record.transactionDate))
       .fold<double>(0, (sum, record) => sum + record.totalAmount);
 
-  double get _totalReserve => _projectedPeriodIncome - _projectedPeriodExpenses;
+  double get _totalReserve =>
+      _projectedPeriodDeposits - _projectedPeriodExpenses;
 
   bool _isInProjectedPeriod(DateTime transactionDate) {
     return transactionDate.year == _year &&

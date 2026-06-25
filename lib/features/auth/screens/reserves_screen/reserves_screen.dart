@@ -39,19 +39,15 @@ class _ReservesScreenState extends State<ReservesScreen> {
     });
   }
 
-  double get _yearSaving => _deposits
+  double get _yearDeposits => _deposits
       .where((record) => record.transactionDate.year == _year)
-      .fold<double>(0, (sum, record) => sum + record.saving);
-
-  double get _yearIncome => _deposits
-      .where((record) => record.transactionDate.year == _year)
-      .fold<double>(0, (sum, record) => sum + record.income);
+      .fold<double>(0, (sum, record) => sum + record.totalAmount);
 
   double get _yearExpenses => _expenses
       .where((record) => record.transactionDate.year == _year)
       .fold<double>(0, (sum, record) => sum + record.totalAmount);
 
-  double get _availableIncome => _yearIncome - _yearExpenses;
+  double get _availableDeposit => _yearDeposits - _yearExpenses;
 
   List<_ReserveGroup> get _groups {
     return switch (_period) {
@@ -103,14 +99,6 @@ class _ReservesScreenState extends State<ReservesScreen> {
       0,
       (sum, record) => sum + record.totalAmount,
     );
-    final totalSaving = deposits.fold<double>(
-      0,
-      (sum, record) => sum + record.saving,
-    );
-    final totalIncome = deposits.fold<double>(
-      0,
-      (sum, record) => sum + record.income,
-    );
     final totalExpenses = expenses.fold<double>(
       0,
       (sum, record) => sum + record.totalAmount,
@@ -120,8 +108,6 @@ class _ReservesScreenState extends State<ReservesScreen> {
       key: key,
       title: title,
       totalDeposits: totalDeposits,
-      totalSaving: totalSaving,
-      totalIncome: totalIncome,
       expenses: expenses,
       totalExpenses: totalExpenses,
     );
@@ -172,7 +158,7 @@ class _ReservesScreenState extends State<ReservesScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Income',
+          'Available Funds',
           style: TextStyle(
             color: Colors.black87,
             fontSize: 17,
@@ -190,9 +176,9 @@ class _ReservesScreenState extends State<ReservesScreen> {
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
                 children: [
                   _ReserveSummary(
-                    totalIncome: _yearIncome,
-                    totalSaving: _yearSaving,
-                    availableIncome: _availableIncome,
+                    totalDeposits: _yearDeposits,
+                    totalExpenses: _yearExpenses,
+                    availableDeposit: _availableDeposit,
                   ),
                   const SizedBox(height: 10),
                   _ReservePeriodToggle(period: _period, onChanged: _setPeriod),
@@ -241,19 +227,19 @@ class _ReservesScreenState extends State<ReservesScreen> {
 }
 
 class _ReserveSummary extends StatelessWidget {
-  final double totalIncome;
-  final double totalSaving;
-  final double availableIncome;
+  final double totalDeposits;
+  final double totalExpenses;
+  final double availableDeposit;
 
   const _ReserveSummary({
-    required this.totalIncome,
-    required this.totalSaving,
-    required this.availableIncome,
+    required this.totalDeposits,
+    required this.totalExpenses,
+    required this.availableDeposit,
   });
 
   @override
   Widget build(BuildContext context) {
-    final availableColor = availableIncome > 0
+    final availableColor = availableDeposit > 0
         ? const Color(0xFF22C55E)
         : const Color(0xFFEF4444);
 
@@ -283,7 +269,7 @@ class _ReserveSummary extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    formatMoney(availableIncome),
+                    formatMoney(availableDeposit),
                     style: TextStyle(
                       color: availableColor,
                       fontSize: 28,
@@ -296,17 +282,17 @@ class _ReserveSummary extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _ReserveSummaryMini(
-                        label: 'INCOME',
-                        amount: totalIncome,
+                        label: 'DEPOSITS',
+                        amount: totalDeposits,
                         color: const Color(0xFF93C5FD),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _ReserveSummaryMini(
-                        label: 'SAVING',
-                        amount: totalSaving,
-                        color: const Color(0xFFFACC15),
+                        label: 'EXPENSES',
+                        amount: totalExpenses,
+                        color: const Color(0xFFFCA5A5),
                       ),
                     ),
                   ],
@@ -322,7 +308,7 @@ class _ReserveSummary extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
             ),
             child: const Icon(
-              Icons.savings_outlined,
+              Icons.account_balance_wallet_outlined,
               color: Color(0xFFFACC15),
               size: 26,
             ),
@@ -520,9 +506,9 @@ class _ReserveGroupTile extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    formatMoney(group.availableIncome),
+                    formatMoney(group.availableDeposit),
                     style: TextStyle(
-                      color: group.availableIncome > 0
+                      color: group.availableDeposit > 0
                           ? const Color(0xFF16A34A)
                           : const Color(0xFFEF4444),
                       fontSize: 13,
@@ -556,18 +542,6 @@ class _ReserveGroupTile extends StatelessWidget {
               color: const Color(0xFF16A34A),
               isBold: true,
             ),
-            _ReserveRow(
-              label: 'Saving',
-              amount: group.totalSaving,
-              color: const Color(0xFFCA8A04),
-              isBold: true,
-            ),
-            _ReserveRow(
-              label: 'Income',
-              amount: group.totalIncome,
-              color: const Color(0xFF2563EB),
-              isBold: true,
-            ),
             ...group.expenses.map(
               (expense) => _ReserveRow(
                 label: expense.payee.isEmpty ? expense.category : expense.payee,
@@ -589,9 +563,9 @@ class _ReserveGroupTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    'AVAILABLE: ${formatMoney(group.availableIncome)}',
+                    'AVAILABLE: ${formatMoney(group.availableDeposit)}',
                     style: TextStyle(
-                      color: group.availableIncome > 0
+                      color: group.availableDeposit > 0
                           ? const Color(0xFF15803D)
                           : const Color(0xFFEF4444),
                       fontSize: 10,
@@ -690,8 +664,6 @@ class _ReserveGroup {
   final String key;
   final String title;
   final double totalDeposits;
-  final double totalSaving;
-  final double totalIncome;
   final List<ExpenseRecord> expenses;
   final double totalExpenses;
 
@@ -699,13 +671,11 @@ class _ReserveGroup {
     required this.key,
     required this.title,
     required this.totalDeposits,
-    required this.totalSaving,
-    required this.totalIncome,
     required this.expenses,
     required this.totalExpenses,
   });
 
-  double get availableIncome => totalIncome - totalExpenses;
+  double get availableDeposit => totalDeposits - totalExpenses;
 }
 
 const _monthNames = [

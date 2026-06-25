@@ -111,7 +111,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
         return AuthFocusTraversal(
           child: AuthScreenScaffold(
-            title: 'Savings Teps',
+            title: 'Save Tep',
             subtitle: 'Create your executive account',
             activeTab: AuthTab.signup,
             onLoginTap: () => Navigator.pushReplacementNamed(context, '/login'),

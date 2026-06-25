@@ -126,9 +126,9 @@ class _TransactionHeader extends StatelessWidget {
     return Column(
       children: <Widget>[
         _SummaryPanel(
-          totalIncome: state.totalIncome,
+          totalDeposits: state.totalDeposits,
           totalExpenses: state.totalExpenses,
-          totalAvailableIncome: state.totalAvailableIncome,
+          totalAvailableDeposit: state.totalAvailableDeposit,
           estimatedTaxRate: state.estimatedTaxRate,
           estimatedTaxToPay: state.estimatedTaxToPay,
           onEstimatedTaxRateTap: onEstimatedTaxRateTap,
@@ -164,17 +164,17 @@ class _TransactionHeader extends StatelessWidget {
 }
 
 class _SummaryPanel extends StatelessWidget {
-  final double totalIncome;
+  final double totalDeposits;
   final double totalExpenses;
-  final double totalAvailableIncome;
+  final double totalAvailableDeposit;
   final double estimatedTaxRate;
   final double estimatedTaxToPay;
   final VoidCallback onEstimatedTaxRateTap;
 
   const _SummaryPanel({
-    required this.totalIncome,
+    required this.totalDeposits,
     required this.totalExpenses,
-    required this.totalAvailableIncome,
+    required this.totalAvailableDeposit,
     required this.estimatedTaxRate,
     required this.estimatedTaxToPay,
     required this.onEstimatedTaxRateTap,
@@ -182,7 +182,7 @@ class _SummaryPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color incomeColor = totalAvailableIncome > 0
+    final Color depositColor = totalAvailableDeposit > 0
         ? _TransactionTokens.success
         : _TransactionTokens.expenseHot;
 
@@ -197,11 +197,11 @@ class _SummaryPanel extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              const Expanded(child: _SummaryLabel(label: 'AVAILABLE INCOME')),
+              const Expanded(child: _SummaryLabel(label: 'AVAILABLE FUNDS')),
               Text(
-                formatMoney(totalAvailableIncome),
+                formatMoney(totalAvailableDeposit),
                 style: _TransactionTokens.reserveValue.copyWith(
-                  color: incomeColor,
+                  color: depositColor,
                 ),
               ),
             ],
@@ -218,8 +218,8 @@ class _SummaryPanel extends StatelessWidget {
               ),
               Expanded(
                 child: _SummaryValue(
-                  label: 'INCOME',
-                  value: formatMoney(totalIncome),
+                  label: 'TOTAL DEPOSIT',
+                  value: formatMoney(totalDeposits),
                   color: _TransactionTokens.primaryBlue,
                   alignRight: true,
                 ),

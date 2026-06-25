@@ -8,7 +8,6 @@ import 'package:biztrack/features/auth/models/liability_model.dart';
 import 'package:biztrack/services/local_store_test/local_store.dart';
 
 import 'app_clock.dart';
-import 'deposit_allocation.dart';
 import 'recurrence_schedule.dart';
 
 part 'save_future_expense.dart';
@@ -407,18 +406,17 @@ class LiabilityService {
       0,
       (total, record) => total + record.totalAmount,
     );
-    final incomeTotal = DepositAllocation.incomeFor(depositTotal);
     final expenseTotal = budgetExpenses.fold<double>(
       0,
       (total, entry) => total + entry.amount,
     );
-    final available = incomeTotal - expenseTotal;
-    final total = incomeTotal > 0 ? incomeTotal : expenseTotal;
-    final utilization = incomeTotal > 0
-        ? (expenseTotal / incomeTotal * 100).round()
+    final available = depositTotal - expenseTotal;
+    final total = depositTotal > 0 ? depositTotal : expenseTotal;
+    final utilization = depositTotal > 0
+        ? (expenseTotal / depositTotal * 100).round()
         : 0;
-    final surplus = incomeTotal > 0
-        ? (available / incomeTotal * 100).round()
+    final surplus = depositTotal > 0
+        ? (available / depositTotal * 100).round()
         : 0;
 
     final categoryTotals = <String, double>{};
@@ -1041,12 +1039,6 @@ class DepositRecord {
     'transactionDate': transactionDate.toIso8601String(),
     'isManual': isManual,
   };
-
-  double get saving => DepositAllocation.savingFor(totalAmount);
-
-  double get income => DepositAllocation.incomeFor(totalAmount);
-
-  double get reserves => income;
 }
 
 class DepositBalanceSummary {

@@ -51,7 +51,7 @@ class _TransactionViewState {
   final _TransactionFilter filter;
   final int year;
   final String? category;
-  final double totalIncome;
+  final double totalDeposits;
   final double totalExpenses;
   final double estimatedTaxRate;
   final double estimatedTaxToPay;
@@ -66,7 +66,7 @@ class _TransactionViewState {
     required this.filter,
     required this.year,
     required this.category,
-    required this.totalIncome,
+    required this.totalDeposits,
     required this.totalExpenses,
     required this.estimatedTaxRate,
     required this.estimatedTaxToPay,
@@ -83,7 +83,7 @@ class _TransactionViewState {
       filter: _TransactionFilter.monthly,
       year: year,
       category: null,
-      totalIncome: 0,
+      totalDeposits: 0,
       totalExpenses: 0,
       estimatedTaxRate: 0,
       estimatedTaxToPay: 0,
@@ -94,7 +94,7 @@ class _TransactionViewState {
     );
   }
 
-  double get totalAvailableIncome => totalIncome - totalExpenses;
+  double get totalAvailableDeposit => totalDeposits - totalExpenses;
 }
 
 class _MutableGroup<T> {

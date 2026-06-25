@@ -150,7 +150,7 @@ class _TransactionController extends ChangeNotifier {
   }
 
   void _rebuildState() {
-    final double totalIncome = _TransactionDataMapper.totalIncome(
+    final double totalDeposits = _TransactionDataMapper.totalDeposits(
       _deposits,
       _year,
     );
@@ -199,7 +199,7 @@ class _TransactionController extends ChangeNotifier {
       filter: _filter,
       year: _year,
       category: _category,
-      totalIncome: totalIncome,
+      totalDeposits: totalDeposits,
       totalExpenses: totalExpenses,
       estimatedTaxRate: taxEstimate.bracket.rate,
       estimatedTaxToPay: taxEstimate.taxDue,
@@ -225,12 +225,12 @@ class _TransactionController extends ChangeNotifier {
 class _TransactionDataMapper {
   const _TransactionDataMapper._();
 
-  static double totalIncome(List<DepositRecord> deposits, int year) {
+  static double totalDeposits(List<DepositRecord> deposits, int year) {
     return deposits
         .where((DepositRecord record) => record.transactionDate.year == year)
         .fold<double>(
           0,
-          (double total, DepositRecord record) => total + record.income,
+          (double total, DepositRecord record) => total + record.totalAmount,
         );
   }
 
@@ -255,7 +255,7 @@ class _TransactionDataMapper {
     required int month,
   }) {
     final int projectionMonth = month.clamp(1, 12).toInt();
-    final double income = deposits
+    final double deposit = deposits
         .where(
           (DepositRecord record) =>
               record.transactionDate.year == year &&
@@ -263,7 +263,7 @@ class _TransactionDataMapper {
         )
         .fold<double>(
           0,
-          (double total, DepositRecord record) => total + record.income,
+          (double total, DepositRecord record) => total + record.totalAmount,
         );
     final double expense = expenses
         .where(
@@ -276,7 +276,7 @@ class _TransactionDataMapper {
           (double total, ExpenseRecord record) => total + record.totalAmount,
         );
 
-    return income - expense;
+    return deposit - expense;
   }
 
   static List<String> expenseCategories(List<ExpenseRecord> expenses) {

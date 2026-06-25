@@ -161,13 +161,11 @@ void main() {
 
     expect(data.transactionCount, 2);
     expect(data.deposit, 100);
-    expect(data.saving, 10);
-    expect(data.income, 90);
     expect(data.expense, 40);
-    expect(data.available, 50);
-    expect(data.total, 90);
-    expect(data.surplusPercent, 56);
-    expect(data.utilizationPercent, 44);
+    expect(data.available, 60);
+    expect(data.total, 100);
+    expect(data.surplusPercent, 60);
+    expect(data.utilizationPercent, 40);
   });
 
   test('default budget seed uses the created month', () async {
@@ -177,36 +175,22 @@ void main() {
     final expenses = await LiabilityService.loadExpenses();
 
     expect(deposits, hasLength(2));
-    expect(expenses, hasLength(15));
+    expect(expenses, hasLength(11));
     expect(deposits.map((record) => record.transactionDate.month).toSet(), {6});
     expect(expenses.map((record) => record.transactionDate.month).toSet(), {6});
 
     final cash = deposits.singleWhere((record) => record.cash == 100000);
     expect(cash.transactionDate.day, 1);
     expect(cash.totalAmount, 100000);
-    expect(cash.saving, 10000);
-    expect(cash.income, 90000);
 
     final credit = deposits.singleWhere(
       (record) => record.creditDeposit == 20000,
     );
     expect(credit.transactionDate.day, 15);
     expect(credit.totalAmount, 20000);
-    expect(credit.saving, 2000);
-    expect(credit.income, 18000);
-
-    final insurance = expenses.singleWhere(
-      (record) => record.category == 'Insurance',
-    );
-    expect(insurance.transactionDate.day, 2);
-    expect(insurance.isRecurring, isTrue);
-
-    final rent = expenses.singleWhere((record) => record.category == 'Rent');
-    expect(rent.transactionDate.day, 1);
-    expect(rent.isRecurring, isTrue);
 
     expect(await LiabilityService.loadDeposits(), hasLength(2));
-    expect(await LiabilityService.loadExpenses(), hasLength(15));
+    expect(await LiabilityService.loadExpenses(), hasLength(11));
   });
 
   test(
@@ -221,14 +205,12 @@ void main() {
       );
 
       expect(data.deposit, 120000);
-      expect(data.saving, 12000);
-      expect(data.income, 108000);
-      expect(data.available, closeTo(54457.56, 0.001));
-      expect(data.total, 108000);
-      expect(data.expense, closeTo(53542.44, 0.001));
-      expect(data.surplusPercent, 50);
-      expect(data.utilizationPercent, 50);
-      expect(data.transactionCount, 10);
+      expect(data.available, closeTo(109457.56, 0.001));
+      expect(data.total, 120000);
+      expect(data.expense, closeTo(10542.44, 0.001));
+      expect(data.surplusPercent, 91);
+      expect(data.utilizationPercent, 9);
+      expect(data.transactionCount, 7);
     },
   );
 }

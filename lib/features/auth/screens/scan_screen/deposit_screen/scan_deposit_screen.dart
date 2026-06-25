@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:biztrack/services/deposit_allocation.dart';
 import 'package:biztrack/services/money_formatter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,12 +50,6 @@ class ScannedDepositData {
       receiptImage: receiptImage ?? this.receiptImage,
     );
   }
-
-  double get saving => DepositAllocation.savingFor(totalAmount);
-
-  double get income => DepositAllocation.incomeFor(totalAmount);
-
-  double get reserves => income;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -306,39 +299,13 @@ class _TotalAmountDisplay extends StatelessWidget {
                   valueListenable: controller,
                   builder: (context, value, _) {
                     final amount = value.text.isEmpty ? '0.00' : value.text;
-                    final deposit = parseMoney(value.text);
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '\$$amount',
-                          style: const TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1A2340),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _DepositSplitAmount(
-                                label: 'SAVING',
-                                amount: DepositAllocation.savingFor(deposit),
-                                color: const Color(0xFFCA8A04),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _DepositSplitAmount(
-                                label: 'INCOME',
-                                amount: DepositAllocation.incomeFor(deposit),
-                                color: const Color(0xFF2563EB),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                    return Text(
+                      '\$$amount',
+                      style: const TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A2340),
+                      ),
                     );
                   },
                 ),
@@ -358,51 +325,6 @@ class _TotalAmountDisplay extends StatelessWidget {
             ),
           ),
         ],
-      ],
-    );
-  }
-}
-
-class _DepositSplitAmount extends StatelessWidget {
-  final String label;
-  final double amount;
-  final Color color;
-
-  const _DepositSplitAmount({
-    required this.label,
-    required this.amount,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
-            color: Color(0xFF888888),
-          ),
-        ),
-        const SizedBox(height: 2),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(
-            formatMoney(amount),
-            style: TextStyle(
-              color: color,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -725,8 +647,6 @@ class DepositReviewDialog extends StatelessWidget {
               value: _fmtCurrency(data.totalAmount),
               isEmphasis: true,
             ),
-            DepositReviewRow(label: 'Saving', value: _fmtCurrency(data.saving)),
-            DepositReviewRow(label: 'Income', value: _fmtCurrency(data.income)),
             const Divider(height: 22, color: Color(0xFFE5E7EB)),
             DepositReviewRow(
               label: 'Credit/Debt',

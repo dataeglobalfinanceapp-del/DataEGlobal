@@ -33,9 +33,9 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: TaxScreen()));
     await tester.pumpAndSettle();
 
-    expect(find.text(r'$45,000.00'), findsOneWidget);
-    expect(find.text('Projected annual reserve \$90,000.00'), findsOneWidget);
+    expect(find.text(r'$50,000.00'), findsOneWidget);
+    expect(find.text('Projected annual reserve \$100,000.00'), findsOneWidget);
     expect(find.text('22%'), findsWidgets);
-    expect(find.text(r'$9,900.00'), findsOneWidget);
+    expect(find.text(r'$11,000.00'), findsOneWidget);
   });
 }

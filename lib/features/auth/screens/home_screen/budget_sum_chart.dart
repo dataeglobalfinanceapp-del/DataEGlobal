@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:biztrack/features/auth/models/budget_data.dart';
-import 'package:biztrack/services/deposit_allocation.dart';
 import 'package:biztrack/services/local_store_test/local_store.dart';
 import 'package:biztrack/services/money_formatter.dart';
 
@@ -339,7 +338,7 @@ class BudgetTotalsCard extends StatelessWidget {
     final availableColor = data.available >= 0
         ? const Color(0xFF76C95F)
         : const Color(0xFFFF5E63);
-    final incomeColor = data.income >= 0
+    final depositColor = data.deposit >= 0
         ? const Color(0xFF76C95F)
         : const Color(0xFFFF5E63);
 
@@ -411,7 +410,7 @@ class BudgetTotalsCard extends StatelessWidget {
                           ),
                           Expanded(
                             child: Text(
-                              '${data.surplusPercent}% available from income',
+                              '${data.surplusPercent}% available from deposit',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -460,26 +459,11 @@ class BudgetTotalsCard extends StatelessWidget {
                 ),
                 Expanded(
                   child: _SummaryMetric(
-                    label: 'SAVING',
-                    amount: data.saving,
-                    icon: Icons.savings_outlined,
-                    iconColor: const Color(0xFFFFC84D),
-                    amountColor: const Color(0xFFFFC84D),
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 54,
-                  margin: const EdgeInsets.symmetric(horizontal: 10),
-                  color: const Color(0xFFBCA052).withValues(alpha: 0.28),
-                ),
-                Expanded(
-                  child: _SummaryMetric(
-                    label: 'INCOME',
-                    amount: data.income,
+                    label: 'TOTAL DEPOSIT',
+                    amount: data.deposit,
                     icon: Icons.account_balance_wallet_outlined,
-                    iconColor: incomeColor,
-                    amountColor: incomeColor,
+                    iconColor: depositColor,
+                    amountColor: depositColor,
                   ),
                 ),
               ],
@@ -573,11 +557,7 @@ class BudgetTopCards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BudgetTotalsCard(
-      data: BudgetData(
-        deposit: deposit,
-        expense: expense,
-        total: DepositAllocation.incomeFor(deposit),
-      ),
+      data: BudgetData(deposit: deposit, expense: expense, total: deposit),
     );
   }
 }
@@ -872,8 +852,8 @@ class _CenterBudgetText extends StatelessWidget {
         ? const Color(0xFF16A34A)
         : const Color(0xFFDC2626);
     final scale = (width / 122).clamp(0.65, 1.0).toDouble();
-    final surplusPercent = data.income > 0
-        ? ((data.available / data.income) * 100).round()
+    final surplusPercent = data.deposit > 0
+        ? ((data.available / data.deposit) * 100).round()
         : 0;
     return SizedBox(
       width: width,
@@ -920,7 +900,7 @@ class _CenterBudgetText extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              '${_fmtMoney(data.expense)} / ${_fmtMoney(data.income)}',
+              '${_fmtMoney(data.expense)} / ${_fmtMoney(data.deposit)}',
               maxLines: 1,
               style: TextStyle(
                 color: Colors.black,
