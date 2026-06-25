@@ -103,4 +103,77 @@ void main() {
     expect(find.text('Profit and Loss Statement 2026'), findsOneWidget);
     expect(find.text('Not tracked in app'), findsNothing);
   });
+
+  testWidgets('TaxScreen filters by date range and prorates fixed costs', (
+    WidgetTester tester,
+  ) async {
+    await LiabilityService.saveDeposit(
+      orderNumber: 'range-deposit',
+      totalAmount: 15000,
+      creditDeposit: 15000,
+      cash: 0,
+      giftCard: 0,
+      other: 0,
+      transactionDate: DateTime(2026, 6, 10),
+      isManual: true,
+    );
+    await LiabilityService.saveDeposit(
+      orderNumber: 'outside-deposit',
+      totalAmount: 50000,
+      creditDeposit: 50000,
+      cash: 0,
+      giftCard: 0,
+      other: 0,
+      transactionDate: DateTime(2026, 5, 31),
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'payroll',
+      totalAmount: 3000,
+      transactionDate: DateTime(2026, 6, 1),
+      category: 'Payroll',
+      payee: 'Payroll',
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'fuel-in-range',
+      totalAmount: 100,
+      transactionDate: DateTime(2026, 6, 10),
+      category: 'Fuel',
+      payee: 'Fuel Stop',
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'fuel-outside-range',
+      totalAmount: 600,
+      transactionDate: DateTime(2026, 5, 31),
+      category: 'Fuel',
+      payee: 'Fuel Stop',
+      isManual: true,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TaxScreen(
+          initialDateRange: DateTimeRange(
+            start: DateTime(2026, 6, 1),
+            end: DateTime(2026, 6, 15),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('06/01/2026 - 06/15/2026'), findsOneWidget);
+    expect(find.text('06/01/2026'), findsOneWidget);
+    expect(find.text('06/15/2026'), findsOneWidget);
+    expect(find.text(r'$15,000.00'), findsNWidgets(2));
+    expect(find.text('Payroll'), findsOneWidget);
+    expect(find.text(r'$1,500.00'), findsOneWidget);
+    expect(find.text('Fuel'), findsOneWidget);
+    expect(find.text(r'$100.00'), findsOneWidget);
+    expect(find.text(r'$600.00'), findsNothing);
+    expect(find.text(r'$50,000.00'), findsNothing);
+    expect(find.text(r'$1,600.00'), findsOneWidget);
+  });
 }
