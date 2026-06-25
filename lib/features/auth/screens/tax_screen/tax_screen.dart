@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'package:biztrack/services/app_clock.dart';
@@ -14,6 +16,8 @@ class TaxScreen extends StatefulWidget {
 }
 
 class _TaxScreenState extends State<TaxScreen> {
+  static const String _businessName = 'Save Tep';
+
   int _year = AppClock.now.year;
   bool _isLoading = true;
   List<DepositRecord> _deposits = [];
@@ -37,31 +41,45 @@ class _TaxScreenState extends State<TaxScreen> {
     });
   }
 
-  int get _reserveProjectionMonth {
+  int get _taxProjectionMonth {
     final now = AppClock.now;
     return _year == now.year ? now.month : 12;
   }
 
-  double get _projectedPeriodDeposits => _deposits
-      .where((record) => _isInProjectedPeriod(record.transactionDate))
-      .fold<double>(0, (sum, record) => sum + record.totalAmount);
+  _ProfitLossReport get _report {
+    final yearDeposits = _deposits
+        .where((record) => record.transactionDate.year == _year)
+        .toList(growable: false);
+    final yearExpenses = _expenses
+        .where((record) => record.transactionDate.year == _year)
+        .toList(growable: false);
+    final grossIncome = yearDeposits.fold<double>(
+      0,
+      (sum, record) => sum + record.totalAmount,
+    );
+    final expenseLines = _ProfitLossExpenseCatalog.buildLines(yearExpenses);
+    final totalExpenses = expenseLines.fold<double>(
+      0,
+      (sum, line) => sum + line.amount,
+    );
+    final netIncomeBeforeTaxes = grossIncome - totalExpenses;
+    final estimate = TaxEstimator.calculate(
+      totalReserve: netIncomeBeforeTaxes,
+      currentMonth: _taxProjectionMonth,
+    );
 
-  double get _projectedPeriodExpenses => _expenses
-      .where((record) => _isInProjectedPeriod(record.transactionDate))
-      .fold<double>(0, (sum, record) => sum + record.totalAmount);
-
-  double get _totalReserve =>
-      _projectedPeriodDeposits - _projectedPeriodExpenses;
-
-  bool _isInProjectedPeriod(DateTime transactionDate) {
-    return transactionDate.year == _year &&
-        transactionDate.month <= _reserveProjectionMonth;
-  }
-
-  TaxEstimate get _estimate {
-    return TaxEstimator.calculate(
-      totalReserve: _totalReserve,
-      currentMonth: _reserveProjectionMonth,
+    return _ProfitLossReport(
+      year: _year,
+      periodStart: DateTime(_year),
+      periodEnd: DateTime(_year, 12, 31),
+      businessName: _businessName,
+      grossIncome: grossIncome,
+      expenseLines: expenseLines,
+      totalExpenses: totalExpenses,
+      netIncomeBeforeTaxes: netIncomeBeforeTaxes,
+      estimatedTaxPercentage: estimate.bracket.rate,
+      estimatedTaxAmount: estimate.taxDue,
+      netIncomeAfterTaxes: estimate.remaining,
     );
   }
 
@@ -71,10 +89,10 @@ class _TaxScreenState extends State<TaxScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final estimate = _estimate;
+    final report = _report;
 
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 245, 245, 245),
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -83,7 +101,7 @@ class _TaxScreenState extends State<TaxScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Tax',
+          'Profit and Tax',
           style: TextStyle(
             color: Colors.black87,
             fontSize: 17,
@@ -100,43 +118,13 @@ class _TaxScreenState extends State<TaxScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
                 children: [
-                  _TaxSummaryCard(
-                    year: _year,
-                    totalReserve: _totalReserve,
-                    estimate: estimate,
-                  ),
-                  const SizedBox(height: 12),
                   _YearSelector(
                     year: _year,
                     onPrev: () => _changeYear(-1),
                     onNext: () => _changeYear(1),
                   ),
                   const SizedBox(height: 12),
-                  _TaxMetricCard(
-                    icon: Icons.percent,
-                    label: 'ESTIMATE TAX RATE BASE ON CURRENT PROFIT',
-                    value: '${estimate.bracket.rateLabel}%',
-                    detail: ' ',
-                    color: const Color(0xFF2563EB),
-                  ),
-                  const SizedBox(height: 10),
-                  _TaxMetricCard(
-                    icon: Icons.receipt_long_outlined,
-                    label: 'ESTIMATE TAX TO PAY',
-                    value: formatMoney(estimate.taxDue),
-                    detail: 'Calculated from current reserve',
-                    color: const Color(0xFFDC2626),
-                  ),
-                  const SizedBox(height: 10),
-                  _TaxMetricCard(
-                    icon: Icons.account_balance_wallet_outlined,
-                    label: 'LEFT AFTER TAX',
-                    value: formatMoney(estimate.remaining),
-                    detail: 'Reserve after estimated tax',
-                    color: estimate.remaining >= 0
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFFDC2626),
-                  ),
+                  _ProfitAndTaxStatement(report: report),
                 ],
               ),
       ),
@@ -144,169 +132,205 @@ class _TaxScreenState extends State<TaxScreen> {
   }
 }
 
-class _TaxSummaryCard extends StatelessWidget {
-  final int year;
-  final double totalReserve;
-  final TaxEstimate estimate;
+class _ProfitAndTaxStatement extends StatelessWidget {
+  final _ProfitLossReport report;
 
-  const _TaxSummaryCard({
-    required this.year,
-    required this.totalReserve,
-    required this.estimate,
-  });
+  const _ProfitAndTaxStatement({required this.report});
+
+  static const _borderColor = Color(0xFF111827);
+  static const _headerFill = Color(0xFFE5E7EB);
+  static const _commentFill = Color(0xFFFFF7ED);
+  static const _commentText = Color(0xFFB45309);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF171638),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'TAX YEAR $year',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.5,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tableWidth = math.max(constraints.maxWidth, 640.0);
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: tableWidth,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: _borderColor),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.07),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
                   ),
-                ),
-                const SizedBox(height: 8),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    formatMoney(totalReserve),
-                    style: TextStyle(
-                      color: totalReserve >= 0
-                          ? const Color(0xFF22C55E)
-                          : const Color(0xFFEF4444),
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Profit and Loss Statement ${report.year}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF111827),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Projected annual reserve ${formatMoney(estimate.projectedAnnualReserve)}',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                  Table(
+                    border: TableBorder.all(color: _borderColor, width: 0.8),
+                    columnWidths: const {
+                      0: FlexColumnWidth(2.6),
+                      1: FlexColumnWidth(1.45),
+                      2: FlexColumnWidth(1.45),
+                    },
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                    children: [
+                      _infoRow('Period Start', _formatDate(report.periodStart)),
+                      _infoRow('Period End', _formatDate(report.periodEnd)),
+                      _infoRow('Business Name', report.businessName),
+                      _sectionRow('GROSS INCOME'),
+                      _amountRow('Gross Income', report.grossIncome),
+                      _totalRow('Total Gross Income', report.grossIncome),
+                      _sectionRow('DETAILED EXPENSES'),
+                      for (final line in report.expenseLines) _expenseRow(line),
+                      _totalRow('Total Expenses', report.totalExpenses),
+                      _sectionRow('NET INCOME'),
+                      _totalRow(
+                        'Net Income Before Taxes',
+                        report.netIncomeBeforeTaxes,
+                      ),
+                      _textValueRow(
+                        'Estimated Tax Percentage',
+                        '${report.estimatedTaxPercentage.toStringAsFixed(0)}%',
+                      ),
+                      _totalRow(
+                        'Estimated Tax Amount',
+                        report.estimatedTaxAmount,
+                      ),
+                      _grandTotalRow(
+                        'Net Income After Taxes',
+                        report.netIncomeAfterTaxes,
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Icon(
-              Icons.request_quote_outlined,
-              color: Color(0xFFFACC15),
-              size: 27,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
-}
 
-class _TaxMetricCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final String detail;
-  final Color color;
+  static String _formatDate(DateTime date) {
+    return '${date.month.toString().padLeft(2, '0')}/'
+        '${date.day.toString().padLeft(2, '0')}/'
+        '${date.year}';
+  }
 
-  const _TaxMetricCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.detail,
-    required this.color,
-  });
+  static TableRow _infoRow(String label, String value) {
+    return _row(label: label, value: value);
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  static TableRow _sectionRow(String label) {
+    return _row(
+      label: label,
+      isBold: true,
+      fill: _headerFill,
+      labelColor: const Color(0xFF111827),
+    );
+  }
+
+  static TableRow _amountRow(String label, double amount) {
+    return _row(label: label, value: formatMoney(amount));
+  }
+
+  static TableRow _textValueRow(String label, String value) {
+    return _row(label: label, value: value);
+  }
+
+  static TableRow _totalRow(String label, double amount) {
+    return _row(label: label, value: formatMoney(amount), isBold: true);
+  }
+
+  static TableRow _grandTotalRow(String label, double amount) {
+    return _row(
+      label: label,
+      value: formatMoney(amount),
+      isBold: true,
+      fill: const Color(0xFFF9FAFB),
+    );
+  }
+
+  static TableRow _expenseRow(_ProfitLossExpenseLine line) {
+    final showComment = line.comment != null;
+    final value = showComment && line.amount == 0
+        ? ''
+        : formatMoney(line.amount);
+
+    return _row(
+      label: line.label,
+      comment: line.comment,
+      value: value,
+      commentFill: showComment ? _commentFill : null,
+      commentColor: showComment ? _commentText : null,
+    );
+  }
+
+  static TableRow _row({
+    required String label,
+    String? comment,
+    String value = '',
+    bool isBold = false,
+    Color? fill,
+    Color? labelColor,
+    Color? commentFill,
+    Color? commentColor,
+  }) {
+    return TableRow(
+      decoration: BoxDecoration(color: fill),
+      children: [
+        _cell(label, isBold: isBold, color: labelColor),
+        _cell(
+          comment ?? '',
+          background: commentFill,
+          color: commentColor,
+          isComment: comment != null,
+        ),
+        _cell(value, alignRight: true, isBold: isBold),
+      ],
+    );
+  }
+
+  static Widget _cell(
+    String text, {
+    bool alignRight = false,
+    bool isBold = false,
+    bool isComment = false,
+    Color? background,
+    Color? color,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    value,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  detail,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      color: background,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+      child: Text(
+        text,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: alignRight ? TextAlign.right : TextAlign.left,
+        style: TextStyle(
+          color: color ?? const Color(0xFF111827),
+          fontSize: isComment ? 11 : 12,
+          fontStyle: isComment ? FontStyle.italic : FontStyle.normal,
+          fontWeight: isBold ? FontWeight.w900 : FontWeight.w500,
+        ),
       ),
     );
   }
@@ -343,4 +367,181 @@ class _YearSelector extends StatelessWidget {
       ],
     );
   }
+}
+
+class _ProfitLossReport {
+  final int year;
+  final DateTime periodStart;
+  final DateTime periodEnd;
+  final String businessName;
+  final double grossIncome;
+  final List<_ProfitLossExpenseLine> expenseLines;
+  final double totalExpenses;
+  final double netIncomeBeforeTaxes;
+  final double estimatedTaxPercentage;
+  final double estimatedTaxAmount;
+  final double netIncomeAfterTaxes;
+
+  const _ProfitLossReport({
+    required this.year,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.businessName,
+    required this.grossIncome,
+    required this.expenseLines,
+    required this.totalExpenses,
+    required this.netIncomeBeforeTaxes,
+    required this.estimatedTaxPercentage,
+    required this.estimatedTaxAmount,
+    required this.netIncomeAfterTaxes,
+  });
+}
+
+class _ProfitLossExpenseLine {
+  final String label;
+  final double amount;
+  final String? comment;
+
+  const _ProfitLossExpenseLine({
+    required this.label,
+    required this.amount,
+    this.comment,
+  });
+}
+
+class _ProfitLossExpenseDefinition {
+  final String label;
+  final List<String> categories;
+  final bool trackedInApp;
+  final bool includeUnmapped;
+
+  const _ProfitLossExpenseDefinition(
+    this.label, {
+    this.categories = const <String>[],
+    this.trackedInApp = false,
+    this.includeUnmapped = false,
+  });
+}
+
+class _ProfitLossExpenseCatalog {
+  const _ProfitLossExpenseCatalog._();
+
+  static const List<_ProfitLossExpenseDefinition> definitions = [
+    _ProfitLossExpenseDefinition(
+      'Cost of Goods Sold (COGS)',
+      categories: <String>['COGS'],
+      trackedInApp: true,
+    ),
+    _ProfitLossExpenseDefinition(
+      'Accounting and Legal Fees',
+      categories: <String>['Accounting and Legal Fees'],
+    ),
+    _ProfitLossExpenseDefinition(
+      'Advertising',
+      categories: <String>['Advertising'],
+    ),
+    _ProfitLossExpenseDefinition(
+      'Insurance',
+      categories: <String>['Insurance'],
+      trackedInApp: true,
+    ),
+    _ProfitLossExpenseDefinition(
+      'Maintenance and Repairs',
+      categories: <String>['Maintenance and Repairs'],
+    ),
+    _ProfitLossExpenseDefinition(
+      'Consumable Supplies',
+      categories: <String>['Consumable Supplies'],
+      trackedInApp: true,
+    ),
+    _ProfitLossExpenseDefinition(
+      'Payroll',
+      categories: <String>['Payroll'],
+      trackedInApp: true,
+    ),
+    _ProfitLossExpenseDefinition(
+      'Equipment',
+      categories: <String>['Equipment'],
+      trackedInApp: true,
+    ),
+    _ProfitLossExpenseDefinition(
+      'Fuel',
+      categories: <String>['Fuel'],
+      trackedInApp: true,
+    ),
+    _ProfitLossExpenseDefinition('Postage', categories: <String>['Postage']),
+    _ProfitLossExpenseDefinition(
+      'Rent',
+      categories: <String>['Rent'],
+      trackedInApp: true,
+    ),
+    _ProfitLossExpenseDefinition('Licenses', categories: <String>['Licenses']),
+    _ProfitLossExpenseDefinition('Taxes', categories: <String>['Taxes']),
+    _ProfitLossExpenseDefinition(
+      'Telephone',
+      categories: <String>['Telephone'],
+    ),
+    _ProfitLossExpenseDefinition(
+      'Travel/Transportation',
+      categories: <String>['Travel/Transportation'],
+    ),
+    _ProfitLossExpenseDefinition(
+      'Utilities',
+      categories: <String>['Utilities'],
+      trackedInApp: true,
+    ),
+    _ProfitLossExpenseDefinition(
+      'Other (excluding depreciation/amortization)',
+      categories: <String>['Other'],
+      includeUnmapped: true,
+    ),
+  ];
+
+  static List<_ProfitLossExpenseLine> buildLines(List<ExpenseRecord> expenses) {
+    final mappedCategories = definitions
+        .where((definition) => !definition.includeUnmapped)
+        .expand((definition) => definition.categories)
+        .map(_normalize)
+        .toSet();
+
+    return definitions
+        .map((definition) {
+          final amount = definition.includeUnmapped
+              ? _sumUnmappedExpenses(expenses, mappedCategories)
+              : _sumExpenses(expenses, definition.categories);
+          final comment = !definition.trackedInApp && amount == 0
+              ? 'Not tracked in app'
+              : null;
+
+          return _ProfitLossExpenseLine(
+            label: definition.label,
+            amount: amount,
+            comment: comment,
+          );
+        })
+        .toList(growable: false);
+  }
+
+  static double _sumExpenses(
+    List<ExpenseRecord> expenses,
+    List<String> categories,
+  ) {
+    final categoryKeys = categories.map(_normalize).toSet();
+    return expenses
+        .where((record) => categoryKeys.contains(_normalize(record.category)))
+        .fold<double>(0, (sum, record) => sum + record.totalAmount);
+  }
+
+  static double _sumUnmappedExpenses(
+    List<ExpenseRecord> expenses,
+    Set<String> mappedCategories,
+  ) {
+    return expenses
+        .where(
+          (record) => !mappedCategories.contains(_normalize(record.category)),
+        )
+        .fold<double>(0, (sum, record) => sum + record.totalAmount);
+  }
+
+  static String _normalize(String value) => value.trim().toLowerCase();
 }

@@ -16,7 +16,7 @@ void main() {
     LiabilityService.resetForTesting(disablePersistence: false);
   });
 
-  testWidgets('TaxScreen estimates tax rate from projected annual reserve', (
+  testWidgets('TaxScreen renders yearly profit and tax statement', (
     WidgetTester tester,
   ) async {
     await LiabilityService.saveDeposit(
@@ -29,13 +29,51 @@ void main() {
       transactionDate: DateTime(2026, 1, 15),
       isManual: true,
     );
+    await LiabilityService.saveExpense(
+      checkNumber: 'payroll',
+      totalAmount: 10000,
+      transactionDate: DateTime(2026, 2, 1),
+      category: 'Payroll',
+      payee: 'Payroll',
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'fuel',
+      totalAmount: 500,
+      transactionDate: DateTime(2026, 3, 1),
+      category: 'Fuel',
+      payee: 'Fuel Stop',
+      isManual: true,
+    );
 
     await tester.pumpWidget(const MaterialApp(home: TaxScreen()));
     await tester.pumpAndSettle();
 
-    expect(find.text(r'$50,000.00'), findsOneWidget);
-    expect(find.text('Projected annual reserve \$100,000.00'), findsOneWidget);
+    expect(find.text('Profit and Tax'), findsOneWidget);
+    expect(find.text('Profit and Loss Statement 2026'), findsOneWidget);
+    expect(find.text('Period Start'), findsOneWidget);
+    expect(find.text('01/01/2026'), findsOneWidget);
+    expect(find.text('Period End'), findsOneWidget);
+    expect(find.text('12/31/2026'), findsOneWidget);
+    expect(find.text('Business Name'), findsOneWidget);
+    expect(find.text('Save Tep'), findsOneWidget);
+    expect(find.text('Gross Income'), findsOneWidget);
+    expect(find.text(r'$50,000.00'), findsNWidgets(2));
+    expect(find.text('Payroll'), findsOneWidget);
+    expect(find.text(r'$10,000.00'), findsOneWidget);
+    expect(find.text('Fuel'), findsOneWidget);
+    expect(find.text(r'$500.00'), findsOneWidget);
+    expect(find.text('Advertising'), findsOneWidget);
+    expect(find.text('Not tracked in app'), findsWidgets);
+    expect(find.text('Total Expenses'), findsOneWidget);
+    expect(find.text(r'$10,500.00'), findsOneWidget);
+    expect(find.text('Net Income Before Taxes'), findsOneWidget);
+    expect(find.text(r'$39,500.00'), findsOneWidget);
+    expect(find.text('Estimated Tax Percentage'), findsOneWidget);
     expect(find.text('22%'), findsWidgets);
-    expect(find.text(r'$11,000.00'), findsOneWidget);
+    expect(find.text('Estimated Tax Amount'), findsOneWidget);
+    expect(find.text(r'$8,690.00'), findsOneWidget);
+    expect(find.text('Net Income After Taxes'), findsOneWidget);
+    expect(find.text(r'$30,810.00'), findsOneWidget);
   });
 }
