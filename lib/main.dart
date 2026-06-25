@@ -14,7 +14,7 @@ import 'features/auth/screens/scan_screen/deposit_screen/scan_deposit_choice.dar
 import 'features/auth/screens/scan_screen/expense_screen/scan_expense_choice.dart';
 import 'features/auth/screens/transaction_screen/transaction_screen.dart';
 import 'features/auth/screens/liabilities_screen/liabilities_screen.dart';
-import 'features/auth/screens/reserves_screen/reserves_screen.dart';
+import 'features/auth/screens/saving_screen/saving_screen.dart';
 import 'features/auth/screens/reminder_screen/reminder_screen.dart';
 import 'features/auth/screens/tax_screen/tax_screen.dart';
 import 'features/auth/screens/user_setting/user_setting_screens.dart';
@@ -132,7 +132,7 @@ class SaveTepApp extends StatelessWidget {
             return const TransactionScreen();
           },
           '/liabilities': (context) => const LiabilitiesScreen(),
-          '/reserves': (context) => const ReservesScreen(),
+          '/saving': (context) => const SavingScreen(),
           '/reminders': (context) => const ReminderScreen(),
           '/tax': (context) => const TaxScreen(),
           UserSettingsRoutes.settings: (context) => const UserSettingsScreen(),

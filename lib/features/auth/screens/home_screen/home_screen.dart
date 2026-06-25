@@ -194,11 +194,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   _buildFeatureCard(
                     icon: Icons.account_balance_wallet_outlined,
-                    label: 'BALANCE',
+                    label: 'SAVING',
                     color: const Color.fromARGB(255, 255, 199, 161),
                     iconColor: const Color(0xFF166534),
                     textColor: const Color.fromARGB(255, 12, 99, 4),
-                    onTap: () => _openAndRefresh('/reserves'),
+                    onTap: () => _openAndRefresh('/saving'),
                   ),
                   _buildFeatureCard(
                     icon: Icons.flag,

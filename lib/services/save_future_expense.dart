@@ -169,6 +169,7 @@ class SaveFutureExpense {
 
   static ExpenseRecord _templateForDate(
     List<ExpenseRecord> records,
+    
     DateTime date,
   ) {
     final monthKey = _monthKey(date);
