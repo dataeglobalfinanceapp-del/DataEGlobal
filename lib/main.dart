@@ -26,7 +26,7 @@ Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
     await _configureAmplify();
-    runApp(const savetepApp());
+    runApp(const SaveTepApp());
   } on AmplifyException catch (e) {
     runApp(_AmplifyConfigurationErrorApp(message: e.message));
   }
@@ -65,8 +65,8 @@ class _AmplifyConfigurationErrorApp extends StatelessWidget {
   }
 }
 
-class savetepApp extends StatelessWidget {
-  const savetepApp({super.key});
+class SaveTepApp extends StatelessWidget {
+  const SaveTepApp({super.key});
 
   @override
   Widget build(BuildContext context) {

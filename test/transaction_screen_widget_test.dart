@@ -196,6 +196,85 @@ void main() {
     expect(find.text('Fuel Stop'), findsOneWidget);
     expect(find.text('Studio Rent'), findsNothing);
   });
+
+  testWidgets('TransactionScreen filters expense tab by date range', (
+    WidgetTester tester,
+  ) async {
+    await LiabilityService.saveDeposit(
+      orderNumber: 'inside-range',
+      totalAmount: 200,
+      creditDeposit: 200,
+      cash: 0,
+      giftCard: 0,
+      other: 0,
+      transactionDate: DateTime(2026, 6, 10),
+      isManual: true,
+    );
+    await LiabilityService.saveDeposit(
+      orderNumber: 'outside-range',
+      totalAmount: 1000,
+      creditDeposit: 1000,
+      cash: 0,
+      giftCard: 0,
+      other: 0,
+      transactionDate: DateTime(2026, 6, 20),
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'E200',
+      totalAmount: 45,
+      transactionDate: DateTime(2026, 6, 12),
+      category: 'Fuel',
+      payee: 'Fuel Stop',
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'E201',
+      totalAmount: 100,
+      transactionDate: DateTime(2026, 6, 20),
+      category: 'Office',
+      payee: 'Office Supply',
+      isManual: true,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TransactionScreen(
+          initialExpenseDateRange: DateTimeRange(
+            start: DateTime(2026, 6, 10),
+            end: DateTime(2026, 6, 15),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('06/10/2026 - 06/15/2026'), findsOneWidget);
+    expect(find.text(r'$155.00'), findsOneWidget);
+    expect(find.text(r'$200.00'), findsOneWidget);
+    expect(find.text(r'$45.00'), findsWidgets);
+    expect(find.text(r'$100.00'), findsNothing);
+    expect(find.text(r'$1,000.00'), findsNothing);
+
+    await tester.dragUntilVisible(
+      find.text('June'),
+      find.byType(ListView),
+      const Offset(0, -180),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('June'));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Fuel Stop'),
+      find.byType(ListView),
+      const Offset(0, -100),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fuel Stop'), findsOneWidget);
+    expect(find.text('Office Supply'), findsNothing);
+  });
 }
 
 Future<void> _pumpTransactionScreenWithProfitAndLossRoute(

@@ -5,6 +5,7 @@ import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/money_formatter.dart';
 import 'package:savetep/services/recurrence_schedule.dart';
 
+import '../../widgets/app_date_range_selector.dart';
 import 'tax_estimator.dart';
 
 class TaxScreen extends StatefulWidget {
@@ -28,7 +29,9 @@ class _TaxScreenState extends State<TaxScreen> {
   @override
   void initState() {
     super.initState();
-    _dateRange = _normalizedRange(widget.initialDateRange ?? _yearRange(_year));
+    _dateRange = AppDateRangeSelector.normalized(
+      widget.initialDateRange ?? _yearRange(_year),
+    );
     _year = _dateRange.start.year;
     _loadData();
   }
@@ -99,37 +102,8 @@ class _TaxScreenState extends State<TaxScreen> {
     });
   }
 
-  Future<void> _selectDateRange() async {
-    final firstDate = DateTime(_year - 5);
-    final lastDate = DateTime(_year + 5, 12, 31);
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: firstDate,
-      lastDate: lastDate,
-      currentDate: AppClock.now,
-      initialDateRange: _dateRange,
-      helpText: 'Select tax period',
-      saveText: 'Apply',
-    );
-    if (picked == null || !mounted) return;
-
-    setState(() {
-      _dateRange = _normalizedRange(picked);
-      _year = _dateRange.start.year;
-    });
-  }
-
   static DateTimeRange _yearRange(int year) {
     return DateTimeRange(start: DateTime(year), end: DateTime(year, 12, 31));
-  }
-
-  static DateTimeRange _normalizedRange(DateTimeRange range) {
-    final start = RecurrenceSchedule.dateOnly(range.start);
-    final end = RecurrenceSchedule.dateOnly(range.end);
-    if (end.isBefore(start)) {
-      return DateTimeRange(start: end, end: start);
-    }
-    return DateTimeRange(start: start, end: end);
   }
 
   static bool _isInDateRange(DateTime value, DateTime start, DateTime end) {
@@ -174,9 +148,20 @@ class _TaxScreenState extends State<TaxScreen> {
                     onNext: () => _changeYear(1),
                   ),
                   const SizedBox(height: 8),
-                  _DateRangeSelector(
+                  AppDateRangeSelector(
+                    key: const ValueKey('tax-date-range-button'),
                     range: _dateRange,
-                    onPressed: _selectDateRange,
+                    firstDate: DateTime(_year - 5),
+                    lastDate: DateTime(_year + 5, 12, 31),
+                    currentDate: AppClock.now,
+                    helpText: 'Select tax period',
+                    tooltip: 'Select tax date range',
+                    onRangeChanged: (DateTimeRange range) {
+                      setState(() {
+                        _dateRange = range;
+                        _year = _dateRange.start.year;
+                      });
+                    },
                   ),
                   const SizedBox(height: 12),
                   _ProfitAndTaxStatement(report: report),
@@ -419,49 +404,6 @@ class _YearSelector extends StatelessWidget {
           icon: const Icon(Icons.chevron_right, size: 20),
         ),
       ],
-    );
-  }
-}
-
-class _DateRangeSelector extends StatelessWidget {
-  final DateTimeRange range;
-  final VoidCallback onPressed;
-
-  const _DateRangeSelector({required this.range, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    final label =
-        '${_ProfitAndTaxStatement._formatDate(range.start)} - '
-        '${_ProfitAndTaxStatement._formatDate(range.end)}';
-
-    return Align(
-      alignment: Alignment.center,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            key: const ValueKey('tax-date-range-button'),
-            onPressed: onPressed,
-            icon: const Icon(Icons.date_range_outlined, size: 18),
-            label: Text(label, textAlign: TextAlign.center),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF111827),
-              backgroundColor: Colors.white,
-              side: const BorderSide(color: Color(0xFFD1D5DB)),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              textStyle: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

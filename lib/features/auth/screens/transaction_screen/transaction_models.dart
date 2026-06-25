@@ -50,6 +50,7 @@ class _TransactionViewState {
   final _TransactionKind kind;
   final _TransactionFilter filter;
   final int year;
+  final DateTimeRange expenseDateRange;
   final String? category;
   final double totalDeposits;
   final double totalExpenses;
@@ -65,6 +66,7 @@ class _TransactionViewState {
     required this.kind,
     required this.filter,
     required this.year,
+    required this.expenseDateRange,
     required this.category,
     required this.totalDeposits,
     required this.totalExpenses,
@@ -76,12 +78,16 @@ class _TransactionViewState {
     required this.entries,
   });
 
-  factory _TransactionViewState.initial(int year) {
+  factory _TransactionViewState.initial({
+    required int year,
+    required DateTimeRange expenseDateRange,
+  }) {
     return _TransactionViewState(
       isLoading: true,
       kind: _TransactionKind.expense,
       filter: _TransactionFilter.monthly,
       year: year,
+      expenseDateRange: expenseDateRange,
       category: null,
       totalDeposits: 0,
       totalExpenses: 0,

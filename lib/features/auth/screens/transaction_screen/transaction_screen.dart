@@ -12,6 +12,7 @@ import 'package:savetep/services/money_formatter.dart';
 import 'package:savetep/services/yearly_pdf_report.dart';
 
 import '../tax_screen/tax_estimator.dart';
+import '../../widgets/app_date_range_selector.dart';
 import '../../widgets/app_bottom_navigation_bar.dart';
 
 part 'transaction_controller.dart';
@@ -19,7 +20,9 @@ part 'transaction_models.dart';
 part 'transaction_widgets.dart';
 
 class TransactionScreen extends StatefulWidget {
-  const TransactionScreen({super.key});
+  final DateTimeRange? initialExpenseDateRange;
+
+  const TransactionScreen({super.key, this.initialExpenseDateRange});
 
   @override
   State<TransactionScreen> createState() => _TransactionScreenState();
@@ -31,7 +34,9 @@ class _TransactionScreenState extends State<TransactionScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = _TransactionController()..loadTransactions();
+    _controller = _TransactionController(
+      initialExpenseDateRange: widget.initialExpenseDateRange,
+    )..loadTransactions();
   }
 
   @override
@@ -359,6 +364,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     onFilterChanged: _controller.setFilter,
                     onCategoryTap: _chooseCategory,
                     onCategorySelected: _controller.selectExpenseCategory,
+                    onExpenseDateRangeChanged: _controller.setExpenseDateRange,
                     onYearChanged: _controller.changeYear,
                     onToggleGroup: _controller.toggleGroup,
                     onDelete: _confirmDeleteItem,

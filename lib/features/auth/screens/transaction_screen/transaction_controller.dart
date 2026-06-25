@@ -4,6 +4,7 @@ class _TransactionController extends ChangeNotifier {
   _TransactionKind _kind = _TransactionKind.expense;
   _TransactionFilter _filter = _TransactionFilter.monthly;
   int _year = AppClock.now.year;
+  late DateTimeRange _expenseDateRange;
   String? _category;
   bool _isLoading = true;
   bool _isDisposed = false;
@@ -11,9 +12,18 @@ class _TransactionController extends ChangeNotifier {
   List<ExpenseRecord> _expenses = const <ExpenseRecord>[];
   final Set<String> _expandedGroups = <String>{};
 
-  _TransactionViewState _state = _TransactionViewState.initial(
-    AppClock.now.year,
-  );
+  late _TransactionViewState _state;
+
+  _TransactionController({DateTimeRange? initialExpenseDateRange}) {
+    _expenseDateRange = _TransactionDateUtils.normalizedRange(
+      initialExpenseDateRange ?? _TransactionDateUtils.yearDateRange(_year),
+    );
+    _year = _expenseDateRange.start.year;
+    _state = _TransactionViewState.initial(
+      year: _year,
+      expenseDateRange: _expenseDateRange,
+    );
+  }
 
   _TransactionViewState get state => _state;
 
@@ -69,6 +79,22 @@ class _TransactionController extends ChangeNotifier {
 
   void changeYear(int delta) {
     _year += delta;
+    _expenseDateRange = _TransactionDateUtils.yearDateRange(_year);
+    _expandedGroups.clear();
+    _rebuildState();
+    _notify();
+  }
+
+  void setExpenseDateRange(DateTimeRange range) {
+    final DateTimeRange normalizedRange = _TransactionDateUtils.normalizedRange(
+      range,
+    );
+    if (_TransactionDateUtils.isSameRange(_expenseDateRange, normalizedRange)) {
+      return;
+    }
+
+    _expenseDateRange = normalizedRange;
+    _year = _expenseDateRange.start.year;
     _expandedGroups.clear();
     _rebuildState();
     _notify();
@@ -150,20 +176,28 @@ class _TransactionController extends ChangeNotifier {
   }
 
   void _rebuildState() {
-    final double totalDeposits = _TransactionDataMapper.totalDeposits(
-      _deposits,
-      _year,
-    );
-    final double totalExpenses = _TransactionDataMapper.totalExpenses(
-      _expenses,
-      _year,
-    );
+    final bool isExpenseView = _kind == _TransactionKind.expense;
+    final double totalDeposits = isExpenseView
+        ? _TransactionDataMapper.totalDepositsInRange(
+            _deposits,
+            _expenseDateRange,
+          )
+        : _TransactionDataMapper.totalDeposits(_deposits, _year);
+    final double totalExpenses = isExpenseView
+        ? _TransactionDataMapper.totalExpensesInRange(
+            _expenses,
+            _expenseDateRange,
+          )
+        : _TransactionDataMapper.totalExpenses(_expenses, _year);
     final List<String> expenseCategories =
-        _TransactionDataMapper.expenseCategories(_expenses);
+        _TransactionDataMapper.expenseCategories(
+          _expenses,
+          dateRange: _expenseDateRange,
+        );
     final double selectedCategoryExpenseTotal =
         _TransactionDataMapper.selectedCategoryExpenseTotal(
           expenses: _expenses,
-          year: _year,
+          dateRange: _expenseDateRange,
           category: _category,
         );
     final int taxProjectionMonth = _TransactionDataMapper.projectionMonth(
@@ -183,6 +217,7 @@ class _TransactionController extends ChangeNotifier {
       kind: _kind,
       filter: _filter,
       year: _year,
+      expenseDateRange: _expenseDateRange,
       category: _category,
       deposits: _deposits,
       expenses: _expenses,
@@ -198,6 +233,7 @@ class _TransactionController extends ChangeNotifier {
       kind: _kind,
       filter: _filter,
       year: _year,
+      expenseDateRange: _expenseDateRange,
       category: _category,
       totalDeposits: totalDeposits,
       totalExpenses: totalExpenses,
@@ -243,6 +279,40 @@ class _TransactionDataMapper {
         );
   }
 
+  static double totalDepositsInRange(
+    List<DepositRecord> deposits,
+    DateTimeRange dateRange,
+  ) {
+    return deposits
+        .where(
+          (DepositRecord record) => _TransactionDateUtils.isInDateRange(
+            record.transactionDate,
+            dateRange,
+          ),
+        )
+        .fold<double>(
+          0,
+          (double total, DepositRecord record) => total + record.totalAmount,
+        );
+  }
+
+  static double totalExpensesInRange(
+    List<ExpenseRecord> expenses,
+    DateTimeRange dateRange,
+  ) {
+    return expenses
+        .where(
+          (ExpenseRecord record) => _TransactionDateUtils.isInDateRange(
+            record.transactionDate,
+            dateRange,
+          ),
+        )
+        .fold<double>(
+          0,
+          (double total, ExpenseRecord record) => total + record.totalAmount,
+        );
+  }
+
   static int projectionMonth(int year) {
     final DateTime now = AppClock.now;
     return year == now.year ? now.month : 12;
@@ -279,8 +349,17 @@ class _TransactionDataMapper {
     return deposit - expense;
   }
 
-  static List<String> expenseCategories(List<ExpenseRecord> expenses) {
+  static List<String> expenseCategories(
+    List<ExpenseRecord> expenses, {
+    required DateTimeRange dateRange,
+  }) {
     final List<String> categories = expenses
+        .where(
+          (ExpenseRecord record) => _TransactionDateUtils.isInDateRange(
+            record.transactionDate,
+            dateRange,
+          ),
+        )
         .map<String>((ExpenseRecord record) => record.category)
         .where((String category) => category.trim().isNotEmpty)
         .toSet()
@@ -291,7 +370,7 @@ class _TransactionDataMapper {
 
   static double selectedCategoryExpenseTotal({
     required List<ExpenseRecord> expenses,
-    required int year,
+    required DateTimeRange dateRange,
     required String? category,
   }) {
     if (category == null) return 0;
@@ -299,7 +378,10 @@ class _TransactionDataMapper {
     return expenses
         .where(
           (ExpenseRecord record) =>
-              record.transactionDate.year == year &&
+              _TransactionDateUtils.isInDateRange(
+                record.transactionDate,
+                dateRange,
+              ) &&
               record.category == category,
         )
         .fold<double>(
@@ -312,6 +394,7 @@ class _TransactionDataMapper {
     required _TransactionKind kind,
     required _TransactionFilter filter,
     required int year,
+    required DateTimeRange expenseDateRange,
     required String? category,
     required List<DepositRecord> deposits,
     required List<ExpenseRecord> expenses,
@@ -325,10 +408,13 @@ class _TransactionDataMapper {
 
     final List<ExpenseRecord> records = expenses
         .where((ExpenseRecord record) {
-          final bool matchesYear = record.transactionDate.year == year;
+          final bool matchesRange = _TransactionDateUtils.isInDateRange(
+            record.transactionDate,
+            expenseDateRange,
+          );
           final bool matchesCategory =
               category == null || record.category == category;
-          return matchesYear && matchesCategory;
+          return matchesRange && matchesCategory;
         })
         .toList(growable: false);
 
@@ -758,6 +844,14 @@ class _TransactionDateUtils {
     );
   }
 
+  static DateTimeRange yearDateRange(int year) {
+    return DateTimeRange(start: DateTime(year), end: DateTime(year, 12, 31));
+  }
+
+  static DateTimeRange normalizedRange(DateTimeRange range) {
+    return AppDateRangeSelector.normalized(range);
+  }
+
   static String groupKey(DateTime date, _TransactionFilter filter) {
     return switch (filter) {
       _TransactionFilter.weekly => '${date.year}-w${weekOfYear(date)}',
@@ -791,6 +885,19 @@ class _TransactionDateUtils {
   static bool isInRange(DateTime value, _ExportRange range) {
     final DateTime date = dateOnly(value);
     return !date.isBefore(range.start) && !date.isAfter(range.end);
+  }
+
+  static bool isInDateRange(DateTime value, DateTimeRange range) {
+    final DateTimeRange normalized = normalizedRange(range);
+    final DateTime date = dateOnly(value);
+    return !date.isBefore(normalized.start) && !date.isAfter(normalized.end);
+  }
+
+  static bool isSameRange(DateTimeRange left, DateTimeRange right) {
+    final DateTimeRange normalizedLeft = normalizedRange(left);
+    final DateTimeRange normalizedRight = normalizedRange(right);
+    return dateOnly(normalizedLeft.start) == dateOnly(normalizedRight.start) &&
+        dateOnly(normalizedLeft.end) == dateOnly(normalizedRight.end);
   }
 
   static DateTime dateOnly(DateTime value) {

@@ -23,6 +23,7 @@ class _TransactionList extends StatelessWidget {
   final ValueChanged<_TransactionFilter> onFilterChanged;
   final VoidCallback onCategoryTap;
   final ValueChanged<String> onCategorySelected;
+  final ValueChanged<DateTimeRange> onExpenseDateRangeChanged;
   final ValueChanged<int> onYearChanged;
   final ValueChanged<String> onToggleGroup;
   final ValueChanged<_TransactionItem> onDelete;
@@ -37,6 +38,7 @@ class _TransactionList extends StatelessWidget {
     required this.onFilterChanged,
     required this.onCategoryTap,
     required this.onCategorySelected,
+    required this.onExpenseDateRangeChanged,
     required this.onYearChanged,
     required this.onToggleGroup,
     required this.onDelete,
@@ -61,6 +63,7 @@ class _TransactionList extends StatelessWidget {
             onKindChanged: onKindChanged,
             onFilterChanged: onFilterChanged,
             onCategoryTap: onCategoryTap,
+            onExpenseDateRangeChanged: onExpenseDateRangeChanged,
             onYearChanged: onYearChanged,
             onEstimatedTaxRateTap: onEstimatedTaxRateTap,
           );
@@ -109,6 +112,7 @@ class _TransactionHeader extends StatelessWidget {
   final ValueChanged<_TransactionKind> onKindChanged;
   final ValueChanged<_TransactionFilter> onFilterChanged;
   final VoidCallback onCategoryTap;
+  final ValueChanged<DateTimeRange> onExpenseDateRangeChanged;
   final ValueChanged<int> onYearChanged;
   final VoidCallback onEstimatedTaxRateTap;
 
@@ -117,6 +121,7 @@ class _TransactionHeader extends StatelessWidget {
     required this.onKindChanged,
     required this.onFilterChanged,
     required this.onCategoryTap,
+    required this.onExpenseDateRangeChanged,
     required this.onYearChanged,
     required this.onEstimatedTaxRateTap,
   });
@@ -149,6 +154,20 @@ class _TransactionHeader extends StatelessWidget {
           onPrev: () => onYearChanged(-1),
           onNext: () => onYearChanged(1),
         ),
+        if (state.kind == _TransactionKind.expense) ...<Widget>[
+          const SizedBox(height: 8),
+          AppDateRangeSelector(
+            key: const ValueKey('expense-date-range-button'),
+            range: state.expenseDateRange,
+            firstDate: DateTime(2000),
+            lastDate: DateTime(2100, 12, 31),
+            currentDate: AppClock.now,
+            helpText: 'Select expense period',
+            tooltip: 'Select expense date range',
+            boxShadow: _TransactionTokens.softShadow,
+            onRangeChanged: onExpenseDateRangeChanged,
+          ),
+        ],
         if (state.kind == _TransactionKind.expense &&
             state.category != null) ...<Widget>[
           const SizedBox(height: 8),
