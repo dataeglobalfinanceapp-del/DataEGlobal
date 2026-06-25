@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:biztrack/services/app_clock.dart';
-import 'package:biztrack/services/liability_service.dart';
-import 'package:biztrack/services/money_formatter.dart';
-import 'package:biztrack/services/recurring_expense_reminder_service.dart';
+import 'package:savetep/services/app_clock.dart';
+import 'package:savetep/services/liability_service.dart';
+import 'package:savetep/services/money_formatter.dart';
+import 'package:savetep/services/recurring_expense_reminder_service.dart';
 import 'scan_expense_screen.dart';
 
 class ScanExpenseAutoScreen extends StatefulWidget {

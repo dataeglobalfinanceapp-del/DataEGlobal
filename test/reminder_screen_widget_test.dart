@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:biztrack/features/auth/screens/reminder_screen/reminder_screen.dart';
-import 'package:biztrack/services/app_clock.dart';
-import 'package:biztrack/services/reminder_service.dart';
+import 'package:savetep/features/auth/screens/reminder_screen/reminder_screen.dart';
+import 'package:savetep/services/app_clock.dart';
+import 'package:savetep/services/reminder_service.dart';
 
 void main() {
   setUp(() {

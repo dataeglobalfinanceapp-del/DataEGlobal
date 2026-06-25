@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'package:biztrack/features/auth/models/budget_data.dart';
-import 'package:biztrack/features/auth/models/liability_model.dart';
-import 'package:biztrack/services/local_store_test/local_store.dart';
+import 'package:savetep/features/auth/models/budget_data.dart';
+import 'package:savetep/features/auth/models/liability_model.dart';
+import 'package:savetep/services/local_store_test/local_store.dart';
 
 import 'app_clock.dart';
 import 'recurrence_schedule.dart';
@@ -13,7 +13,7 @@ import 'recurrence_schedule.dart';
 part 'save_future_expense.dart';
 
 class LiabilityService {
-  static const _storageKey = 'biztrack_local_data_v1';
+  static const _storageKey = 'savetep_local_data_v1';
   static const _defaultBudgetSeedVersionKey = 'defaultBudgetSeedVersion';
   static const _defaultBudgetSeedMonthKey = 'defaultBudgetSeedMonthKey';
 

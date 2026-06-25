@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:biztrack/features/auth/screens/scan_screen/deposit_screen/deposit_account_balance_summary_screen.dart';
-import 'package:biztrack/features/auth/screens/scan_screen/deposit_screen/scan_deposit_choice.dart';
-import 'package:biztrack/services/app_clock.dart';
-import 'package:biztrack/services/liability_service.dart';
+import 'package:savetep/features/auth/screens/scan_screen/deposit_screen/deposit_account_balance_summary_screen.dart';
+import 'package:savetep/features/auth/screens/scan_screen/deposit_screen/scan_deposit_choice.dart';
+import 'package:savetep/services/app_clock.dart';
+import 'package:savetep/services/liability_service.dart';
 
 void main() {
   setUp(() {

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:biztrack/features/auth/screens/tax_screen/tax_estimator.dart';
+import 'package:savetep/features/auth/screens/tax_screen/tax_estimator.dart';
 
 void main() {
   test(

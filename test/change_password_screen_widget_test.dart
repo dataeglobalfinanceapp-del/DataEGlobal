@@ -1,4 +1,4 @@
-import 'package:biztrack/features/auth/screens/user_setting/change_password/change_password_screen.dart';
+import 'package:savetep/features/auth/screens/user_setting/change_password/change_password_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

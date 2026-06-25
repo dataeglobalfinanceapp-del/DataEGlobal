@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:biztrack/services/app_clock.dart';
-import 'package:biztrack/services/liability_service.dart';
-import 'package:biztrack/services/recurring_expense_reminder_service.dart';
-import 'package:biztrack/services/reminder_service.dart';
+import 'package:savetep/services/app_clock.dart';
+import 'package:savetep/services/liability_service.dart';
+import 'package:savetep/services/recurring_expense_reminder_service.dart';
+import 'package:savetep/services/reminder_service.dart';
 
 void main() {
   setUp(() {

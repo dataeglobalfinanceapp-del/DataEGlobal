@@ -1,4 +1,4 @@
-import 'package:biztrack/features/auth/screens/user_setting/change_password/change_password_controller.dart';
+import 'package:savetep/features/auth/screens/user_setting/change_password/change_password_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

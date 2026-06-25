@@ -8,11 +8,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:biztrack/main.dart';
+import 'package:savetep/main.dart';
 
 void main() {
   testWidgets('App builds a MaterialApp', (WidgetTester tester) async {
-    await tester.pumpWidget(const BizTrackApp());
+    await tester.pumpWidget(const savetepApp());
 
     expect(find.byType(MaterialApp), findsOneWidget);
   });
@@ -22,7 +22,7 @@ void main() {
   ) async {
     const Key gateKey = Key('startup-focus-gate');
 
-    await tester.pumpWidget(const BizTrackApp());
+    await tester.pumpWidget(const savetepApp());
 
     FocusScope gate = tester.widget<FocusScope>(find.byKey(gateKey));
     expect(gate.canRequestFocus, isFalse);

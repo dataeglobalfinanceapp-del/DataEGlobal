@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
-import 'package:biztrack/services/local_store_test/local_store.dart';
+import 'package:savetep/services/local_store_test/local_store.dart';
 
 import 'app_clock.dart';
 import 'recurrence_schedule.dart';
@@ -12,7 +12,7 @@ enum ReminderDeleteScope { single, series }
 enum ReminderEditScope { single, series }
 
 class ReminderService {
-  static const _storageKey = 'biztrack_reminders_v1';
+  static const _storageKey = 'savetep_reminders_v1';
 
   static final List<ReminderRecord> _reminders = [];
   static final Map<String, ReminderSeries> _series = {};

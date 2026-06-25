@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 
-import 'package:biztrack/services/app_clock.dart';
-import 'package:biztrack/services/liability_service.dart';
-import 'package:biztrack/services/money_formatter.dart';
+import 'package:savetep/services/app_clock.dart';
+import 'package:savetep/services/liability_service.dart';
+import 'package:savetep/services/money_formatter.dart';
 import 'scan_deposit_screen.dart';
 
 class ScanDepositAutoScreen extends StatefulWidget {

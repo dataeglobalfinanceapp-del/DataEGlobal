@@ -18,7 +18,7 @@ Future<File> _storeFile(String key) async {
       Platform.environment['HOME'] ??
       Directory.current.path;
   final directory = Directory(
-    '$root${Platform.pathSeparator}BizTrack${Platform.pathSeparator}local_data',
+    '$root${Platform.pathSeparator}savetep${Platform.pathSeparator}local_data',
   );
 
   return File('$directory${Platform.pathSeparator}$key.json');

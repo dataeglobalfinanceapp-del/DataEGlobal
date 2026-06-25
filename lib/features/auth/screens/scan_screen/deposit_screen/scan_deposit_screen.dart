@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:biztrack/services/money_formatter.dart';
+import 'package:savetep/services/money_formatter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Models

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:biztrack/services/app_clock.dart';
+import 'package:savetep/services/app_clock.dart';
 
 enum BudgetPeriod {
   week('Week'),
