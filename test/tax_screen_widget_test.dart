@@ -64,7 +64,7 @@ void main() {
     expect(find.text('Fuel'), findsOneWidget);
     expect(find.text(r'$500.00'), findsOneWidget);
     expect(find.text('Advertising'), findsOneWidget);
-    expect(find.text('Not tracked in app'), findsWidgets);
+    expect(find.text('Not tracked in app'), findsNothing);
     expect(find.text('Total Expenses'), findsOneWidget);
     expect(find.text(r'$10,500.00'), findsOneWidget);
     expect(find.text('Net Income Before Taxes'), findsOneWidget);
@@ -75,5 +75,32 @@ void main() {
     expect(find.text(r'$8,690.00'), findsOneWidget);
     expect(find.text('Net Income After Taxes'), findsOneWidget);
     expect(find.text(r'$30,810.00'), findsOneWidget);
+
+    final table = tester.widget<Table>(find.byType(Table));
+    expect(table.children.every((row) => row.children.length == 2), isTrue);
+
+    final advertisingRow = table.children.singleWhere((row) {
+      final labelCell = row.children.first as Container;
+      final label = labelCell.child as Text;
+      return label.data == 'Advertising';
+    });
+    final decoration = advertisingRow.decoration as BoxDecoration;
+    expect(decoration.color, const Color(0xFFE0F2FE));
+  });
+
+  testWidgets('TaxScreen renders at a narrow mobile width', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const MaterialApp(home: TaxScreen()));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Profit and Loss Statement 2026'), findsOneWidget);
+    expect(find.text('Not tracked in app'), findsNothing);
   });
 }

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import 'package:biztrack/services/app_clock.dart';
@@ -139,19 +137,25 @@ class _ProfitAndTaxStatement extends StatelessWidget {
 
   static const _borderColor = Color(0xFF111827);
   static const _headerFill = Color(0xFFE5E7EB);
-  static const _commentFill = Color(0xFFFFF7ED);
-  static const _commentText = Color(0xFFB45309);
+  static const _untrackedFill = Color(0xFFE0F2FE);
+  static const Map<int, TableColumnWidth> _wideColumnWidths = {
+    0: FlexColumnWidth(2.4),
+    1: FlexColumnWidth(1),
+  };
+  static const Map<int, TableColumnWidth> _compactColumnWidths = {
+    0: FlexColumnWidth(1.75),
+    1: FlexColumnWidth(1),
+  };
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final tableWidth = math.max(constraints.maxWidth, 640.0);
+        final isCompact = constraints.maxWidth < 380;
 
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: tableWidth,
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -175,6 +179,7 @@ class _ProfitAndTaxStatement extends StatelessWidget {
                     alignment: Alignment.center,
                     child: Text(
                       'Profit and Loss Statement ${report.year}',
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
@@ -184,11 +189,9 @@ class _ProfitAndTaxStatement extends StatelessWidget {
                   ),
                   Table(
                     border: TableBorder.all(color: _borderColor, width: 0.8),
-                    columnWidths: const {
-                      0: FlexColumnWidth(2.6),
-                      1: FlexColumnWidth(1.45),
-                      2: FlexColumnWidth(1.45),
-                    },
+                    columnWidths: isCompact
+                        ? _compactColumnWidths
+                        : _wideColumnWidths,
                     defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                     children: [
                       _infoRow('Period Start', _formatDate(report.periodStart)),
@@ -269,39 +272,37 @@ class _ProfitAndTaxStatement extends StatelessWidget {
   }
 
   static TableRow _expenseRow(_ProfitLossExpenseLine line) {
-    final showComment = line.comment != null;
-    final value = showComment && line.amount == 0
+    final isUntracked = !line.trackedInApp;
+    final value = isUntracked && line.amount == 0
         ? ''
         : formatMoney(line.amount);
 
     return _row(
       label: line.label,
-      comment: line.comment,
       value: value,
-      commentFill: showComment ? _commentFill : null,
-      commentColor: showComment ? _commentText : null,
+      fill: isUntracked ? _untrackedFill : null,
+      labelSemanticLabel: isUntracked
+          ? '${line.label}, not tracked in app'
+          : null,
     );
   }
 
   static TableRow _row({
     required String label,
-    String? comment,
     String value = '',
     bool isBold = false,
     Color? fill,
     Color? labelColor,
-    Color? commentFill,
-    Color? commentColor,
+    String? labelSemanticLabel,
   }) {
     return TableRow(
       decoration: BoxDecoration(color: fill),
       children: [
-        _cell(label, isBold: isBold, color: labelColor),
         _cell(
-          comment ?? '',
-          background: commentFill,
-          color: commentColor,
-          isComment: comment != null,
+          label,
+          isBold: isBold,
+          color: labelColor,
+          semanticLabel: labelSemanticLabel,
         ),
         _cell(value, alignRight: true, isBold: isBold),
       ],
@@ -312,23 +313,19 @@ class _ProfitAndTaxStatement extends StatelessWidget {
     String text, {
     bool alignRight = false,
     bool isBold = false,
-    bool isComment = false,
-    Color? background,
     Color? color,
+    String? semanticLabel,
   }) {
     return Container(
-      color: background,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
       child: Text(
         text,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
+        semanticsLabel: semanticLabel,
         textAlign: alignRight ? TextAlign.right : TextAlign.left,
         style: TextStyle(
           color: color ?? const Color(0xFF111827),
-          fontSize: isComment ? 11 : 12,
-          fontStyle: isComment ? FontStyle.italic : FontStyle.normal,
+          fontSize: 12,
           fontWeight: isBold ? FontWeight.w900 : FontWeight.w500,
         ),
       ),
@@ -400,12 +397,12 @@ class _ProfitLossReport {
 class _ProfitLossExpenseLine {
   final String label;
   final double amount;
-  final String? comment;
+  final bool trackedInApp;
 
   const _ProfitLossExpenseLine({
     required this.label,
     required this.amount,
-    this.comment,
+    required this.trackedInApp,
   });
 }
 
@@ -509,14 +506,11 @@ class _ProfitLossExpenseCatalog {
           final amount = definition.includeUnmapped
               ? _sumUnmappedExpenses(expenses, mappedCategories)
               : _sumExpenses(expenses, definition.categories);
-          final comment = !definition.trackedInApp && amount == 0
-              ? 'Not tracked in app'
-              : null;
 
           return _ProfitLossExpenseLine(
             label: definition.label,
             amount: amount,
-            comment: comment,
+            trackedInApp: definition.trackedInApp,
           );
         })
         .toList(growable: false);
