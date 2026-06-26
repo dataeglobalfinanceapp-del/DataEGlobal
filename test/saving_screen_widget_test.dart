@@ -82,6 +82,201 @@ void main() {
     expect(find.text('Saving rate 20%'), findsOneWidget);
     expect(find.text(r'$24,000.00'), findsOneWidget);
   });
+
+  testWidgets('monthly saving distributes to week and day views', (
+    WidgetTester tester,
+  ) async {
+    await _saveDeposit(amount: 120000, date: DateTime(2026, 1, 1));
+
+    await tester.pumpWidget(const MaterialApp(home: SavingScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, '1000');
+    await tester.tap(find.byTooltip('Confirm saving amount').first);
+    await tester.pump();
+
+    expect(find.text(r'$1,000.00'), findsWidgets);
+
+    await tester.tap(find.text('Week'));
+    await tester.pumpAndSettle();
+
+    expect(_firstSavingInputText(tester), '225.81');
+    expect(find.text(r'$1,000.00'), findsWidgets);
+
+    await tester.tap(find.text('Day'));
+    await tester.pumpAndSettle();
+
+    expect(_firstSavingInputText(tester), '32.26');
+    expect(find.text(r'$1,000.00'), findsWidgets);
+  });
+
+  testWidgets('week and day saving roll up to related periods', (
+    WidgetTester tester,
+  ) async {
+    await _saveDeposit(amount: 120000, date: DateTime(2026, 1, 1));
+
+    await tester.pumpWidget(const MaterialApp(home: SavingScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Week'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '700');
+    await tester.tap(find.byTooltip('Confirm saving amount').first);
+    await tester.pump();
+
+    await tester.tap(find.text('Month'));
+    await tester.pumpAndSettle();
+
+    expect(_firstSavingInputText(tester), '700.00');
+
+    await tester.tap(find.text('Day'));
+    await tester.pumpAndSettle();
+
+    expect(_firstSavingInputText(tester), '100.00');
+
+    await tester.enterText(find.byType(TextField).first, '200');
+    await tester.tap(find.byTooltip('Confirm saving amount').first);
+    await tester.pump();
+
+    await tester.tap(find.text('Week'));
+    await tester.pumpAndSettle();
+
+    expect(_firstSavingInputText(tester), '800.00');
+
+    await tester.tap(find.text('Month'));
+    await tester.pumpAndSettle();
+
+    expect(_firstSavingInputText(tester), '800.00');
+  });
+
+  testWidgets('day view collapses past dates without deleting saved amounts', (
+    WidgetTester tester,
+  ) async {
+    AppClock.set(DateTime(2026, 1, 10));
+    await _saveDeposit(amount: 120000, date: DateTime(2026, 1, 1));
+
+    await tester.pumpWidget(const MaterialApp(home: SavingScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Day'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Past dates (9)'), findsOneWidget);
+    expect(find.text('Show all'), findsOneWidget);
+    expect(find.text('January 1'), findsNothing);
+    expect(find.text('January 10'), findsOneWidget);
+
+    await tester.tap(find.text('Show all'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Show less'), findsOneWidget);
+    expect(find.text('January 1'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '31');
+    await tester.tap(find.byTooltip('Confirm saving amount').first);
+    await tester.pump();
+
+    expect(find.text(r'$31.00'), findsOneWidget);
+
+    await tester.tap(find.text('Show less'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('January 1'), findsNothing);
+    expect(find.text(r'$31.00'), findsOneWidget);
+  });
+
+  testWidgets('week view collapses past weeks and preserves saved totals', (
+    WidgetTester tester,
+  ) async {
+    AppClock.set(DateTime(2026, 1, 10));
+    await _saveDeposit(amount: 120000, date: DateTime(2026, 1, 1));
+
+    await tester.pumpWidget(const MaterialApp(home: SavingScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Week'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Past weeks (1)'), findsOneWidget);
+    expect(find.text('Show all'), findsOneWidget);
+    expect(find.text('January 1-7'), findsNothing);
+    expect(find.text('January 8-14'), findsOneWidget);
+
+    await tester.tap(find.text('Show all'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Show less'), findsOneWidget);
+    expect(find.text('January 1-7'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '700');
+    await tester.tap(find.byTooltip('Confirm saving amount').first);
+    await tester.pump();
+
+    expect(find.text(r'$700.00'), findsOneWidget);
+
+    await tester.tap(find.text('Show less'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('January 1-7'), findsNothing);
+    expect(find.text(r'$700.00'), findsOneWidget);
+  });
+
+  testWidgets('month view collapses past months and preserves saved totals', (
+    WidgetTester tester,
+  ) async {
+    AppClock.set(DateTime(2026, 4, 10));
+    await _saveDeposit(amount: 120000, date: DateTime(2026, 1, 1));
+
+    await tester.pumpWidget(const MaterialApp(home: SavingScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Past months (3)'), findsOneWidget);
+    expect(find.text('Show all'), findsOneWidget);
+    expect(find.text('January'), findsNothing);
+    expect(find.text('April'), findsOneWidget);
+
+    await tester.tap(find.text('Show all'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Show less'), findsOneWidget);
+    expect(find.text('January'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '1000');
+    await tester.tap(find.byTooltip('Confirm saving amount').first);
+    await tester.pump();
+
+    expect(find.text(r'$1,000.00'), findsWidgets);
+
+    await tester.tap(find.text('Show less'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('January'), findsNothing);
+    expect(find.text(r'$1,000.00'), findsWidgets);
+  });
+
+  testWidgets('remaining amount below one dollar displays as met target', (
+    WidgetTester tester,
+  ) async {
+    await _saveDeposit(amount: 120000, date: DateTime(2026, 1, 1));
+
+    await tester.pumpWidget(const MaterialApp(home: SavingScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, '999.50');
+    await tester.tap(find.byTooltip('Confirm saving amount').first);
+    await tester.pump();
+
+    final zeroTexts = tester.widgetList<Text>(find.text(r'$0.00'));
+    expect(
+      zeroTexts.any((text) => text.style?.color == const Color(0xFF16A34A)),
+      isTrue,
+    );
+  });
+}
+
+String _firstSavingInputText(WidgetTester tester) {
+  final field = tester.widget<TextField>(find.byType(TextField).first);
+  return field.controller?.text ?? '';
 }
 
 Future<void> _saveDeposit({required double amount, required DateTime date}) {

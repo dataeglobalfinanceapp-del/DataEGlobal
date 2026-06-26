@@ -19,10 +19,12 @@ class _SavingScreenState extends State<SavingScreen> {
   _SavingPeriod _period = _SavingPeriod.month;
   int _year = AppClock.now.year;
   double _savingRate = _defaultSavingRate;
+  bool _showPastPeriods = false;
   bool _isLoading = true;
   List<DepositRecord> _deposits = [];
   final Map<String, TextEditingController> _savedControllers = {};
-  final Map<String, double> _savedAmounts = {};
+  final Map<String, _DateSpan> _controllerSpans = {};
+  final Map<DateTime, double> _dailySavedAmounts = {};
 
   @override
   void initState() {
@@ -55,7 +57,7 @@ class _SavingScreenState extends State<SavingScreen> {
   double get _totalSavingTarget => _yearDeposits * (_savingRate / 100);
 
   double get _totalSaving =>
-      _savedAmounts.values.fold<double>(0, (sum, amount) => sum + amount);
+      _dailySavedAmounts.values.fold<double>(0, (sum, amount) => sum + amount);
 
   List<_SavingPeriodRow> get _savingRows {
     final totalTarget = _totalSavingTarget;
@@ -77,6 +79,8 @@ class _SavingScreenState extends State<SavingScreen> {
       return _SavingPeriodRow(
         key: '$_year-day-$index',
         label: _formatDate(date),
+        start: date,
+        end: date,
         requiredAmount: requiredAmount,
       );
     });
@@ -91,6 +95,8 @@ class _SavingScreenState extends State<SavingScreen> {
       return _SavingPeriodRow(
         key: '$_year-week-$index',
         label: _formatDateRange(span.start, span.end),
+        start: span.start,
+        end: span.end,
         requiredAmount: requiredAmount,
       );
     });
@@ -105,46 +111,115 @@ class _SavingScreenState extends State<SavingScreen> {
       return _SavingPeriodRow(
         key: '$_year-month-$month',
         label: _monthNames[month],
+        start: DateTime(_year, month),
+        end: DateTime(_year, month + 1, 0),
         requiredAmount: requiredAmount,
       );
     });
   }
 
   void _setPeriod(_SavingPeriod period) {
-    setState(() => _period = period);
+    setState(() {
+      _period = period;
+      _showPastPeriods = false;
+    });
   }
 
   void _changeYear(int delta) {
-    setState(() => _year += delta);
+    setState(() {
+      _year += delta;
+      _showPastPeriods = false;
+    });
   }
 
-  void _confirmSavedAmount(String key) {
-    final controller = _controllerFor(key);
+  void _togglePastPeriods() {
+    setState(() => _showPastPeriods = !_showPastPeriods);
+  }
+
+  void _confirmSavedAmount(_SavingPeriodRow row) {
+    final controller = _controllerFor(row);
     final amount = parseMoney(controller.text);
-    final displayAmount = amount == 0 ? '' : formatMoney(amount, symbol: false);
 
     setState(() {
-      _savedAmounts[key] = amount;
+      _distributeSavedAmount(row.start, row.end, amount);
     });
+
+    _refreshSavedControllers();
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  void _distributeSavedAmount(DateTime start, DateTime end, double amount) {
+    final dates = _datesInRange(start, end);
+    if (dates.isEmpty) return;
+
+    final share = amount / dates.length;
+    for (final date in dates) {
+      if (share == 0) {
+        _dailySavedAmounts.remove(date);
+      } else {
+        _dailySavedAmounts[date] = share;
+      }
+    }
+  }
+
+  TextEditingController _controllerFor(_SavingPeriodRow row) {
+    _controllerSpans[row.key] = _DateSpan(start: row.start, end: row.end);
+
+    final existing = _savedControllers[row.key];
+    if (existing != null) return existing;
+
+    final amount = _savedAmountInRange(row.start, row.end);
+    final controller = TextEditingController(
+      text: amount == 0 ? '' : formatMoney(amount, symbol: false),
+    );
+    _savedControllers[row.key] = controller;
+    return controller;
+  }
+
+  void _refreshSavedControllers() {
+    for (final entry in _savedControllers.entries) {
+      final span = _controllerSpans[entry.key];
+      if (span == null) continue;
+
+      final amount = _savedAmountInRange(span.start, span.end);
+      _setControllerAmount(entry.value, amount);
+    }
+  }
+
+  void _setControllerAmount(TextEditingController controller, double amount) {
+    final displayAmount = amount == 0 ? '' : formatMoney(amount, symbol: false);
+    if (controller.text == displayAmount) return;
 
     controller.value = TextEditingValue(
       text: displayAmount,
       selection: TextSelection.collapsed(offset: displayAmount.length),
     );
-    FocusManager.instance.primaryFocus?.unfocus();
   }
 
-  TextEditingController _controllerFor(String key) {
-    final existing = _savedControllers[key];
-    if (existing != null) return existing;
-
-    final amount = _savedAmounts[key] ?? 0;
-    final controller = TextEditingController(
-      text: amount == 0 ? '' : formatMoney(amount, symbol: false),
-    );
-    _savedControllers[key] = controller;
-    return controller;
+  double _savedAmountInRange(DateTime start, DateTime end) {
+    return _datesInRange(
+      start,
+      end,
+    ).fold<double>(0, (sum, date) => sum + (_dailySavedAmounts[date] ?? 0));
   }
+
+  List<_SavingPeriodRow> _visibleRows(List<_SavingPeriodRow> rows) {
+    if (_showPastPeriods) return rows;
+
+    final today = _today;
+    return rows.where((row) => !_isPastRow(row, today)).toList();
+  }
+
+  List<_SavingPeriodRow> _pastRows(List<_SavingPeriodRow> rows) {
+    final today = _today;
+    return rows.where((row) => _isPastRow(row, today)).toList();
+  }
+
+  bool _isPastRow(_SavingPeriodRow row, DateTime today) {
+    return _dateOnly(row.end).isBefore(today);
+  }
+
+  DateTime get _today => _dateOnly(AppClock.now);
 
   Future<void> _editSavingRate() async {
     final result = await showDialog<double>(
@@ -160,6 +235,8 @@ class _SavingScreenState extends State<SavingScreen> {
   @override
   Widget build(BuildContext context) {
     final rows = _savingRows;
+    final visibleRows = _visibleRows(rows);
+    final pastRows = _pastRows(rows);
     final periodTarget = rows.isEmpty ? 0.0 : rows.first.requiredAmount;
 
     return Scaffold(
@@ -213,6 +290,15 @@ class _SavingScreenState extends State<SavingScreen> {
                           onNext: () => _changeYear(1),
                         ),
                         const SizedBox(height: 12),
+                        if (pastRows.isNotEmpty) ...[
+                          _PastPeriodsToggle(
+                            label: _period.pastLabel,
+                            showAll: _showPastPeriods,
+                            count: pastRows.length,
+                            onToggle: _togglePastPeriods,
+                          ),
+                          const SizedBox(height: 8),
+                        ],
                         const _SavingRowsHeader(),
                       ],
                     ),
@@ -220,16 +306,16 @@ class _SavingScreenState extends State<SavingScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     sliver: SliverList.builder(
-                      itemCount: rows.length,
+                      itemCount: visibleRows.length,
                       itemBuilder: (context, index) {
-                        final row = rows[index];
+                        final row = visibleRows[index];
                         return _SavingPlanRow(
                           key: ValueKey(row.key),
                           label: row.label,
-                          controller: _controllerFor(row.key),
+                          controller: _controllerFor(row),
                           requiredAmount: row.requiredAmount,
-                          savedAmount: _savedAmounts[row.key] ?? 0,
-                          onConfirm: () => _confirmSavedAmount(row.key),
+                          savedAmount: _savedAmountInRange(row.start, row.end),
+                          onConfirm: () => _confirmSavedAmount(row),
                         );
                       },
                     ),
@@ -586,6 +672,56 @@ class _YearSelector extends StatelessWidget {
   }
 }
 
+class _PastPeriodsToggle extends StatelessWidget {
+  final String label;
+  final bool showAll;
+  final int count;
+  final VoidCallback onToggle;
+
+  const _PastPeriodsToggle({
+    required this.label,
+    required this.showAll,
+    required this.count,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '$label ($count)',
+              style: const TextStyle(
+                color: Color(0xFF111827),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onToggle,
+            child: Text(showAll ? 'Show less' : 'Show all'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SavingRowsHeader extends StatelessWidget {
   const _SavingRowsHeader();
 
@@ -635,7 +771,10 @@ class _SavingPlanRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remainingAmount = requiredAmount - savedAmount;
-    final remainingColor = remainingAmount > 0
+    final displayRemainingAmount = remainingAmount < 1 ? 0.0 : remainingAmount;
+    final remainingColor = displayRemainingAmount == 0
+        ? const Color(0xFF16A34A)
+        : displayRemainingAmount > 0
         ? const Color(0xFFDC2626)
         : const Color(0xFF111827);
 
@@ -719,7 +858,7 @@ class _SavingPlanRow extends StatelessWidget {
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerRight,
               child: Text(
-                formatMoney(remainingAmount),
+                formatMoney(displayRemainingAmount),
                 textAlign: TextAlign.right,
                 style: TextStyle(
                   color: remainingColor,
@@ -759,11 +898,15 @@ class _SavingHeaderText extends StatelessWidget {
 class _SavingPeriodRow {
   final String key;
   final String label;
+  final DateTime start;
+  final DateTime end;
   final double requiredAmount;
 
   const _SavingPeriodRow({
     required this.key,
     required this.label,
+    required this.start,
+    required this.end,
     required this.requiredAmount,
   });
 }
@@ -781,6 +924,14 @@ extension on _SavingPeriod {
       _SavingPeriod.day => 'day',
       _SavingPeriod.week => 'week',
       _SavingPeriod.month => 'month',
+    };
+  }
+
+  String get pastLabel {
+    return switch (this) {
+      _SavingPeriod.day => 'Past dates',
+      _SavingPeriod.week => 'Past weeks',
+      _SavingPeriod.month => 'Past months',
     };
   }
 }
@@ -804,6 +955,19 @@ List<_DateSpan> _weekSpansForYear(int year) {
 
 int _daysInYear(int year) {
   return DateTime(year + 1).difference(DateTime(year)).inDays;
+}
+
+List<DateTime> _datesInRange(DateTime start, DateTime end) {
+  final first = _dateOnly(start);
+  final last = _dateOnly(end);
+  final dayCount = last.difference(first).inDays + 1;
+  if (dayCount <= 0) return const [];
+
+  return List.generate(dayCount, (index) => first.add(Duration(days: index)));
+}
+
+DateTime _dateOnly(DateTime date) {
+  return DateTime(date.year, date.month, date.day);
 }
 
 String _formatDate(DateTime date) {
