@@ -22,8 +22,10 @@ class _LoadingReminderList extends StatelessWidget {
 
 class _ReminderList extends StatelessWidget {
   final _ReminderViewState state;
-  final VoidCallback onPreviousMonth;
-  final VoidCallback onNextMonth;
+  final VoidCallback onPreviousPeriod;
+  final VoidCallback onNextPeriod;
+  final ValueChanged<_ReminderViewMode> onViewModeChanged;
+  final VoidCallback onViewAll;
   final ValueChanged<DateTime> onTapDate;
   final ValueChanged<ReminderRecord> onEditAmount;
   final ValueChanged<ReminderRecord> onDelete;
@@ -31,8 +33,10 @@ class _ReminderList extends StatelessWidget {
 
   const _ReminderList({
     required this.state,
-    required this.onPreviousMonth,
-    required this.onNextMonth,
+    required this.onPreviousPeriod,
+    required this.onNextPeriod,
+    required this.onViewModeChanged,
+    required this.onViewAll,
     required this.onTapDate,
     required this.onEditAmount,
     required this.onDelete,
@@ -44,13 +48,16 @@ class _ReminderList extends StatelessWidget {
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: _ReminderTokens.pagePadding,
+      scrollCacheExtent: const ScrollCacheExtent.pixels(900),
       itemCount: state.entries.length + 1,
       itemBuilder: (BuildContext context, int index) {
         if (index == 0) {
           return _ReminderHeader(
             state: state,
-            onPreviousMonth: onPreviousMonth,
-            onNextMonth: onNextMonth,
+            onPreviousPeriod: onPreviousPeriod,
+            onNextPeriod: onNextPeriod,
+            onViewModeChanged: onViewModeChanged,
+            onViewAll: onViewAll,
             onTapDate: onTapDate,
           );
         }
@@ -77,14 +84,18 @@ class _ReminderList extends StatelessWidget {
 
 class _ReminderHeader extends StatelessWidget {
   final _ReminderViewState state;
-  final VoidCallback onPreviousMonth;
-  final VoidCallback onNextMonth;
+  final VoidCallback onPreviousPeriod;
+  final VoidCallback onNextPeriod;
+  final ValueChanged<_ReminderViewMode> onViewModeChanged;
+  final VoidCallback onViewAll;
   final ValueChanged<DateTime> onTapDate;
 
   const _ReminderHeader({
     required this.state,
-    required this.onPreviousMonth,
-    required this.onNextMonth,
+    required this.onPreviousPeriod,
+    required this.onNextPeriod,
+    required this.onViewModeChanged,
+    required this.onViewAll,
     required this.onTapDate,
   });
 
@@ -92,39 +103,155 @@ class _ReminderHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
-        _MonthHeader(
-          visibleMonth: state.visibleMonth,
-          onPrev: onPreviousMonth,
-          onNext: onNextMonth,
+        _ReminderSummary(state: state),
+        const SizedBox(height: 8),
+        _PeriodRangeBar(label: state.rangeLabel),
+        const SizedBox(height: 8),
+        _ViewModeToolbar(
+          selectedMode: state.viewMode,
+          onModeChanged: onViewModeChanged,
+          onPrev: onPreviousPeriod,
+          onNext: onNextPeriod,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
+        _MonthHeader(visibleMonth: state.visibleMonth),
+        const SizedBox(height: 5),
         _CalendarGrid(days: state.calendarDays, onTapDate: onTapDate),
-        const SizedBox(height: 14),
-        const _ReminderSectionHeader(),
+        const SizedBox(height: 10),
+        _ReminderSectionHeader(
+          showViewAll: state.hasVisibleReminders,
+          onViewAll: onViewAll,
+        ),
       ],
     );
   }
 }
 
-class _ReminderSectionHeader extends StatelessWidget {
-  const _ReminderSectionHeader();
+class _ReminderSummary extends StatelessWidget {
+  final _ReminderViewState state;
+
+  const _ReminderSummary({required this.state});
 
   @override
   Widget build(BuildContext context) {
-    return const Align(
-      alignment: Alignment.centerLeft,
-      child: Text('PAYMENT OBLIGATIONS', style: _ReminderTokens.sectionLabel),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 7, 12, 8),
+      decoration: BoxDecoration(
+        color: _ReminderTokens.surface,
+        borderRadius: BorderRadius.circular(_ReminderTokens.cardRadius),
+        boxShadow: _ReminderTokens.cardShadow,
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: _SummaryMetric(
+              label: 'Available funds',
+              amount: state.availableFunds,
+              amountColor: _ReminderTokens.warning,
+            ),
+          ),
+          Container(width: 1, height: 42, color: _ReminderTokens.border),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 14),
+              child: _SummaryMetric(
+                label: state.spentLabel,
+                amount: state.spentInPeriod,
+                amountColor: _ReminderTokens.success,
+                alignRight: true,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _MonthHeader extends StatelessWidget {
-  final DateTime visibleMonth;
+class _SummaryMetric extends StatelessWidget {
+  final String label;
+  final double amount;
+  final Color amountColor;
+  final bool alignRight;
+
+  const _SummaryMetric({
+    required this.label,
+    required this.amount,
+    required this.amountColor,
+    this.alignRight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: alignRight
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(label, style: _ReminderTokens.summaryLabel),
+        const SizedBox(height: 4),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+          child: Text(
+            formatMoney(amount),
+            style: _ReminderTokens.summaryAmount.copyWith(color: amountColor),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PeriodRangeBar extends StatelessWidget {
+  final String label;
+
+  const _PeriodRangeBar({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: _ReminderTokens.surface,
+        borderRadius: BorderRadius.circular(_ReminderTokens.controlRadius),
+        border: Border.all(color: _ReminderTokens.border),
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _ReminderTokens.textStrong,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const Icon(
+            Icons.calendar_month,
+            size: 17,
+            color: _ReminderTokens.navy,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ViewModeToolbar extends StatelessWidget {
+  final _ReminderViewMode selectedMode;
+  final ValueChanged<_ReminderViewMode> onModeChanged;
   final VoidCallback onPrev;
   final VoidCallback onNext;
 
-  const _MonthHeader({
-    required this.visibleMonth,
+  const _ViewModeToolbar({
+    required this.selectedMode,
+    required this.onModeChanged,
     required this.onPrev,
     required this.onNext,
   });
@@ -132,21 +259,149 @@ class _MonthHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
-        IconButton(
-          onPressed: onPrev,
-          icon: const Icon(Icons.chevron_left, size: 20),
+        Expanded(
+          child: Container(
+            height: 34,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: _ReminderTokens.surface,
+              borderRadius: BorderRadius.circular(
+                _ReminderTokens.controlRadius,
+              ),
+              border: Border.all(color: _ReminderTokens.border),
+            ),
+            child: Row(
+              children: <Widget>[
+                for (final _ReminderViewMode mode in _ReminderViewMode.values)
+                  Expanded(
+                    child: _ViewModeButton(
+                      mode: mode,
+                      isSelected: mode == selectedMode,
+                      onPressed: () => onModeChanged(mode),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
-        Text(
-          '${_monthNames[visibleMonth.month]} ${visibleMonth.year}',
-          style: _ReminderTokens.monthTitle,
-        ),
-        IconButton(
-          onPressed: onNext,
-          icon: const Icon(Icons.chevron_right, size: 20),
-        ),
+        const SizedBox(width: 10),
+        _PeriodIconButton(icon: Icons.chevron_left, onPressed: onPrev),
+        const SizedBox(width: 6),
+        _PeriodIconButton(icon: Icons.chevron_right, onPressed: onNext),
       ],
+    );
+  }
+}
+
+class _ViewModeButton extends StatelessWidget {
+  final _ReminderViewMode mode;
+  final bool isSelected;
+  final VoidCallback onPressed;
+
+  const _ViewModeButton({
+    required this.mode,
+    required this.isSelected,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        backgroundColor: isSelected ? _ReminderTokens.navy : Colors.transparent,
+        foregroundColor: isSelected
+            ? _ReminderTokens.warning
+            : _ReminderTokens.textStrong,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_ReminderTokens.controlRadius),
+        ),
+        padding: EdgeInsets.zero,
+      ),
+      child: Text(
+        mode.label,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+}
+
+class _PeriodIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _PeriodIconButton({required this.icon, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: 34,
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        style: IconButton.styleFrom(
+          backgroundColor: _ReminderTokens.surface,
+          foregroundColor: _ReminderTokens.textStrong,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_ReminderTokens.controlRadius),
+            side: const BorderSide(color: _ReminderTokens.border),
+          ),
+        ),
+        padding: EdgeInsets.zero,
+      ),
+    );
+  }
+}
+
+class _ReminderSectionHeader extends StatelessWidget {
+  final bool showViewAll;
+  final VoidCallback onViewAll;
+
+  const _ReminderSectionHeader({
+    required this.showViewAll,
+    required this.onViewAll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        const Expanded(
+          child: Text(
+            'PAYMENT OBLIGATIONS',
+            style: _ReminderTokens.sectionLabel,
+          ),
+        ),
+        if (showViewAll)
+          TextButton(
+            onPressed: onViewAll,
+            style: TextButton.styleFrom(
+              minimumSize: const Size(48, 28),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              foregroundColor: _ReminderTokens.warning,
+            ),
+            child: const Text(
+              'View all',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _MonthHeader extends StatelessWidget {
+  final DateTime visibleMonth;
+
+  const _MonthHeader({required this.visibleMonth});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '${_monthNames[visibleMonth.month]} ${visibleMonth.year}',
+      style: _ReminderTokens.monthTitle,
     );
   }
 }
@@ -160,7 +415,7 @@ class _CalendarGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
       decoration: BoxDecoration(
         color: _ReminderTokens.surface,
         borderRadius: BorderRadius.circular(_ReminderTokens.controlRadius),
@@ -169,8 +424,8 @@ class _CalendarGrid extends StatelessWidget {
       child: Column(
         children: <Widget>[
           const _WeekdayRow(),
-          const SizedBox(height: 8),
-          for (int row = 0; row < 6; row += 1)
+          const SizedBox(height: 4),
+          for (int row = 0; row < days.length ~/ 7; row += 1)
             Row(
               children: <Widget>[
                 for (int column = 0; column < 7; column += 1)
@@ -230,12 +485,17 @@ class _CalendarDayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color background = day.hasReminders
-        ? const Color(0xFFD64A4A)
+    final _ReminderStatus? status = day.hasReminders
+        ? _ReminderStatus.fromRecord(day.reminders.first)
+        : null;
+    final Color background = status != null
+        ? status.calendarColor
         : day.isToday
         ? _ReminderTokens.today
+        : day.isInSelectedPeriod
+        ? _ReminderTokens.successLight
         : Colors.transparent;
-    final Color foreground = day.hasReminders || day.isToday
+    final Color foreground = status != null || day.isToday
         ? Colors.white
         : day.isInVisibleMonth
         ? _ReminderTokens.textStrong
@@ -245,11 +505,11 @@ class _CalendarDayCell extends StatelessWidget {
       borderRadius: BorderRadius.circular(_ReminderTokens.cardRadius),
       onTap: () => onTap(day.date),
       child: SizedBox(
-        height: 32,
+        height: 24,
         child: Center(
           child: Container(
-            width: 24,
-            height: 24,
+            width: 20,
+            height: 20,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: background,
@@ -260,7 +520,7 @@ class _CalendarDayCell extends StatelessWidget {
               style: TextStyle(
                 color: foreground,
                 fontSize: 10,
-                fontWeight: day.hasReminders || day.isToday
+                fontWeight: status != null || day.isToday
                     ? FontWeight.w900
                     : FontWeight.w600,
               ),
@@ -289,176 +549,233 @@ class _ReminderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final _ReminderStatus status = _ReminderStatus.fromRecord(record);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(10, 9, 8, 8),
       decoration: BoxDecoration(
-        color: _ReminderTokens.paymentObligationBackground,
+        color: _ReminderTokens.surface,
         borderRadius: BorderRadius.circular(_ReminderTokens.cardRadius),
+        border: Border.all(color: status.borderColor),
         boxShadow: _ReminderTokens.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Expanded(
-                flex: 2,
-                child: _ReminderLineText(
-                  label: 'Category Name',
-                  value: record.category,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      _ReminderDateUtils.fullDate(record.date),
+                      style: const TextStyle(
+                        color: _ReminderTokens.textStrong,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      record.payee,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _ReminderTokens.textStrong,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 3,
+                      children: <Widget>[
+                        Text(
+                          record.category,
+                          style: const TextStyle(
+                            color: _ReminderTokens.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          record.reminderCount,
+                          style: const TextStyle(
+                            color: _ReminderTokens.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 6),
-              Expanded(
-                flex: 4,
-                child: _ReminderLineText(label: 'Payee', value: record.payee),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                flex: 0,
-                child: _ReminderLineText(
-                  label: 'Frequency',
-                  value: record.reminderCount,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                flex: 3,
-                child: _ReminderLineText(
-                  label: 'Due Date',
-                  value: _ReminderDateUtils.fullDate(record.date),
-                  alignRight: true,
-                ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  Text(
+                    formatMoney(record.amount),
+                    style: TextStyle(
+                      color: status.amountColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      decoration: status == _ReminderStatus.paid
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  _ReminderStatusChip(status: status),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      _ReminderIconActionButton(
+                        tooltip: 'Completed',
+                        icon: Icons.check_circle,
+                        iconColor: _ReminderTokens.success,
+                        onPressed: onMarkFinished,
+                      ),
+                      const SizedBox(width: 5),
+                      _ReminderIconActionButton(
+                        tooltip: 'Edit Amount',
+                        icon: Icons.edit_outlined,
+                        iconColor: _ReminderTokens.blue,
+                        onPressed: onEditAmount,
+                      ),
+                      const SizedBox(width: 5),
+                      _ReminderIconActionButton(
+                        tooltip: 'Delete',
+                        icon: Icons.delete_outline,
+                        iconColor: _ReminderTokens.dangerDark,
+                        onPressed: onDelete,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Row(
-            children: <Widget>[
-              Expanded(
-                flex: 2,
-                child: _ReminderAmountText(amount: record.amount),
-              ),
-              if (record.isRecurring) ...<Widget>[
-                const SizedBox(width: 6),
-                Expanded(
-                  flex: 4,
-                  child: _ReminderRemainingBalanceText(
-                    amount: remainingBalanceThisYear,
+          if (record.isRecurring) ...<Widget>[
+            const SizedBox(height: 8),
+            Row(
+              children: <Widget>[
+                const Expanded(
+                  child: Text(
+                    'Remaining balance this year',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: _ReminderTokens.textMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  formatMoney(remainingBalanceThisYear),
+                  style: const TextStyle(
+                    color: _ReminderTokens.textStrong,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ],
-              const SizedBox(width: 6),
-              _ReminderIconActionButton(
-                tooltip: 'Completed',
-                icon: Icons.check_circle,
-                iconColor: _ReminderTokens.success,
-                onPressed: onMarkFinished,
-              ),
-              const SizedBox(width: 6),
-              _ReminderIconActionButton(
-                tooltip: 'Edit Amount',
-                icon: Icons.edit_outlined,
-                iconColor: _ReminderTokens.blue,
-                onPressed: onEditAmount,
-              ),
-              const SizedBox(width: 4),
-              _ReminderIconActionButton(
-                tooltip: 'Delete',
-                icon: Icons.delete_outline,
-                iconColor: _ReminderTokens.dangerDark,
-                onPressed: onDelete,
-              ),
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _ReminderLineText extends StatelessWidget {
+enum _ReminderStatus {
+  upcoming('Upcoming'),
+  overdue('Overdue'),
+  paid('Paid');
+
   final String label;
-  final String value;
-  final bool alignRight;
 
-  const _ReminderLineText({
-    required this.label,
-    required this.value,
-    this.alignRight = false,
-  });
+  const _ReminderStatus(this.label);
 
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: '$label $value',
-      child: Text(
-        value,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        textAlign: alignRight ? TextAlign.right : TextAlign.left,
-        style: _ReminderTokens.compactLineText,
-      ),
-    );
+  static _ReminderStatus fromRecord(ReminderRecord record) {
+    if (record.amount <= 0) return _ReminderStatus.paid;
+
+    final DateTime today = _ReminderDateUtils.dateOnly(AppClock.now);
+    final DateTime dueDate = _ReminderDateUtils.dateOnly(record.date);
+    return dueDate.isBefore(today)
+        ? _ReminderStatus.overdue
+        : _ReminderStatus.upcoming;
+  }
+
+  Color get calendarColor {
+    return switch (this) {
+      _ReminderStatus.upcoming => _ReminderTokens.success,
+      _ReminderStatus.overdue => _ReminderTokens.danger,
+      _ReminderStatus.paid => _ReminderTokens.warning,
+    };
+  }
+
+  Color get amountColor {
+    return switch (this) {
+      _ReminderStatus.upcoming => _ReminderTokens.warning,
+      _ReminderStatus.overdue => _ReminderTokens.dangerDark,
+      _ReminderStatus.paid => _ReminderTokens.textMuted,
+    };
+  }
+
+  Color get borderColor {
+    return switch (this) {
+      _ReminderStatus.upcoming => const Color(0xFFF3D889),
+      _ReminderStatus.overdue => const Color(0xFFE7A2A2),
+      _ReminderStatus.paid => _ReminderTokens.border,
+    };
+  }
+
+  Color get chipColor {
+    return switch (this) {
+      _ReminderStatus.upcoming => _ReminderTokens.warning,
+      _ReminderStatus.overdue => _ReminderTokens.dangerDark,
+      _ReminderStatus.paid => _ReminderTokens.success,
+    };
   }
 }
 
-class _ReminderAmountText extends StatelessWidget {
-  final double amount;
+class _ReminderStatusChip extends StatelessWidget {
+  final _ReminderStatus status;
 
-  const _ReminderAmountText({required this.amount});
+  const _ReminderStatusChip({required this.status});
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Amount ${formatMoney(amount)}',
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(
-            formatMoney(amount),
-            style: _ReminderTokens.compactAmount,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: status.chipColor,
+            shape: BoxShape.circle,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _ReminderRemainingBalanceText extends StatelessWidget {
-  final double amount;
-
-  const _ReminderRemainingBalanceText({required this.amount});
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Remaining balance this year ${formatMoney(amount)}',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const Text(
-            'Remaining balance this year',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: _ReminderTokens.compactBalanceLabel,
+        const SizedBox(width: 4),
+        Text(
+          status.label,
+          style: TextStyle(
+            color: status.chipColor,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
           ),
-          const SizedBox(height: 2),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              formatMoney(amount),
-              style: _ReminderTokens.compactBalanceAmount,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -479,7 +796,7 @@ class _ReminderIconActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox.square(
-      dimension: 28,
+      dimension: 24,
       child: IconButton(
         tooltip: tooltip,
         style: IconButton.styleFrom(
@@ -490,7 +807,7 @@ class _ReminderIconActionButton extends StatelessWidget {
         ),
         padding: EdgeInsets.zero,
         onPressed: onPressed,
-        icon: Icon(icon, size: 16, color: iconColor),
+        icon: Icon(icon, size: 15, color: iconColor),
       ),
     );
   }

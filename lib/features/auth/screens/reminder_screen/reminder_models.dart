@@ -18,44 +18,90 @@ final class _EmptyReminderEntry extends _ReminderListEntry {
   const _EmptyReminderEntry();
 }
 
+enum _ReminderViewMode {
+  week('Week'),
+  month('Month');
+
+  final String label;
+
+  const _ReminderViewMode(this.label);
+}
+
 class _ReminderViewState {
   final bool isLoading;
+  final _ReminderViewMode viewMode;
   final DateTime visibleMonth;
-  final List<ReminderRecord> monthReminders;
+  final DateTime visibleWeekStart;
+  final DateTime periodStart;
+  final DateTime periodEndExclusive;
+  final List<ReminderRecord> periodReminders;
   final List<_CalendarDayModel> calendarDays;
   final List<_ReminderListEntry> entries;
   final Map<String, List<ReminderRecord>> remindersByDate;
+  final double availableFunds;
+  final double spentInPeriod;
 
   const _ReminderViewState({
     required this.isLoading,
+    required this.viewMode,
     required this.visibleMonth,
-    required this.monthReminders,
+    required this.visibleWeekStart,
+    required this.periodStart,
+    required this.periodEndExclusive,
+    required this.periodReminders,
     required this.calendarDays,
     required this.entries,
     required this.remindersByDate,
+    required this.availableFunds,
+    required this.spentInPeriod,
   });
 
-  factory _ReminderViewState.initial(DateTime visibleMonth) {
+  factory _ReminderViewState.initial(
+    DateTime visibleMonth,
+    DateTime visibleWeekStart,
+  ) {
     return _ReminderViewState(
       isLoading: true,
+      viewMode: _ReminderViewMode.month,
       visibleMonth: visibleMonth,
-      monthReminders: const <ReminderRecord>[],
+      visibleWeekStart: visibleWeekStart,
+      periodStart: visibleMonth,
+      periodEndExclusive: DateTime(visibleMonth.year, visibleMonth.month + 1),
+      periodReminders: const <ReminderRecord>[],
       calendarDays: const <_CalendarDayModel>[],
       entries: const <_ReminderListEntry>[],
       remindersByDate: const <String, List<ReminderRecord>>{},
+      availableFunds: 0,
+      spentInPeriod: 0,
     );
+  }
+
+  bool get hasVisibleReminders => periodReminders.isNotEmpty;
+
+  String get spentLabel {
+    return viewMode == _ReminderViewMode.week
+        ? 'Spent this week'
+        : 'Spent this month';
+  }
+
+  String get rangeLabel {
+    return viewMode == _ReminderViewMode.week
+        ? _ReminderDateUtils.weekRange(periodStart)
+        : _ReminderDateUtils.monthRange(visibleMonth);
   }
 }
 
 class _CalendarDayModel {
   final DateTime date;
   final bool isInVisibleMonth;
+  final bool isInSelectedPeriod;
   final bool isToday;
   final List<ReminderRecord> reminders;
 
   const _CalendarDayModel({
     required this.date,
     required this.isInVisibleMonth,
+    required this.isInSelectedPeriod,
     required this.isToday,
     required this.reminders,
   });
@@ -107,6 +153,11 @@ class _ReminderDateUtils {
     return DateTime(value.year, value.month, value.day);
   }
 
+  static DateTime weekStart(DateTime value) {
+    final DateTime date = dateOnly(value);
+    return date.subtract(Duration(days: date.weekday % 7));
+  }
+
   static String dateKey(DateTime value) {
     final DateTime date = dateOnly(value);
     return '${date.year}-'
@@ -119,15 +170,38 @@ class _ReminderDateUtils {
         '${date.day.toString().padLeft(2, '0')}/${date.year}';
   }
 
+  static String compactDate(DateTime date, {bool includeYear = false}) {
+    final String text = '${_shortMonthNames[date.month]} ${date.day}';
+    return includeYear ? '$text, ${date.year}' : text;
+  }
+
+  static String weekRange(DateTime weekStart) {
+    final DateTime start = dateOnly(weekStart);
+    final DateTime end = start.add(const Duration(days: 6));
+    if (start.year == end.year && start.month == end.month) {
+      return '${compactDate(start)} - ${end.day}, ${end.year}';
+    }
+    return '${compactDate(start)} - ${compactDate(end, includeYear: true)}';
+  }
+
+  static String monthRange(DateTime month) {
+    final DateTime first = DateTime(month.year, month.month);
+    final DateTime last = DateTime(month.year, month.month + 1, 0);
+    return '${compactDate(first)} - ${compactDate(last, includeYear: true)}';
+  }
+
   static bool isSameDate(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   static List<DateTime> calendarDates(DateTime month) {
     final DateTime first = DateTime(month.year, month.month);
+    final DateTime last = DateTime(month.year, month.month + 1, 0);
     final DateTime start = first.subtract(Duration(days: first.weekday % 7));
+    final DateTime end = last.add(Duration(days: 6 - (last.weekday % 7)));
+    final int dayCount = end.difference(start).inDays + 1;
     return List<DateTime>.generate(
-      42,
+      dayCount,
       (int index) => start.add(Duration(days: index)),
       growable: false,
     );
@@ -145,13 +219,16 @@ class _ReminderTokens {
   static const Color textSubtle = Color(0xFF6B7280);
   static const Color textInactive = Color(0xFF9CA3AF);
   static const Color labelStrong = Color(0xFF283154);
-  static const Color paymentObligationBackground = Color(0xFFB91C1C);
   static const Color compactActionBackground = Colors.white;
+  static const Color border = Color(0xFFE5E7EB);
   static const Color danger = Color(0xFFEF4444);
   static const Color dangerDark = Color(0xFFDC2626);
   static const Color success = Color(0xFF16A34A);
+  static const Color successLight = Color(0xFFEAF8EF);
   static const Color today = Color(0xFFFACC15);
+  static const Color warning = Color(0xFFEAB308);
   static const Color blue = Color(0xFF2563EB);
+  static const Color navy = Color(0xFF0F2D4A);
   static const Color iconBlue = Color(0xFF60A5FA);
   static const Color inputBorder = Color(0xFF9CA3AF);
 
@@ -182,6 +259,16 @@ class _ReminderTokens {
     fontSize: 14,
     fontWeight: FontWeight.w700,
   );
+  static const TextStyle summaryLabel = TextStyle(
+    color: textStrong,
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+  );
+  static const TextStyle summaryAmount = TextStyle(
+    color: warning,
+    fontSize: 20,
+    fontWeight: FontWeight.w900,
+  );
   static const TextStyle sectionLabel = TextStyle(
     color: textSubtle,
     fontSize: 10,
@@ -203,26 +290,6 @@ class _ReminderTokens {
     color: textSubtle,
     fontSize: 13,
     fontWeight: FontWeight.w700,
-  );
-  static const TextStyle compactLineText = TextStyle(
-    color: Colors.white,
-    fontSize: 11,
-    fontWeight: FontWeight.w800,
-  );
-  static const TextStyle compactAmount = TextStyle(
-    color: Colors.white,
-    fontSize: 12,
-    fontWeight: FontWeight.w900,
-  );
-  static const TextStyle compactBalanceLabel = TextStyle(
-    color: Colors.white,
-    fontSize: 9,
-    fontWeight: FontWeight.w700,
-  );
-  static const TextStyle compactBalanceAmount = TextStyle(
-    color: Colors.white,
-    fontSize: 12,
-    fontWeight: FontWeight.w900,
   );
   static const TextStyle addButtonLabel = TextStyle(
     color: textStrong,
@@ -271,4 +338,20 @@ const List<String> _monthNames = <String>[
   'October',
   'November',
   'December',
+];
+
+const List<String> _shortMonthNames = <String>[
+  '',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];

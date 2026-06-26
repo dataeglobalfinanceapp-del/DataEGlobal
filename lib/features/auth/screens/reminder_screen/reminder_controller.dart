@@ -3,11 +3,16 @@ part of 'reminder_screen.dart';
 class _ReminderController extends ChangeNotifier {
   bool _isDisposed = false;
   bool _isLoading = true;
+  _ReminderViewMode _viewMode = _ReminderViewMode.month;
   DateTime _visibleMonth = _ReminderDateUtils.monthStart(AppClock.now);
+  DateTime _visibleWeekStart = _ReminderDateUtils.weekStart(AppClock.now);
   List<ReminderRecord> _reminders = const <ReminderRecord>[];
+  List<DepositRecord> _deposits = const <DepositRecord>[];
+  List<ExpenseRecord> _expenses = const <ExpenseRecord>[];
 
   _ReminderViewState _state = _ReminderViewState.initial(
     _ReminderDateUtils.monthStart(AppClock.now),
+    _ReminderDateUtils.weekStart(AppClock.now),
   );
 
   _ReminderViewState get state => _state;
@@ -19,16 +24,38 @@ class _ReminderController extends ChangeNotifier {
 
     final List<ReminderRecord> reminders =
         await ReminderService.loadReminders();
+    final List<DepositRecord> deposits = await LiabilityService.loadDeposits();
+    final List<ExpenseRecord> expenses = await LiabilityService.loadExpenses();
     if (_isDisposed) return;
 
     _reminders = List<ReminderRecord>.unmodifiable(reminders);
+    _deposits = List<DepositRecord>.unmodifiable(deposits);
+    _expenses = List<ExpenseRecord>.unmodifiable(expenses);
     _isLoading = false;
     _rebuildState();
     _notify();
   }
 
-  void changeMonth(int delta) {
-    _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
+  void setViewMode(_ReminderViewMode mode) {
+    if (_viewMode == mode) return;
+
+    _viewMode = mode;
+    _rebuildState();
+    _notify();
+  }
+
+  void showMonthView() {
+    setViewMode(_ReminderViewMode.month);
+  }
+
+  void changePeriod(int delta) {
+    if (_viewMode == _ReminderViewMode.week) {
+      _visibleWeekStart = _visibleWeekStart.add(Duration(days: delta * 7));
+      _visibleMonth = _ReminderDateUtils.monthStart(_visibleWeekStart);
+    } else {
+      _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
+      _visibleWeekStart = _ReminderDateUtils.weekStart(_visibleMonth);
+    }
     _rebuildState();
     _notify();
   }
@@ -82,27 +109,55 @@ class _ReminderController extends ChangeNotifier {
   }
 
   void _rebuildState() {
+    final DateTime calendarMonth = _viewMode == _ReminderViewMode.week
+        ? _ReminderDateUtils.monthStart(_visibleWeekStart)
+        : _visibleMonth;
+    final DateTime periodStart = _viewMode == _ReminderViewMode.week
+        ? _visibleWeekStart
+        : _visibleMonth;
+    final DateTime periodEndExclusive = _viewMode == _ReminderViewMode.week
+        ? _visibleWeekStart.add(const Duration(days: 7))
+        : DateTime(_visibleMonth.year, _visibleMonth.month + 1);
     final Map<String, List<ReminderRecord>> remindersByDate =
         _ReminderDataMapper.remindersByDate(_reminders);
-    final List<ReminderRecord> monthReminders =
-        _ReminderDataMapper.monthReminders(_reminders, _visibleMonth);
+    final List<ReminderRecord> periodReminders =
+        _ReminderDataMapper.periodReminders(
+          _reminders,
+          start: periodStart,
+          endExclusive: periodEndExclusive,
+        );
     final List<_CalendarDayModel> calendarDays =
         _ReminderDataMapper.calendarDays(
-          visibleMonth: _visibleMonth,
+          visibleMonth: calendarMonth,
+          selectedStart: periodStart,
+          selectedEndExclusive: periodEndExclusive,
           remindersByDate: remindersByDate,
         );
     final List<_ReminderListEntry> entries = _ReminderDataMapper.listEntries(
-      monthReminders,
-      year: _visibleMonth.year,
+      periodReminders,
+      year: periodStart.year,
     );
 
     _state = _ReminderViewState(
       isLoading: _isLoading,
-      visibleMonth: _visibleMonth,
-      monthReminders: monthReminders,
+      viewMode: _viewMode,
+      visibleMonth: calendarMonth,
+      visibleWeekStart: _visibleWeekStart,
+      periodStart: periodStart,
+      periodEndExclusive: periodEndExclusive,
+      periodReminders: periodReminders,
       calendarDays: calendarDays,
       entries: entries,
       remindersByDate: remindersByDate,
+      availableFunds: _ReminderDataMapper.availableFunds(
+        deposits: _deposits,
+        expenses: _expenses,
+      ),
+      spentInPeriod: _ReminderDataMapper.spentInPeriod(
+        expenses: _expenses,
+        start: periodStart,
+        endExclusive: periodEndExclusive,
+      ),
     );
   }
 
@@ -145,15 +200,16 @@ class _ReminderDataMapper {
     return Map<String, List<ReminderRecord>>.unmodifiable(result);
   }
 
-  static List<ReminderRecord> monthReminders(
-    List<ReminderRecord> reminders,
-    DateTime visibleMonth,
-  ) {
+  static List<ReminderRecord> periodReminders(
+    List<ReminderRecord> reminders, {
+    required DateTime start,
+    required DateTime endExclusive,
+  }) {
     final List<ReminderRecord> records = reminders
         .where(
           (ReminderRecord record) =>
-              record.date.year == visibleMonth.year &&
-              record.date.month == visibleMonth.month,
+              !record.date.isBefore(start) &&
+              record.date.isBefore(endExclusive),
         )
         .toList(growable: false);
     records.sort(
@@ -164,6 +220,8 @@ class _ReminderDataMapper {
 
   static List<_CalendarDayModel> calendarDays({
     required DateTime visibleMonth,
+    required DateTime selectedStart,
+    required DateTime selectedEndExclusive,
     required Map<String, List<ReminderRecord>> remindersByDate,
   }) {
     final DateTime today = _ReminderDateUtils.dateOnly(AppClock.now);
@@ -175,6 +233,9 @@ class _ReminderDataMapper {
           return _CalendarDayModel(
             date: date,
             isInVisibleMonth: date.month == visibleMonth.month,
+            isInSelectedPeriod:
+                !date.isBefore(selectedStart) &&
+                date.isBefore(selectedEndExclusive),
             isToday: _ReminderDateUtils.isSameDate(date, today),
             reminders: reminders,
           );
@@ -183,15 +244,15 @@ class _ReminderDataMapper {
   }
 
   static List<_ReminderListEntry> listEntries(
-    List<ReminderRecord> monthReminders, {
+    List<ReminderRecord> reminders, {
     required int year,
   }) {
-    if (monthReminders.isEmpty) {
+    if (reminders.isEmpty) {
       return const <_ReminderListEntry>[_EmptyReminderEntry()];
     }
 
     return List<_ReminderListEntry>.unmodifiable(
-      monthReminders.map<_ReminderListEntry>(
+      reminders.map<_ReminderListEntry>(
         (ReminderRecord record) => _ReminderRecordEntry(
           record: record,
           remainingBalanceThisYear: ReminderService.remainingBalanceThisYear(
@@ -201,6 +262,38 @@ class _ReminderDataMapper {
         ),
       ),
     );
+  }
+
+  static double availableFunds({
+    required List<DepositRecord> deposits,
+    required List<ExpenseRecord> expenses,
+  }) {
+    final double totalDeposits = deposits.fold<double>(
+      0,
+      (double total, DepositRecord record) => total + record.totalAmount,
+    );
+    final double totalExpenses = expenses.fold<double>(
+      0,
+      (double total, ExpenseRecord record) => total + record.totalAmount,
+    );
+    return totalDeposits - totalExpenses;
+  }
+
+  static double spentInPeriod({
+    required List<ExpenseRecord> expenses,
+    required DateTime start,
+    required DateTime endExclusive,
+  }) {
+    return expenses
+        .where(
+          (ExpenseRecord record) =>
+              !record.transactionDate.isBefore(start) &&
+              record.transactionDate.isBefore(endExclusive),
+        )
+        .fold<double>(
+          0,
+          (double total, ExpenseRecord record) => total + record.totalAmount,
+        );
   }
 }
 

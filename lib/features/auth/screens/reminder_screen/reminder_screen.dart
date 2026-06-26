@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import 'package:savetep/services/app_clock.dart';
+import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/money_formatter.dart';
 import 'package:savetep/services/recurring_expense_reminder_service.dart';
 import 'package:savetep/services/reminder_service.dart';
@@ -148,8 +150,10 @@ class _ReminderScreenState extends State<ReminderScreen> {
                 ? const _LoadingReminderList()
                 : _ReminderList(
                     state: state,
-                    onPreviousMonth: () => _controller.changeMonth(-1),
-                    onNextMonth: () => _controller.changeMonth(1),
+                    onPreviousPeriod: () => _controller.changePeriod(-1),
+                    onNextPeriod: () => _controller.changePeriod(1),
+                    onViewModeChanged: _controller.setViewMode,
+                    onViewAll: _controller.showMonthView,
                     onTapDate: _handleDateTap,
                     onEditAmount: _editReminderAmount,
                     onDelete: _deleteReminder,

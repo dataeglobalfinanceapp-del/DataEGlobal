@@ -3,16 +3,19 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/features/auth/screens/reminder_screen/reminder_screen.dart';
 import 'package:savetep/services/app_clock.dart';
+import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/reminder_service.dart';
 
 void main() {
   setUp(() {
     AppClock.set(DateTime(2026, 6, 15));
+    LiabilityService.resetForTesting();
     ReminderService.resetForTesting();
   });
 
   tearDown(() {
     AppClock.reset();
+    LiabilityService.resetForTesting(disablePersistence: false);
     ReminderService.resetForTesting(disablePersistence: false);
   });
 
@@ -74,6 +77,79 @@ void main() {
     expect(find.text(r'$100.00'), findsOneWidget);
     expect(find.text('Remaining balance this year'), findsOneWidget);
     expect(find.text(r'$700.00'), findsOneWidget);
+  });
+
+  testWidgets('ReminderScreen toggles month and week reminder summaries', (
+    WidgetTester tester,
+  ) async {
+    await LiabilityService.saveDeposit(
+      orderNumber: 'DEP-1',
+      totalAmount: 1000,
+      creditDeposit: 1000,
+      cash: 0,
+      giftCard: 0,
+      other: 0,
+      transactionDate: DateTime(2026, 6, 10),
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'EXP-1',
+      totalAmount: 200,
+      transactionDate: DateTime(2026, 6, 16),
+      category: 'Utilities',
+      payee: 'Utilities',
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'EXP-2',
+      totalAmount: 50,
+      transactionDate: DateTime(2026, 6, 25),
+      category: 'Fuel',
+      payee: 'Fuel',
+      isManual: true,
+    );
+    await ReminderService.saveReminders(<ReminderDraft>[
+      ReminderDraft(
+        date: DateTime(2026, 6, 16),
+        category: 'Utilities',
+        amount: 100,
+        reminderCount: 'Just one',
+        payee: 'This Week Bill',
+      ),
+      ReminderDraft(
+        date: DateTime(2026, 6, 25),
+        category: 'Fuel',
+        amount: 80,
+        reminderCount: 'Just one',
+        payee: 'Later Bill',
+      ),
+    ]);
+
+    await tester.pumpWidget(const MaterialApp(home: ReminderScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Spent this month'), findsOneWidget);
+    expect(find.text(r'$750.00'), findsOneWidget);
+    expect(find.text(r'$250.00'), findsOneWidget);
+    expect(find.text('This Week Bill'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Later Bill'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Later Bill'), findsOneWidget);
+
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 500));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Week'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Spent this week'), findsOneWidget);
+    expect(find.text(r'$200.00'), findsOneWidget);
+    expect(find.text('This Week Bill'), findsOneWidget);
+    expect(find.text('Later Bill'), findsNothing);
   });
 
   testWidgets('Completed removes the selected payment obligation card', (
