@@ -1,8 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 
-import 'package:savetep/services/local_store_test/local_store.dart';
+import 'package:savetep/data/local/local_reminder_repository.dart';
+import 'package:savetep/data/repositories/reminder_repository.dart';
 
 import 'app_clock.dart';
 import 'recurrence_schedule.dart';
@@ -12,7 +11,7 @@ enum ReminderDeleteScope { single, series }
 enum ReminderEditScope { single, series }
 
 class ReminderService {
-  static const _storageKey = 'savetep_reminders_v1';
+  static ReminderRepository _repository = const LocalReminderRepository();
 
   static final List<ReminderRecord> _reminders = [];
   static final Map<String, ReminderSeries> _series = {};
@@ -20,6 +19,11 @@ class ReminderService {
   static int _idCounter = 0;
   static bool _loaded = false;
   static bool _disablePersistenceForTesting = false;
+
+  static void configureRepository(ReminderRepository repository) {
+    _repository = repository;
+    _loaded = false;
+  }
 
   static Future<List<ReminderRecord>> loadReminders() async {
     await _ensureLoaded();
@@ -159,39 +163,26 @@ class ReminderService {
       return;
     }
 
-    final raw = await LocalStore.read(_storageKey);
-    if (raw == null || raw.trim().isEmpty) {
+    final snapshot = await _repository.loadSnapshot();
+    if (snapshot == null) {
       _loaded = true;
       return;
     }
 
     try {
-      final decoded = jsonDecode(raw);
-      if (decoded is List) {
-        _reminders
-          ..clear()
-          ..addAll(
-            decoded.whereType<Map>().map(
-              (entry) => ReminderRecord.fromJson(entry),
-            ),
-          );
-      } else if (decoded is Map) {
-        _reminders
-          ..clear()
-          ..addAll(
-            _listFromJson(decoded['reminders']).map(ReminderRecord.fromJson),
-          );
-        _series
-          ..clear()
-          ..addEntries(
-            _listFromJson(decoded['series'])
-                .map(ReminderSeries.fromJson)
-                .map((entry) => MapEntry(entry.id, entry)),
-          );
-        _deletedRecurringKeys
-          ..clear()
-          ..addAll(_stringListFromJson(decoded['deletedRecurringKeys']));
-      }
+      _reminders
+        ..clear()
+        ..addAll(snapshot.reminders.map(ReminderRecord.fromJson));
+      _series
+        ..clear()
+        ..addEntries(
+          snapshot.series
+              .map(ReminderSeries.fromJson)
+              .map((entry) => MapEntry(entry.id, entry)),
+        );
+      _deletedRecurringKeys
+        ..clear()
+        ..addAll(snapshot.deletedRecurringKeys);
     } catch (_) {
       _reminders.clear();
       _series.clear();
@@ -208,12 +199,13 @@ class ReminderService {
   static Future<void> _persist() async {
     if (_disablePersistenceForTesting) return;
 
-    final payload = jsonEncode({
-      'reminders': _reminders.map((record) => record.toJson()).toList(),
-      'series': _series.values.map((record) => record.toJson()).toList(),
-      'deletedRecurringKeys': _deletedRecurringKeys.toList(),
-    });
-    await LocalStore.write(_storageKey, payload);
+    await _repository.saveSnapshot(
+      ReminderSnapshot(
+        reminders: _reminders.map((record) => record.toJson()),
+        series: _series.values.map((record) => record.toJson()),
+        deletedRecurringKeys: _deletedRecurringKeys,
+      ),
+    );
   }
 
   static bool _repairRecurringData() {
@@ -352,19 +344,6 @@ class ReminderService {
       RecurrenceSchedule.dateOnly(value);
 
   static int _maxInt(int a, int b) => a > b ? a : b;
-
-  static List<Map<String, dynamic>> _listFromJson(Object? value) {
-    if (value is! List) return [];
-    return value
-        .whereType<Map>()
-        .map((entry) => Map<String, dynamic>.from(entry))
-        .toList();
-  }
-
-  static List<String> _stringListFromJson(Object? value) {
-    if (value is! List) return [];
-    return value.map((entry) => entry.toString()).toList();
-  }
 
   static String _newId(String prefix) =>
       '$prefix-${AppClock.now.microsecondsSinceEpoch}-${_idCounter++}';

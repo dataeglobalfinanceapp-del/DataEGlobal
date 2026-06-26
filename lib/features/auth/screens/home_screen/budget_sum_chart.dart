@@ -1,12 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:savetep/domain/services/budget_target_service.dart';
 import 'package:savetep/features/auth/models/budget_data.dart';
-import 'package:savetep/services/local_store_test/local_store.dart';
 import 'package:savetep/services/money_formatter.dart';
 
 class BudgetSumChart extends StatefulWidget {
@@ -18,7 +17,6 @@ class BudgetSumChart extends StatefulWidget {
 }
 
 class _BudgetSumChartState extends State<BudgetSumChart> {
-  static const _targetStorageKey = 'SaveTep_budget_target_percentages_v1';
   final Map<String, Map<String, double>> _targetPercentagesByPeriod = {};
   bool _isEditingTargets = false;
   @override
@@ -54,39 +52,17 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
   }
 
   Future<void> _loadTargets() async {
-    final raw = await LocalStore.read(_targetStorageKey);
-    if (raw == null || raw.trim().isEmpty) return;
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) return;
-      final targets = <String, Map<String, double>>{};
-      for (final entry in decoded.entries) {
-        final value = entry.value;
-        if (value is! Map) continue;
-        targets[entry.key.toString()] = {
-          for (final targetEntry in value.entries)
-            targetEntry.key.toString(): (targetEntry.value is num)
-                ? (targetEntry.value as num).toDouble()
-                : double.tryParse(targetEntry.value.toString()) ?? 0,
-        };
-      }
-      targets.putIfAbsent('Month', () => targets['Year'] ?? <String, double>{});
-      if (!mounted) return;
-      setState(() {
-        _targetPercentagesByPeriod
-          ..clear()
-          ..addAll(targets);
-      });
-    } catch (_) {
-      return;
-    }
+    final targets = await BudgetTargetService.loadTargetPercentages();
+    if (!mounted) return;
+    setState(() {
+      _targetPercentagesByPeriod
+        ..clear()
+        ..addAll(targets);
+    });
   }
 
   Future<void> _saveTargets() async {
-    await LocalStore.write(
-      _targetStorageKey,
-      jsonEncode(_targetPercentagesByPeriod),
-    );
+    await BudgetTargetService.saveTargetPercentages(_targetPercentagesByPeriod);
   }
 
   @override

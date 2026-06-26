@@ -1,11 +1,10 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'package:savetep/data/local/local_transaction_repository.dart';
+import 'package:savetep/data/repositories/transaction_repository.dart';
 import 'package:savetep/features/auth/models/budget_data.dart';
 import 'package:savetep/features/auth/models/liability_model.dart';
-import 'package:savetep/services/local_store_test/local_store.dart';
 
 import 'app_clock.dart';
 import 'recurrence_schedule.dart';
@@ -13,9 +12,7 @@ import 'recurrence_schedule.dart';
 part 'save_future_expense.dart';
 
 class LiabilityService {
-  static const _storageKey = 'savetep_local_data_v1';
-  static const _defaultBudgetSeedVersionKey = 'defaultBudgetSeedVersion';
-  static const _defaultBudgetSeedMonthKey = 'defaultBudgetSeedMonthKey';
+  static TransactionRepository _repository = const LocalTransactionRepository();
 
   static final List<DepositRecord> _deposits = [];
   static final List<ExpenseRecord> _expenses = [];
@@ -29,6 +26,11 @@ class LiabilityService {
   static final ValueNotifier<int> _dataVersion = ValueNotifier<int>(0);
 
   static ValueListenable<int> get dataVersion => _dataVersion;
+
+  static void configureRepository(TransactionRepository repository) {
+    _repository = repository;
+    _loaded = false;
+  }
 
   static Future<void> saveDeposit({
     required String orderNumber,
@@ -533,8 +535,8 @@ class LiabilityService {
       return;
     }
 
-    final raw = await LocalStore.read(_storageKey);
-    if (raw == null || raw.trim().isEmpty) {
+    final snapshot = await _repository.loadSnapshot();
+    if (snapshot == null) {
       _loaded = true;
       final changed = _prepareLoadedData(AppClock.now);
       if (changed) await _persist();
@@ -542,24 +544,17 @@ class LiabilityService {
     }
 
     try {
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
       _deposits
         ..clear()
-        ..addAll(
-          _listFromJson(decoded['deposits']).map(DepositRecord.fromJson),
-        );
+        ..addAll(snapshot.deposits.map(DepositRecord.fromJson));
       _expenses
         ..clear()
-        ..addAll(
-          _listFromJson(decoded['expenses']).map(ExpenseRecord.fromJson),
-        );
+        ..addAll(snapshot.expenses.map(ExpenseRecord.fromJson));
       _liabilities
         ..clear()
-        ..addAll(
-          _listFromJson(decoded['liabilities']).map(LiabilityRecord.fromJson),
-        );
-      _defaultBudgetSeedVersion = _asInt(decoded[_defaultBudgetSeedVersionKey]);
-      _defaultBudgetSeedMonth = _asInt(decoded[_defaultBudgetSeedMonthKey]);
+        ..addAll(snapshot.liabilities.map(LiabilityRecord.fromJson));
+      _defaultBudgetSeedVersion = snapshot.defaultBudgetSeedVersion;
+      _defaultBudgetSeedMonth = snapshot.defaultBudgetSeedMonth;
     } catch (_) {
       _deposits.clear();
       _expenses.clear();
@@ -659,15 +654,15 @@ class LiabilityService {
   static Future<void> _persist() async {
     if (_disablePersistenceForTesting) return;
 
-    final payload = jsonEncode({
-      'deposits': _deposits.map((record) => record.toJson()).toList(),
-      'expenses': _expenses.map((record) => record.toJson()).toList(),
-      'liabilities': _liabilities.map((record) => record.toJson()).toList(),
-      _defaultBudgetSeedVersionKey: _defaultBudgetSeedVersion,
-      _defaultBudgetSeedMonthKey: _defaultBudgetSeedMonth,
-    });
-
-    await LocalStore.write(_storageKey, payload);
+    await _repository.saveSnapshot(
+      TransactionSnapshot(
+        deposits: _deposits.map((record) => record.toJson()),
+        expenses: _expenses.map((record) => record.toJson()),
+        liabilities: _liabilities.map((record) => record.toJson()),
+        defaultBudgetSeedVersion: _defaultBudgetSeedVersion,
+        defaultBudgetSeedMonth: _defaultBudgetSeedMonth,
+      ),
+    );
   }
 
   static DateTime? _seedDate(DateTime createdAt, int dayOfMonth) {
@@ -694,14 +689,6 @@ class LiabilityService {
         .replaceAll(RegExp(r'[^A-Z0-9]+'), '-')
         .replaceAll(RegExp(r'^-+|-+$'), '');
     return token.isEmpty ? 'BUDGET' : token;
-  }
-
-  static List<Map<String, dynamic>> _listFromJson(Object? value) {
-    if (value is! List) return [];
-    return value
-        .whereType<Map>()
-        .map((entry) => Map<String, dynamic>.from(entry))
-        .toList();
   }
 
   static bool _isInRange(DateTime value, DateTime start, DateTime end) {
