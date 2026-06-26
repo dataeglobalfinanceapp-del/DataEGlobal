@@ -16,6 +16,9 @@ where data comes from.
 Current refactor step:
 
 - Transaction and reminder persistence now goes through repository contracts.
+- Transaction local storage and cached transaction lists are owned by
+  `LocalTransactionRepository`; `LiabilityService` keeps the old static API as
+  compatibility wrappers.
 - Budget target persistence now goes through `BudgetTargetService`.
 - UI code should not import `LocalStore`, JSON persistence, HTTP, AWS, API
   Gateway, DynamoDB, or Amplify directly.

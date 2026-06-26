@@ -1,3 +1,8 @@
+import 'package:savetep/data/dto/save_deposit_request.dart';
+import 'package:savetep/data/dto/save_expense_request.dart';
+import 'package:savetep/data/dto/save_liability_request.dart';
+import 'package:savetep/services/liability_service.dart';
+
 class TransactionSnapshot {
   final List<Map<String, dynamic>> deposits;
   final List<Map<String, dynamic>> expenses;
@@ -34,6 +39,28 @@ class TransactionSnapshot {
 }
 
 abstract class TransactionRepository {
+  Future<List<DepositRecord>> loadDeposits();
+
+  Future<List<ExpenseRecord>> loadExpenses();
+
+  Future<List<LiabilityRecord>> loadLiabilities();
+
+  Future<DepositRecord> saveDeposit(SaveDepositRequest request);
+
+  Future<ExpenseRecord> saveExpense(SaveExpenseRequest request);
+
+  Future<LiabilityRecord> saveLiability(SaveLiabilityRequest request);
+
+  Future<ExpenseRecord> updateExpense(ExpenseRecord expense);
+
+  Future<LiabilityRecord> updateLiability(LiabilityRecord liability);
+
+  Future<bool> deleteDeposit(String id);
+
+  Future<bool> deleteExpense(String id);
+
+  Future<bool> deleteLiability(String id);
+
   Future<TransactionSnapshot?> loadSnapshot();
 
   Future<void> saveSnapshot(TransactionSnapshot snapshot);

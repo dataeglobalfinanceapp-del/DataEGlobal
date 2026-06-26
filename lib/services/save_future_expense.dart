@@ -11,15 +11,16 @@ class SaveFutureExpense {
     required String payee,
     required bool isManual,
     required String frequency,
+    required String Function(String prefix) idGenerator,
     String recurringSeriesId = '',
   }) {
     final transactionDate = RecurrenceSchedule.dateOnly(startDate);
     final seriesId = recurringSeriesId.isEmpty
-        ? LiabilityService._newId('recurring-expense')
+        ? idGenerator('recurring-expense')
         : recurringSeriesId;
     final recurringFrequency = _normalizedFrequency(frequency);
     return ExpenseRecord(
-      id: LiabilityService._newId('expense-${_dateToken(transactionDate)}'),
+      id: idGenerator('expense-${_dateToken(transactionDate)}'),
       checkNumber: checkNumber,
       totalAmount: totalAmount,
       transactionDate: transactionDate,
@@ -41,10 +42,11 @@ class SaveFutureExpense {
     required bool isManual,
     required String frequency,
     required DateTime now,
+    required String Function(String prefix) idGenerator,
     String recurringSeriesId = '',
   }) {
     final seriesId = recurringSeriesId.isEmpty
-        ? LiabilityService._newId('recurring-expense')
+        ? idGenerator('recurring-expense')
         : recurringSeriesId;
     final recurringFrequency = _normalizedFrequency(frequency);
     final dates = _dueRecurringDates(
@@ -55,7 +57,7 @@ class SaveFutureExpense {
     return [
       for (var index = 0; index < dates.length; index++)
         ExpenseRecord(
-          id: LiabilityService._newId('expense-${_dateToken(dates[index])}'),
+          id: idGenerator('expense-${_dateToken(dates[index])}'),
           checkNumber: checkNumber,
           totalAmount: totalAmount,
           transactionDate: dates[index],
@@ -69,16 +71,21 @@ class SaveFutureExpense {
     ];
   }
 
-  static bool syncDueRecurringExpenses(DateTime now) {
-    var changed = false;
-    final seriesIds = LiabilityService._expenses
+  static List<ExpenseRecord> syncDueRecurringExpenses({
+    required List<ExpenseRecord> expenses,
+    required DateTime now,
+    required String Function(String prefix) idGenerator,
+  }) {
+    final generated = <ExpenseRecord>[];
+    final allExpenses = List<ExpenseRecord>.of(expenses);
+    final seriesIds = allExpenses
         .where((record) => record.isRecurring)
         .map((record) => record.recurringSeriesId)
         .toSet();
 
     for (final seriesId in seriesIds) {
       final records =
-          LiabilityService._expenses
+          allExpenses
               .where((record) => record.recurringSeriesId == seriesId)
               .toList()
             ..sort((a, b) => a.transactionDate.compareTo(b.transactionDate));
@@ -93,7 +100,7 @@ class SaveFutureExpense {
         frequency: frequency,
         recurringEndMonthKey: recurringEndMonthKey,
       )) {
-        if (_hasRecurringOccurrence(seriesId, date)) {
+        if (_hasRecurringOccurrence(allExpenses, seriesId, date)) {
           continue;
         }
 
@@ -105,15 +112,16 @@ class SaveFutureExpense {
             occurrenceDate: date,
             frequency: frequency,
           ),
+          idGenerator: idGenerator,
         );
-        LiabilityService._addExpense(expense);
+        generated.add(expense);
+        allExpenses.add(expense);
         records.add(expense);
         records.sort((a, b) => a.transactionDate.compareTo(b.transactionDate));
-        changed = true;
       }
     }
 
-    return changed;
+    return List<ExpenseRecord>.unmodifiable(generated);
   }
 
   static List<DateTime> _dueRecurringDates({
@@ -137,8 +145,12 @@ class SaveFutureExpense {
     );
   }
 
-  static bool _hasRecurringOccurrence(String seriesId, DateTime date) {
-    return LiabilityService._expenses.any(
+  static bool _hasRecurringOccurrence(
+    Iterable<ExpenseRecord> expenses,
+    String seriesId,
+    DateTime date,
+  ) {
+    return expenses.any(
       (record) =>
           record.recurringSeriesId == seriesId &&
           RecurrenceSchedule.isSameDate(record.transactionDate, date),
@@ -149,9 +161,10 @@ class SaveFutureExpense {
     required ExpenseRecord template,
     required DateTime date,
     required int recurringIndex,
+    required String Function(String prefix) idGenerator,
   }) {
     return ExpenseRecord(
-      id: LiabilityService._newId(
+      id: idGenerator(
         'expense-${template.recurringSeriesId}-${_dateToken(date)}',
       ),
       checkNumber: template.checkNumber,
@@ -169,7 +182,7 @@ class SaveFutureExpense {
 
   static ExpenseRecord _templateForDate(
     List<ExpenseRecord> records,
-    
+
     DateTime date,
   ) {
     final monthKey = _monthKey(date);

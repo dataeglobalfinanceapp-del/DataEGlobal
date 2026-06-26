@@ -34,5 +34,9 @@ abstract class ReminderRepository {
 List<Map<String, dynamic>> _immutableMapList(
   Iterable<Map<String, dynamic>> values,
 ) {
-  return List.unmodifiable(values.map((value) => Map.unmodifiable(value)));
+  return List.unmodifiable(
+    values.map<Map<String, dynamic>>(
+      (value) => Map<String, dynamic>.unmodifiable(value),
+    ),
+  );
 }

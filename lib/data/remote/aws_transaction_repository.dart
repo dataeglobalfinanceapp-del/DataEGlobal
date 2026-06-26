@@ -1,7 +1,11 @@
 import 'dart:convert';
 
 import 'package:savetep/core/api/aws_api_client.dart';
+import 'package:savetep/data/dto/save_deposit_request.dart';
+import 'package:savetep/data/dto/save_expense_request.dart';
+import 'package:savetep/data/dto/save_liability_request.dart';
 import 'package:savetep/data/repositories/transaction_repository.dart';
+import 'package:savetep/services/liability_service.dart';
 
 class AwsTransactionRepository implements TransactionRepository {
   static const _storageKey = 'transactions';
@@ -9,6 +13,61 @@ class AwsTransactionRepository implements TransactionRepository {
   final AwsApiClient client;
 
   const AwsTransactionRepository(this.client);
+
+  @override
+  Future<List<DepositRecord>> loadDeposits() {
+    throw UnimplementedError('AWS transaction repository is not wired yet.');
+  }
+
+  @override
+  Future<List<ExpenseRecord>> loadExpenses() {
+    throw UnimplementedError('AWS transaction repository is not wired yet.');
+  }
+
+  @override
+  Future<List<LiabilityRecord>> loadLiabilities() {
+    throw UnimplementedError('AWS transaction repository is not wired yet.');
+  }
+
+  @override
+  Future<DepositRecord> saveDeposit(SaveDepositRequest request) {
+    throw UnimplementedError('AWS transaction repository is not wired yet.');
+  }
+
+  @override
+  Future<ExpenseRecord> saveExpense(SaveExpenseRequest request) {
+    throw UnimplementedError('AWS transaction repository is not wired yet.');
+  }
+
+  @override
+  Future<LiabilityRecord> saveLiability(SaveLiabilityRequest request) {
+    throw UnimplementedError('AWS transaction repository is not wired yet.');
+  }
+
+  @override
+  Future<ExpenseRecord> updateExpense(ExpenseRecord expense) {
+    throw UnimplementedError('AWS transaction repository is not wired yet.');
+  }
+
+  @override
+  Future<LiabilityRecord> updateLiability(LiabilityRecord liability) {
+    throw UnimplementedError('AWS transaction repository is not wired yet.');
+  }
+
+  @override
+  Future<bool> deleteDeposit(String id) {
+    throw UnimplementedError('AWS transaction repository is not wired yet.');
+  }
+
+  @override
+  Future<bool> deleteExpense(String id) {
+    throw UnimplementedError('AWS transaction repository is not wired yet.');
+  }
+
+  @override
+  Future<bool> deleteLiability(String id) {
+    throw UnimplementedError('AWS transaction repository is not wired yet.');
+  }
 
   @override
   Future<TransactionSnapshot?> loadSnapshot() async {

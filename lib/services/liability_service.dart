@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'package:savetep/data/dto/save_deposit_request.dart';
+import 'package:savetep/data/dto/save_expense_request.dart';
+import 'package:savetep/data/dto/save_liability_request.dart';
 import 'package:savetep/data/local/local_transaction_repository.dart';
 import 'package:savetep/data/repositories/transaction_repository.dart';
 import 'package:savetep/features/auth/models/budget_data.dart';
@@ -12,24 +15,18 @@ import 'recurrence_schedule.dart';
 part 'save_future_expense.dart';
 
 class LiabilityService {
-  static TransactionRepository _repository = const LocalTransactionRepository();
-
-  static final List<DepositRecord> _deposits = [];
-  static final List<ExpenseRecord> _expenses = [];
-  static final List<LiabilityRecord> _liabilities = [];
+  static TransactionRepository _repository = LocalTransactionRepository();
 
   static int _idCounter = 0;
-  static int _defaultBudgetSeedVersion = 0;
-  static int _defaultBudgetSeedMonth = 0;
-  static bool _loaded = false;
   static bool _disablePersistenceForTesting = false;
+  static bool _seedDefaultBudgetDataForTesting = false;
   static final ValueNotifier<int> _dataVersion = ValueNotifier<int>(0);
 
   static ValueListenable<int> get dataVersion => _dataVersion;
 
   static void configureRepository(TransactionRepository repository) {
     _repository = repository;
-    _loaded = false;
+    _seedDefaultBudgetDataForTesting = false;
   }
 
   static Future<void> saveDeposit({
@@ -42,10 +39,9 @@ class LiabilityService {
     required DateTime transactionDate,
     required bool isManual,
   }) async {
-    await _ensureLoaded();
-    _deposits.add(
-      DepositRecord(
-        id: _newId('deposit'),
+    await _prepareRepository();
+    await _repository.saveDeposit(
+      SaveDepositRequest(
         orderNumber: orderNumber,
         totalAmount: totalAmount,
         creditDeposit: creditDeposit,
@@ -56,7 +52,6 @@ class LiabilityService {
         isManual: isManual,
       ),
     );
-    await _persist();
     _notifyDataChanged();
   }
 
@@ -72,7 +67,7 @@ class LiabilityService {
     String recurringFrequency = RecurrenceSchedule.monthly,
     String recurringSeriesId = '',
   }) async {
-    await _ensureLoaded();
+    await _prepareRepository();
 
     final expenses = isRecurringMonthly
         ? [
@@ -85,6 +80,7 @@ class LiabilityService {
               isManual: isManual,
               frequency: recurringFrequency,
               recurringSeriesId: recurringSeriesId,
+              idGenerator: _newId,
             ),
           ]
         : [
@@ -100,31 +96,38 @@ class LiabilityService {
           ];
 
     for (final expense in expenses) {
-      _addExpense(expense);
+      final saved = await _repository.saveExpense(_requestFromExpense(expense));
+      await _saveExpenseLiability(saved);
     }
 
-    await _persist();
     _notifyDataChanged();
   }
 
-  static void _addExpense(ExpenseRecord expense) {
-    _expenses.add(expense);
-    _addExpenseLiability(expense);
+  static void _addExpense(_TransactionState state, ExpenseRecord expense) {
+    state.expenses.add(expense);
+    _addExpenseLiability(state, expense);
   }
 
-  static void _addExpenseLiability(ExpenseRecord expense) {
+  static void _addExpenseLiability(
+    _TransactionState state,
+    ExpenseRecord expense,
+  ) {
     if (expense.category == 'Loan Obligation') {
-      _liabilities.add(_liabilityFromExpense(expense));
+      state.liabilities.add(_liabilityFromExpense(expense));
     }
   }
 
+  static Future<void> _saveExpenseLiability(ExpenseRecord expense) async {
+    if (expense.category != 'Loan Obligation') return;
+
+    final liability = _liabilityFromExpense(expense);
+    await _repository.saveLiability(_requestFromLiability(liability));
+  }
+
   static Future<bool> deleteDeposit(String id) async {
-    await _ensureLoaded();
-    final before = _deposits.length;
-    _deposits.removeWhere((record) => record.id == id);
-    final removed = _deposits.length != before;
+    await _prepareRepository();
+    final removed = await _repository.deleteDeposit(id);
     if (removed) {
-      await _persist();
       _notifyDataChanged();
     }
     return removed;
@@ -138,14 +141,14 @@ class LiabilityService {
   }) async {
     if (recurringSeriesId.isEmpty || amount <= 0) return false;
 
-    await _ensureLoaded();
+    final state = await _loadPreparedState();
     final DateTime? occurrence = occurrenceDate == null
         ? null
         : RecurrenceSchedule.dateOnly(occurrenceDate);
     final DateTime cutoff = RecurrenceSchedule.dateOnly(
       fromDate ?? AppClock.now,
     );
-    final List<ExpenseRecord> expensesToUpdate = _expenses
+    final List<ExpenseRecord> expensesToUpdate = state.expenses
         .where(
           (record) =>
               record.recurringSeriesId == recurringSeriesId &&
@@ -164,36 +167,36 @@ class LiabilityService {
     final Set<String> expenseIds = expensesToUpdate
         .map((record) => record.id)
         .toSet();
-    _removeExpenseLiabilities(expensesToUpdate);
+    _removeExpenseLiabilities(state, expensesToUpdate);
 
-    for (var index = 0; index < _expenses.length; index++) {
-      final ExpenseRecord record = _expenses[index];
+    for (var index = 0; index < state.expenses.length; index++) {
+      final ExpenseRecord record = state.expenses[index];
       if (!expenseIds.contains(record.id)) continue;
-      _expenses[index] = record.copyWith(totalAmount: amount);
-      _addExpenseLiability(_expenses[index]);
+      state.expenses[index] = record.copyWith(totalAmount: amount);
+      _addExpenseLiability(state, state.expenses[index]);
     }
 
-    await _persist();
+    await _saveState(state);
     _notifyDataChanged();
     return true;
   }
 
   static Future<bool> deleteExpense(String id) async {
-    await _ensureLoaded();
-    final matching = _expenses.where((record) => record.id == id).toList();
+    final state = await _loadPreparedState();
+    final matching = state.expenses.where((record) => record.id == id).toList();
     if (matching.isEmpty) return false;
 
     final expense = matching.first;
     if (expense.isRecurring) {
-      return _stopRecurringExpenseFromMonth(expense, AppClock.now);
+      return _stopRecurringExpenseFromMonth(state, expense, AppClock.now);
     }
 
     final expensesToDelete = matching;
     final expenseIds = expensesToDelete.map((record) => record.id).toSet();
 
-    _expenses.removeWhere((record) => expenseIds.contains(record.id));
-    _removeExpenseLiabilities(expensesToDelete);
-    await _persist();
+    state.expenses.removeWhere((record) => expenseIds.contains(record.id));
+    _removeExpenseLiabilities(state, expensesToDelete);
+    await _saveState(state);
     _notifyDataChanged();
     return true;
   }
@@ -204,12 +207,12 @@ class LiabilityService {
   }) async {
     if (recurringSeriesId.isEmpty) return false;
 
-    await _ensureLoaded();
+    final state = await _loadPreparedState();
     final DateTime cutoff = RecurrenceSchedule.dateOnly(
       fromDate ?? AppClock.now,
     );
     final int cutoffMonthKey = SaveFutureExpense._monthKey(cutoff);
-    final List<ExpenseRecord> expensesToDelete = _expenses
+    final List<ExpenseRecord> expensesToDelete = state.expenses
         .where(
           (record) =>
               record.recurringSeriesId == recurringSeriesId &&
@@ -218,7 +221,7 @@ class LiabilityService {
               ).isBefore(cutoff),
         )
         .toList(growable: false);
-    final List<ExpenseRecord> retainedExpenses = _expenses
+    final List<ExpenseRecord> retainedExpenses = state.expenses
         .where(
           (record) =>
               record.recurringSeriesId == recurringSeriesId &&
@@ -241,16 +244,18 @@ class LiabilityService {
     final Set<String> expenseIdsToDelete = expensesToDelete
         .map((record) => record.id)
         .toSet();
-    _expenses.removeWhere((record) => expenseIdsToDelete.contains(record.id));
-    _removeExpenseLiabilities(expensesToDelete);
+    state.expenses.removeWhere(
+      (record) => expenseIdsToDelete.contains(record.id),
+    );
+    _removeExpenseLiabilities(state, expensesToDelete);
 
     final Set<String> retainedExpenseIds = retainedExpenses
         .map((record) => record.id)
         .toSet();
-    for (var index = 0; index < _expenses.length; index++) {
-      final ExpenseRecord record = _expenses[index];
+    for (var index = 0; index < state.expenses.length; index++) {
+      final ExpenseRecord record = state.expenses[index];
       if (!retainedExpenseIds.contains(record.id)) continue;
-      _expenses[index] = record.copyWith(
+      state.expenses[index] = record.copyWith(
         recurringEndMonthKey: _earlierRecurringEndMonthKey(
           record.recurringEndMonthKey,
           cutoffMonthKey,
@@ -258,17 +263,18 @@ class LiabilityService {
       );
     }
 
-    await _persist();
+    await _saveState(state);
     _notifyDataChanged();
     return true;
   }
 
   static Future<bool> _stopRecurringExpenseFromMonth(
+    _TransactionState state,
     ExpenseRecord expense,
     DateTime month,
   ) async {
     final deleteMonthKey = SaveFutureExpense._monthKey(month);
-    final seriesRecords = _expenses
+    final seriesRecords = state.expenses
         .where(
           (record) => record.recurringSeriesId == expense.recurringSeriesId,
         )
@@ -303,13 +309,15 @@ class LiabilityService {
     final expenseIdsToDelete = expensesToDelete
         .map((record) => record.id)
         .toSet();
-    _expenses.removeWhere((record) => expenseIdsToDelete.contains(record.id));
-    _removeExpenseLiabilities(expensesToDelete);
+    state.expenses.removeWhere(
+      (record) => expenseIdsToDelete.contains(record.id),
+    );
+    _removeExpenseLiabilities(state, expensesToDelete);
 
-    for (var index = 0; index < _expenses.length; index++) {
-      final record = _expenses[index];
+    for (var index = 0; index < state.expenses.length; index++) {
+      final record = state.expenses[index];
       if (!retainedExpenseIds.contains(record.id)) continue;
-      _expenses[index] = record.copyWith(
+      state.expenses[index] = record.copyWith(
         recurringEndMonthKey: _earlierRecurringEndMonthKey(
           record.recurringEndMonthKey,
           deleteMonthKey,
@@ -317,7 +325,7 @@ class LiabilityService {
       );
     }
 
-    await _persist();
+    await _saveState(state);
     _notifyDataChanged();
     return true;
   }
@@ -336,53 +344,50 @@ class LiabilityService {
     required double minimum,
     required int percent,
   }) async {
-    await _ensureLoaded();
-    _liabilities.add(
-      LiabilityRecord(
-        id: _newId('liability'),
+    await _prepareRepository();
+    await _repository.saveLiability(
+      SaveLiabilityRequest(
         tab: tab,
         name: name,
         date: date,
         starting: starting,
         minimum: minimum,
         percent: percent,
-        source: 'manual',
       ),
     );
-    await _persist();
     _notifyDataChanged();
   }
 
   static Future<List<DepositRecord>> loadDeposits() async {
-    await _ensureLoaded();
-    return List.unmodifiable(_deposits);
+    final state = await _loadPreparedState();
+    return List.unmodifiable(state.deposits);
   }
 
   static Future<DepositBalanceSummary> loadDepositBalanceSummary({
     required int year,
     required int month,
   }) async {
-    await _ensureLoaded();
+    final state = await _loadPreparedState();
     final DateTime monthStart = DateTime(year, month);
     final List<DepositBalanceSummary> summaries =
-        _depositBalanceSummariesForYear(monthStart.year);
+        _depositBalanceSummariesForYear(state, monthStart.year);
     return summaries[monthStart.month - 1];
   }
 
   static Future<List<DepositBalanceSummary>>
   loadDepositBalanceSummariesForYear({required int year}) async {
-    await _ensureLoaded();
-    return _depositBalanceSummariesForYear(year);
+    final state = await _loadPreparedState();
+    return _depositBalanceSummariesForYear(state, year);
   }
 
   static Future<List<ExpenseRecord>> loadExpenses() async {
-    await _ensureLoaded();
-    return List.unmodifiable(_expenses);
+    final state = await _loadPreparedState();
+    return List.unmodifiable(state.expenses);
   }
 
   static Future<List<LiabilityRecord>> loadLiabilities() async {
-    await _ensureLoaded();
-    return List.unmodifiable(_liabilities);
+    final state = await _loadPreparedState();
+    return List.unmodifiable(state.liabilities);
   }
 
   static Future<BudgetData> loadBudgetData({
@@ -390,19 +395,23 @@ class LiabilityService {
     required DateTime endDate,
     required String period,
   }) async {
-    await _ensureLoaded();
+    final state = await _loadPreparedState();
 
-    final deposits = _deposits
+    final deposits = state.deposits
         .where(
           (record) => _isInRange(record.transactionDate, startDate, endDate),
         )
         .toList();
-    final expenses = _expenses
+    final expenses = state.expenses
         .where(
           (record) => _isInRange(record.transactionDate, startDate, endDate),
         )
         .toList();
-    final budgetExpenses = _budgetExpenseAmountsForRange(startDate, endDate);
+    final budgetExpenses = _budgetExpenseAmountsForRange(
+      state,
+      startDate,
+      endDate,
+    );
 
     final depositTotal = deposits.fold<double>(
       0,
@@ -457,13 +466,13 @@ class LiabilityService {
     required LiabilityTab tab,
     required int year,
   }) async {
-    await _ensureLoaded();
+    final state = await _loadPreparedState();
 
     final monthEntries = <int, List<LiabilityEntry>>{
       for (var month = 1; month <= 12; month++) month: <LiabilityEntry>[],
     };
 
-    for (final record in _liabilities.where(
+    for (final record in state.liabilities.where(
       (record) => record.tab == tab && record.date.year == year,
     )) {
       monthEntries[record.date.month]!.add(record.toEntry());
@@ -487,9 +496,9 @@ class LiabilityService {
   }
 
   static Future<LiabilitySummary> loadLiabilitySummary(LiabilityTab tab) async {
-    await _ensureLoaded();
+    final state = await _loadPreparedState();
 
-    final records = _liabilities.where((record) => record.tab == tab);
+    final records = state.liabilities.where((record) => record.tab == tab);
     final totalOwed = records.fold<double>(
       0,
       (sum, record) => sum + record.starting,
@@ -514,77 +523,66 @@ class LiabilityService {
     bool disablePersistence = true,
     bool seedDefaultBudgetData = false,
   }) {
-    _deposits.clear();
-    _expenses.clear();
-    _liabilities.clear();
+    _repository = LocalTransactionRepository(
+      disablePersistenceForTesting: disablePersistence,
+    );
     _idCounter = 0;
-    _defaultBudgetSeedVersion = 0;
-    _defaultBudgetSeedMonth = 0;
-    _loaded = true;
     _disablePersistenceForTesting = disablePersistence;
-    if (seedDefaultBudgetData) {
-      _seedDefaultBudgetDataIfNeeded(AppClock.now, force: true);
-    }
+    _seedDefaultBudgetDataForTesting = seedDefaultBudgetData;
     _notifyDataChanged();
   }
 
-  static Future<void> _ensureLoaded() async {
-    if (_loaded) {
-      final changed = _prepareLoadedData(AppClock.now);
-      if (changed) await _persist();
-      return;
-    }
-
-    final snapshot = await _repository.loadSnapshot();
-    if (snapshot == null) {
-      _loaded = true;
-      final changed = _prepareLoadedData(AppClock.now);
-      if (changed) await _persist();
-      return;
-    }
-
-    try {
-      _deposits
-        ..clear()
-        ..addAll(snapshot.deposits.map(DepositRecord.fromJson));
-      _expenses
-        ..clear()
-        ..addAll(snapshot.expenses.map(ExpenseRecord.fromJson));
-      _liabilities
-        ..clear()
-        ..addAll(snapshot.liabilities.map(LiabilityRecord.fromJson));
-      _defaultBudgetSeedVersion = snapshot.defaultBudgetSeedVersion;
-      _defaultBudgetSeedMonth = snapshot.defaultBudgetSeedMonth;
-    } catch (_) {
-      _deposits.clear();
-      _expenses.clear();
-      _liabilities.clear();
-      _defaultBudgetSeedVersion = 0;
-      _defaultBudgetSeedMonth = 0;
-    }
-
-    _loaded = true;
-    final changed = _prepareLoadedData(AppClock.now);
-    if (changed) await _persist();
+  static Future<void> _prepareRepository() async {
+    await _loadPreparedState();
   }
 
-  static bool _prepareLoadedData(DateTime createdAt) {
-    final seeded = _seedDefaultBudgetDataIfNeeded(createdAt);
-    final synced = SaveFutureExpense.syncDueRecurringExpenses(createdAt);
-    return seeded || synced;
+  static Future<_TransactionState> _loadPreparedState() async {
+    final snapshot = await _repository.loadSnapshot();
+    final state = _TransactionState.fromSnapshot(
+      snapshot ?? TransactionSnapshot.empty(),
+    );
+    final forceSeed = _seedDefaultBudgetDataForTesting;
+    final changed = _prepareLoadedData(state, AppClock.now, forceSeed);
+    if (forceSeed) {
+      _seedDefaultBudgetDataForTesting = false;
+    }
+    if (changed) await _saveState(state);
+    return state;
+  }
+
+  static bool _prepareLoadedData(
+    _TransactionState state,
+    DateTime createdAt,
+    bool forceSeed,
+  ) {
+    final seeded = _seedDefaultBudgetDataIfNeeded(
+      state,
+      createdAt,
+      force: forceSeed,
+    );
+    final syncedExpenses = SaveFutureExpense.syncDueRecurringExpenses(
+      expenses: state.expenses,
+      now: createdAt,
+      idGenerator: _newId,
+    );
+    for (final expense in syncedExpenses) {
+      _addExpense(state, expense);
+    }
+    return seeded || syncedExpenses.isNotEmpty;
   }
 
   static bool _seedDefaultBudgetDataIfNeeded(
+    _TransactionState state,
     DateTime createdAt, {
     bool force = false,
   }) {
     if (_disablePersistenceForTesting && !force) return false;
-    if (_defaultBudgetSeedVersion >= DefaultBudgetSeedData.version) {
+    if (state.defaultBudgetSeedVersion >= DefaultBudgetSeedData.version) {
       return false;
     }
-    if (_deposits.isNotEmpty ||
-        _expenses.isNotEmpty ||
-        _liabilities.isNotEmpty) {
+    if (state.deposits.isNotEmpty ||
+        state.expenses.isNotEmpty ||
+        state.liabilities.isNotEmpty) {
       return false;
     }
 
@@ -593,7 +591,7 @@ class LiabilityService {
       final transactionDate = _seedDate(createdAt, seed.dayOfMonth);
       if (transactionDate == null) continue;
 
-      _deposits.add(
+      state.deposits.add(
         DepositRecord(
           id: _newId('seed-deposit'),
           orderNumber: _seedOrderNumber(seed),
@@ -624,15 +622,17 @@ class LiabilityService {
           isManual: true,
           frequency: RecurrenceSchedule.monthly,
           now: createdAt,
+          idGenerator: _newId,
         );
         for (final expense in expenses) {
-          _addExpense(expense);
+          _addExpense(state, expense);
         }
         changed = changed || expenses.isNotEmpty;
         continue;
       }
 
       _addExpense(
+        state,
         ExpenseRecord(
           id: _newId('seed-expense'),
           checkNumber: _seedCheckNumber(seed),
@@ -646,23 +646,13 @@ class LiabilityService {
       changed = true;
     }
 
-    _defaultBudgetSeedVersion = DefaultBudgetSeedData.version;
-    _defaultBudgetSeedMonth = SaveFutureExpense._monthKey(createdAt);
+    state.defaultBudgetSeedVersion = DefaultBudgetSeedData.version;
+    state.defaultBudgetSeedMonth = SaveFutureExpense._monthKey(createdAt);
     return changed;
   }
 
-  static Future<void> _persist() async {
-    if (_disablePersistenceForTesting) return;
-
-    await _repository.saveSnapshot(
-      TransactionSnapshot(
-        deposits: _deposits.map((record) => record.toJson()),
-        expenses: _expenses.map((record) => record.toJson()),
-        liabilities: _liabilities.map((record) => record.toJson()),
-        defaultBudgetSeedVersion: _defaultBudgetSeedVersion,
-        defaultBudgetSeedMonth: _defaultBudgetSeedMonth,
-      ),
-    );
+  static Future<void> _saveState(_TransactionState state) async {
+    await _repository.saveSnapshot(state.toSnapshot());
   }
 
   static DateTime? _seedDate(DateTime createdAt, int dayOfMonth) {
@@ -699,6 +689,7 @@ class LiabilityService {
   }
 
   static List<_BudgetExpenseAmount> _budgetExpenseAmountsForRange(
+    _TransactionState state,
     DateTime startDate,
     DateTime endDate,
   ) {
@@ -711,9 +702,10 @@ class LiabilityService {
     }
 
     final amounts = <_BudgetExpenseAmount>[];
-    for (final expense in _expenses) {
+    for (final expense in state.expenses) {
       final amount = expense.isRecurring
           ? _recurringExpenseAmountForRange(
+              state,
               expense,
               rangeStart,
               rangeEndExclusive,
@@ -743,12 +735,16 @@ class LiabilityService {
   }
 
   static double _recurringExpenseAmountForRange(
+    _TransactionState state,
     ExpenseRecord expense,
     DateTime rangeStart,
     DateTime rangeEndExclusive,
   ) {
     final periodStart = RecurrenceSchedule.dateOnly(expense.transactionDate);
-    final periodEndExclusive = _recurringExpensePeriodEndExclusive(expense);
+    final periodEndExclusive = _recurringExpensePeriodEndExclusive(
+      state,
+      expense,
+    );
     final periodDays = periodEndExclusive.difference(periodStart).inDays;
     if (periodDays <= 0) return 0;
 
@@ -760,11 +756,14 @@ class LiabilityService {
     return expense.totalAmount / periodDays * overlapDays;
   }
 
-  static DateTime _recurringExpensePeriodEndExclusive(ExpenseRecord expense) {
+  static DateTime _recurringExpensePeriodEndExclusive(
+    _TransactionState state,
+    ExpenseRecord expense,
+  ) {
     final occurrenceDate = RecurrenceSchedule.dateOnly(expense.transactionDate);
     final frequency = expense.normalizedRecurringFrequency;
 
-    final seriesStartDate = _recurringSeriesStartDate(expense);
+    final seriesStartDate = _recurringSeriesStartDate(state, expense);
     final searchThrough = _recurringSearchThrough(occurrenceDate, frequency);
     final dates = RecurrenceSchedule.dueDates(
       startDate: seriesStartDate,
@@ -779,9 +778,12 @@ class LiabilityService {
     return _fallbackRecurringPeriodEnd(occurrenceDate, frequency);
   }
 
-  static DateTime _recurringSeriesStartDate(ExpenseRecord expense) {
+  static DateTime _recurringSeriesStartDate(
+    _TransactionState state,
+    ExpenseRecord expense,
+  ) {
     var startDate = RecurrenceSchedule.dateOnly(expense.transactionDate);
-    for (final record in _expenses) {
+    for (final record in state.expenses) {
       if (record.recurringSeriesId != expense.recurringSeriesId) continue;
       final recordDate = RecurrenceSchedule.dateOnly(record.transactionDate);
       if (recordDate.isBefore(startDate)) startDate = recordDate;
@@ -828,19 +830,25 @@ class LiabilityService {
     return left.isBefore(right) ? left : right;
   }
 
-  static List<DepositBalanceSummary> _depositBalanceSummariesForYear(int year) {
+  static List<DepositBalanceSummary> _depositBalanceSummariesForYear(
+    _TransactionState state,
+    int year,
+  ) {
     double runningBalance =
-        _sumDepositsBefore(DateTime(year)) - _sumExpensesBefore(DateTime(year));
+        _sumDepositsBefore(state, DateTime(year)) -
+        _sumExpensesBefore(state, DateTime(year));
     final List<DepositBalanceSummary> summaries = <DepositBalanceSummary>[];
 
     for (int month = 1; month <= 12; month += 1) {
       final DateTime monthStart = DateTime(year, month);
       final DateTime nextMonthStart = DateTime(year, month + 1);
       final double monthCredits = _sumDepositsInRange(
+        state,
         monthStart,
         nextMonthStart,
       );
       final double monthExpenses = _sumExpensesInRange(
+        state,
         monthStart,
         nextMonthStart,
       );
@@ -858,8 +866,8 @@ class LiabilityService {
     return List<DepositBalanceSummary>.unmodifiable(summaries);
   }
 
-  static double _sumDepositsBefore(DateTime cutoff) {
-    return _deposits
+  static double _sumDepositsBefore(_TransactionState state, DateTime cutoff) {
+    return state.deposits
         .where(
           (DepositRecord record) => record.transactionDate.isBefore(cutoff),
         )
@@ -869,8 +877,8 @@ class LiabilityService {
         );
   }
 
-  static double _sumExpensesBefore(DateTime cutoff) {
-    return _expenses
+  static double _sumExpensesBefore(_TransactionState state, DateTime cutoff) {
+    return state.expenses
         .where(
           (ExpenseRecord record) => record.transactionDate.isBefore(cutoff),
         )
@@ -880,8 +888,12 @@ class LiabilityService {
         );
   }
 
-  static double _sumDepositsInRange(DateTime start, DateTime end) {
-    return _deposits
+  static double _sumDepositsInRange(
+    _TransactionState state,
+    DateTime start,
+    DateTime end,
+  ) {
+    return state.deposits
         .where(
           (DepositRecord record) =>
               !record.transactionDate.isBefore(start) &&
@@ -893,8 +905,12 @@ class LiabilityService {
         );
   }
 
-  static double _sumExpensesInRange(DateTime start, DateTime end) {
-    return _expenses
+  static double _sumExpensesInRange(
+    _TransactionState state,
+    DateTime start,
+    DateTime end,
+  ) {
+    return state.expenses
         .where(
           (ExpenseRecord record) =>
               !record.transactionDate.isBefore(start) &&
@@ -927,11 +943,14 @@ class LiabilityService {
         liability.starting == expense.totalAmount;
   }
 
-  static void _removeExpenseLiabilities(Iterable<ExpenseRecord> expenses) {
+  static void _removeExpenseLiabilities(
+    _TransactionState state,
+    Iterable<ExpenseRecord> expenses,
+  ) {
     final expenseList = expenses.toList();
     final expenseIds = expenseList.map((record) => record.id).toSet();
 
-    _liabilities.removeWhere(
+    state.liabilities.removeWhere(
       (record) =>
           expenseIds.any(
             (expenseId) => record.source == 'expense:$expenseId',
@@ -955,6 +974,33 @@ class LiabilityService {
     );
   }
 
+  static SaveExpenseRequest _requestFromExpense(ExpenseRecord expense) {
+    return SaveExpenseRequest(
+      checkNumber: expense.checkNumber,
+      totalAmount: expense.totalAmount,
+      transactionDate: expense.transactionDate,
+      category: expense.category,
+      payee: expense.payee,
+      isManual: expense.isManual,
+      recurringSeriesId: expense.recurringSeriesId,
+      recurringIndex: expense.recurringIndex,
+      recurringEndMonthKey: expense.recurringEndMonthKey,
+      recurringFrequency: expense.recurringFrequency,
+    );
+  }
+
+  static SaveLiabilityRequest _requestFromLiability(LiabilityRecord liability) {
+    return SaveLiabilityRequest(
+      tab: liability.tab,
+      name: liability.name,
+      date: liability.date,
+      starting: liability.starting,
+      minimum: liability.minimum,
+      percent: liability.percent,
+      source: liability.source,
+    );
+  }
+
   static Color _categoryColor(String category) {
     return switch (category) {
       'Payroll' => const Color(0xFF2563EB),
@@ -968,6 +1014,58 @@ class LiabilityService {
       'Equipment' => const Color(0xFF1D4ED8),
       _ => const Color(0xFF374151),
     };
+  }
+}
+
+class _TransactionState {
+  final List<DepositRecord> deposits;
+  final List<ExpenseRecord> expenses;
+  final List<LiabilityRecord> liabilities;
+  int defaultBudgetSeedVersion;
+  int defaultBudgetSeedMonth;
+
+  _TransactionState({
+    required this.deposits,
+    required this.expenses,
+    required this.liabilities,
+    required this.defaultBudgetSeedVersion,
+    required this.defaultBudgetSeedMonth,
+  });
+
+  factory _TransactionState.fromSnapshot(TransactionSnapshot snapshot) {
+    try {
+      return _TransactionState(
+        deposits: snapshot.deposits.map(DepositRecord.fromJson).toList(),
+        expenses: snapshot.expenses.map(ExpenseRecord.fromJson).toList(),
+        liabilities: snapshot.liabilities
+            .map(LiabilityRecord.fromJson)
+            .toList(),
+        defaultBudgetSeedVersion: snapshot.defaultBudgetSeedVersion,
+        defaultBudgetSeedMonth: snapshot.defaultBudgetSeedMonth,
+      );
+    } catch (_) {
+      return _TransactionState.empty();
+    }
+  }
+
+  factory _TransactionState.empty() {
+    return _TransactionState(
+      deposits: <DepositRecord>[],
+      expenses: <ExpenseRecord>[],
+      liabilities: <LiabilityRecord>[],
+      defaultBudgetSeedVersion: 0,
+      defaultBudgetSeedMonth: 0,
+    );
+  }
+
+  TransactionSnapshot toSnapshot() {
+    return TransactionSnapshot(
+      deposits: deposits.map((record) => record.toJson()),
+      expenses: expenses.map((record) => record.toJson()),
+      liabilities: liabilities.map((record) => record.toJson()),
+      defaultBudgetSeedVersion: defaultBudgetSeedVersion,
+      defaultBudgetSeedMonth: defaultBudgetSeedMonth,
+    );
   }
 }
 
