@@ -154,9 +154,7 @@ class _ReminderController extends ChangeNotifier {
         expenses: _expenses,
       ),
       spentInPeriod: _ReminderDataMapper.spentInPeriod(
-        expenses: _expenses,
-        start: periodStart,
-        endExclusive: periodEndExclusive,
+        reminders: periodReminders,
       ),
     );
   }
@@ -279,21 +277,11 @@ class _ReminderDataMapper {
     return totalDeposits - totalExpenses;
   }
 
-  static double spentInPeriod({
-    required List<ExpenseRecord> expenses,
-    required DateTime start,
-    required DateTime endExclusive,
-  }) {
-    return expenses
-        .where(
-          (ExpenseRecord record) =>
-              !record.transactionDate.isBefore(start) &&
-              record.transactionDate.isBefore(endExclusive),
-        )
-        .fold<double>(
-          0,
-          (double total, ExpenseRecord record) => total + record.totalAmount,
-        );
+  static double spentInPeriod({required List<ReminderRecord> reminders}) {
+    return reminders.fold<double>(
+      0,
+      (double total, ReminderRecord record) => total + record.amount,
+    );
   }
 }
 

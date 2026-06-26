@@ -50,7 +50,7 @@ void main() {
     expect(find.text('Utilities'), findsWidgets);
     expect(find.text('Just one'), findsOneWidget);
     expect(find.text('06/10/2026'), findsOneWidget);
-    expect(find.text(r'$120.00'), findsOneWidget);
+    expect(find.text(r'$120.00'), findsWidgets);
     expect(find.byTooltip('Completed'), findsOneWidget);
     expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
     expect(find.byIcon(Icons.delete_outline), findsOneWidget);
@@ -74,7 +74,7 @@ void main() {
 
     expect(find.text('Rent'), findsWidgets);
     expect(find.text('Monthly'), findsOneWidget);
-    expect(find.text(r'$100.00'), findsOneWidget);
+    expect(find.text(r'$100.00'), findsWidgets);
     expect(find.text('Remaining balance this year'), findsOneWidget);
     expect(find.text(r'$700.00'), findsOneWidget);
   });
@@ -123,6 +123,13 @@ void main() {
         reminderCount: 'Just one',
         payee: 'Later Bill',
       ),
+      ReminderDraft(
+        date: DateTime(2026, 6, 18),
+        category: 'Insurance',
+        amount: 40,
+        reminderCount: 'Monthly',
+        payee: 'Recurring Bill',
+      ),
     ]);
 
     await tester.pumpWidget(const MaterialApp(home: ReminderScreen()));
@@ -130,7 +137,7 @@ void main() {
 
     expect(find.text('Spent this month'), findsOneWidget);
     expect(find.text(r'$750.00'), findsOneWidget);
-    expect(find.text(r'$250.00'), findsOneWidget);
+    expect(find.text(r'$220.00'), findsOneWidget);
     expect(find.text('This Week Bill'), findsOneWidget);
 
     await tester.scrollUntilVisible(
@@ -147,8 +154,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Spent this week'), findsOneWidget);
-    expect(find.text(r'$200.00'), findsOneWidget);
+    expect(find.text(r'$140.00'), findsOneWidget);
     expect(find.text('This Week Bill'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Recurring Bill'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Recurring Bill'), findsOneWidget);
     expect(find.text('Later Bill'), findsNothing);
   });
 
@@ -168,7 +182,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: ReminderScreen()));
     await tester.pumpAndSettle();
 
-    expect(find.text(r'$240.00'), findsOneWidget);
+    expect(find.text(r'$240.00'), findsWidgets);
 
     await tester.tap(find.byTooltip('Completed'));
     await tester.pumpAndSettle();
