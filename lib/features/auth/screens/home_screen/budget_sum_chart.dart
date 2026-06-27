@@ -71,14 +71,25 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
     final allLegendSegments = _allLegendSegments(widget.data);
     final targetPercentages =
         _targetPercentagesByPeriod[_periodKey] ?? const <String, double>{};
+    final mediaSize = MediaQuery.sizeOf(context);
+    final heightScale = (mediaSize.height / 844).clamp(0.78, 1.15).toDouble();
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 720),
       child: LayoutBuilder(
         builder: (context, cardConstraints) {
           final isWideCard = cardConstraints.maxWidth >= 560;
-          final horizontalPadding = isWideCard ? 24.0 : 14.0;
-          final topPadding = isWideCard ? 18.0 : 14.0;
-          final bottomPadding = isWideCard ? 18.0 : 16.0;
+          final horizontalPadding = ((isWideCard ? 24.0 : 14.0) * heightScale)
+              .clamp(isWideCard ? 20.0 : 10.0, isWideCard ? 28.0 : 14.0)
+              .toDouble();
+          final topPadding = ((isWideCard ? 18.0 : 14.0) * heightScale)
+              .clamp(isWideCard ? 14.0 : 9.0, isWideCard ? 20.0 : 14.0)
+              .toDouble();
+          final bottomPadding = ((isWideCard ? 18.0 : 14.0) * heightScale)
+              .clamp(isWideCard ? 14.0 : 9.0, isWideCard ? 20.0 : 14.0)
+              .toDouble();
+          final headerGap = ((isWideCard ? 20.0 : 10.0) * heightScale)
+              .clamp(isWideCard ? 14.0 : 7.0, isWideCard ? 22.0 : 10.0)
+              .toDouble();
           return Container(
             width: double.infinity,
             padding: EdgeInsets.fromLTRB(
@@ -89,7 +100,7 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
             ),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFE5E7EB)),
               boxShadow: [
                 BoxShadow(
@@ -131,7 +142,7 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
                     ),
                   ],
                 ),
-                SizedBox(height: isWideCard ? 20 : 12),
+                SizedBox(height: headerGap),
                 // Legend + Divider + Donut
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -142,17 +153,26 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
                         ? 24.0
                         : isTight
                         ? 8.0
-                        : 12.0;
+                        : 10.0;
                     // Legend takes fixed portion, chart fills the rest
                     final legendWidth = isWide
                         ? math.min(220.0, contentWidth * 0.36)
-                        : math.min(160.0, contentWidth * 0.44);
+                        : math.min(150.0, contentWidth * 0.44);
                     final activeSegmentCount = math.max(
                       1,
                       allLegendSegments.length,
                     );
-                    final rowHeight = _isEditingTargets ? 34.0 : 27.0;
-                    final minChartHeight = isWide ? 200.0 : 160.0;
+                    final rowHeight =
+                        ((_isEditingTargets ? 32.0 : 22.0) * heightScale)
+                            .clamp(_isEditingTargets ? 28.0 : 18.0, 34.0)
+                            .toDouble();
+                    final minChartHeight =
+                        ((isWide ? 200.0 : 130.0) * heightScale)
+                            .clamp(
+                              isWide ? 160.0 : 96.0,
+                              isWide ? 220.0 : 130.0,
+                            )
+                            .toDouble();
                     final dividerHeight = math.max(
                       minChartHeight,
                       activeSegmentCount * rowHeight + 8,
@@ -320,132 +340,185 @@ class BudgetTotalsCard extends StatelessWidget {
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 720),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF064A42), Color(0xFF052D2E)],
-          ),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Color(0xFFBCA052), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF052D2E).withValues(alpha: 0.22),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'TOTAL BALANCE',
-                        style: TextStyle(
-                          color: Color(0xFFC6E2CE),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          _fmtMoney(data.available),
-                          maxLines: 1,
-                          style: const TextStyle(
-                            color: Color(0xFFFFC84D),
-                            fontSize: 30,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          Icon(
-                            data.available >= 0
-                                ? Icons.arrow_drop_up
-                                : Icons.arrow_drop_down,
-                            color: availableColor,
-                            size: 18,
-                          ),
-                          Expanded(
-                            child: Text(
-                              '${data.surplusPercent}% available from deposit',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: availableColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0,
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final mediaSize = MediaQuery.sizeOf(context);
+          final heightScale = (mediaSize.height / 844)
+              .clamp(0.78, 1.15)
+              .toDouble();
+          final double width = constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : mediaSize.width;
+          final bool isTablet = width >= 600;
+          final double baseHeight = width >= 600
+              ? 170
+              : width >= 380
+              ? 145
+              : 150;
+          final double height = (baseHeight * heightScale)
+              .clamp(isTablet ? 150.0 : 112.0, isTablet ? 190.0 : 160.0)
+              .toDouble();
+          final double padding = ((isTablet ? 18.0 : 14.0) * heightScale)
+              .clamp(isTablet ? 14.0 : 10.0, isTablet ? 20.0 : 14.0)
+              .toDouble();
+          final double labelFontSize = ((isTablet ? 12.0 : 10.0) * heightScale)
+              .clamp(isTablet ? 10.5 : 8.5, isTablet ? 13.0 : 10.0)
+              .toDouble();
+          final double amountFontSize = ((isTablet ? 34.0 : 26.0) * heightScale)
+              .clamp(isTablet ? 28.0 : 20.0, isTablet ? 38.0 : 28.0)
+              .toDouble();
+          final double statusFontSize = ((isTablet ? 12.0 : 10.0) * heightScale)
+              .clamp(isTablet ? 10.0 : 8.5, isTablet ? 13.0 : 10.0)
+              .toDouble();
+          final double walletIconSize = ((isTablet ? 42.0 : 34.0) * heightScale)
+              .clamp(isTablet ? 36.0 : 26.0, isTablet ? 46.0 : 34.0)
+              .toDouble();
+          final double metricDividerHeight =
+              ((isTablet ? 44.0 : 30.0) * heightScale)
+                  .clamp(isTablet ? 36.0 : 22.0, isTablet ? 48.0 : 30.0)
+                  .toDouble();
+          final double metricDividerMargin =
+              ((isTablet ? 14.0 : 10.0) * heightScale)
+                  .clamp(isTablet ? 10.0 : 7.0, isTablet ? 16.0 : 10.0)
+                  .toDouble();
+
+          return SizedBox(
+            height: height,
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(padding),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF064A42), Color(0xFF052D2E)],
+                ),
+                borderRadius: BorderRadius.circular(isTablet ? 22 : 18),
+                border: Border.all(color: const Color(0xFFBCA052), width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF052D2E).withValues(alpha: 0.22),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'TOTAL BALANCE',
+                                style: TextStyle(
+                                  color: const Color(0xFFC6E2CE),
+                                  fontSize: labelFontSize,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0,
+                                ),
                               ),
-                            ),
+                              SizedBox(height: isTablet ? 6 : 2),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    _fmtMoney(data.available),
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      color: const Color(0xFFFFC84D),
+                                      fontSize: amountFontSize,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: isTablet ? 6 : 2),
+                              Row(
+                                children: [
+                                  Icon(
+                                    data.available >= 0
+                                        ? Icons.arrow_drop_up
+                                        : Icons.arrow_drop_down,
+                                    color: availableColor,
+                                    size: isTablet ? 18 : 16,
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      '${data.surplusPercent}% available from deposit',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: availableColor,
+                                        fontSize: statusFontSize,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
+                        SizedBox(width: isTablet ? 14 : 10),
+                        Icon(
+                          Icons.account_balance_wallet_outlined,
+                          color: const Color(0xFFD9B957),
+                          size: walletIconSize,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(
+                    height: 1,
+                    color: const Color(0xFFBCA052).withValues(alpha: 0.44),
+                  ),
+                  SizedBox(height: isTablet ? 10 : 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SummaryMetric(
+                          label: 'TOTAL EXPENSE',
+                          amount: data.expense,
+                          icon: Icons.south_west_rounded,
+                          iconColor: const Color(0xFFFF5E63),
+                          amountColor: const Color(0xFFFF5E63),
+                          isTablet: isTablet,
+                        ),
+                      ),
+                      Container(
+                        width: 1,
+                        height: metricDividerHeight,
+                        margin: EdgeInsets.symmetric(
+                          horizontal: metricDividerMargin,
+                        ),
+                        color: const Color(0xFFBCA052).withValues(alpha: 0.28),
+                      ),
+                      Expanded(
+                        child: _SummaryMetric(
+                          label: 'TOTAL DEPOSIT',
+                          amount: data.deposit,
+                          icon: Icons.account_balance_wallet_outlined,
+                          iconColor: depositColor,
+                          amountColor: depositColor,
+                          isTablet: isTablet,
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 12),
-                const Icon(
-                  Icons.account_balance_wallet_outlined,
-                  color: Color(0xFFD9B957),
-                  size: 48,
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            Divider(
-              height: 1,
-              color: const Color(0xFFBCA052).withValues(alpha: 0.44),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _SummaryMetric(
-                    label: 'TOTAL EXPENSE',
-                    amount: data.expense,
-                    icon: Icons.south_west_rounded,
-                    iconColor: const Color(0xFFFF5E63),
-                    amountColor: const Color(0xFFFF5E63),
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 54,
-                  margin: const EdgeInsets.symmetric(horizontal: 10),
-                  color: const Color(0xFFBCA052).withValues(alpha: 0.28),
-                ),
-                Expanded(
-                  child: _SummaryMetric(
-                    label: 'TOTAL DEPOSIT',
-                    amount: data.deposit,
-                    icon: Icons.account_balance_wallet_outlined,
-                    iconColor: depositColor,
-                    amountColor: depositColor,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -457,6 +530,7 @@ class _SummaryMetric extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final Color amountColor;
+  final bool isTablet;
 
   const _SummaryMetric({
     required this.label,
@@ -464,23 +538,43 @@ class _SummaryMetric extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.amountColor,
+    required this.isTablet,
   });
 
   @override
   Widget build(BuildContext context) {
+    final heightScale = (MediaQuery.sizeOf(context).height / 844)
+        .clamp(0.78, 1.15)
+        .toDouble();
+    final double iconDimension = ((isTablet ? 38.0 : 26.0) * heightScale)
+        .clamp(isTablet ? 32.0 : 21.0, isTablet ? 42.0 : 28.0)
+        .toDouble();
+    final double iconSize = ((isTablet ? 20.0 : 15.0) * heightScale)
+        .clamp(isTablet ? 17.0 : 12.0, isTablet ? 22.0 : 16.0)
+        .toDouble();
+    final double gap = ((isTablet ? 10.0 : 6.0) * heightScale)
+        .clamp(isTablet ? 8.0 : 4.0, isTablet ? 12.0 : 7.0)
+        .toDouble();
+    final double labelFontSize = ((isTablet ? 11.0 : 9.0) * heightScale)
+        .clamp(isTablet ? 9.5 : 7.8, isTablet ? 12.0 : 9.2)
+        .toDouble();
+    final double amountFontSize = ((isTablet ? 18.0 : 14.5) * heightScale)
+        .clamp(isTablet ? 15.0 : 12.0, isTablet ? 20.0 : 15.0)
+        .toDouble();
+
     return Row(
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: iconDimension,
+          height: iconDimension,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(color: iconColor, width: 1.2),
             color: iconColor.withValues(alpha: 0.08),
           ),
-          child: Icon(icon, color: iconColor, size: 18),
+          child: Icon(icon, color: iconColor, size: iconSize),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: gap),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,14 +584,14 @@ class _SummaryMetric extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFFE8F4DC),
-                  fontSize: 10,
+                style: TextStyle(
+                  color: const Color(0xFFE8F4DC),
+                  fontSize: labelFontSize,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0,
                 ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 2),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
@@ -506,7 +600,7 @@ class _SummaryMetric extends StatelessWidget {
                   maxLines: 1,
                   style: TextStyle(
                     color: amountColor,
-                    fontSize: 17,
+                    fontSize: amountFontSize,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0,
                   ),
@@ -537,7 +631,6 @@ class BudgetTopCards extends StatelessWidget {
     );
   }
 }
-
 // ── Period Pill ───────────────────────────────────────────────────────────────
 
 class _PeriodPill extends StatelessWidget {
@@ -632,12 +725,12 @@ class _LegendRow extends StatelessWidget {
         ? const Color(0xFFDC2626)
         : const Color(0xFF334155);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
           Container(
-            width: 10,
-            height: 10,
+            width: 9,
+            height: 9,
             decoration: BoxDecoration(
               color: segment.color,
               shape: BoxShape.circle,
@@ -658,7 +751,7 @@ class _LegendRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: textColor,
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -714,13 +807,16 @@ class _LegendRow extends StatelessWidget {
                     onChanged: onTargetChanged,
                   ),
                 )
-              : Text(
-                  '${_fmtPercent(segment.percentage)}%',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: valueColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+              : SizedBox(
+                  width: 38,
+                  child: Text(
+                    '${_fmtPercent(segment.percentage)}%',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: valueColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
         ],
@@ -768,16 +864,25 @@ class _BudgetDonutFigure extends StatelessWidget {
             : 160.0;
         if (availableWidth <= 0) return const SizedBox.shrink();
 
-        // Keep chart compact – max 220px even on wide screens
-        final chartSize = math.min(availableWidth, 220.0);
+        final screenSize = MediaQuery.sizeOf(context);
+        final screenWidth = screenSize.width;
+        final widthChartCap = screenWidth >= 600 ? 180.0 : 130.0;
+        final heightChartCap =
+            (screenSize.height * (screenWidth >= 600 ? 0.18 : 0.16))
+                .clamp(screenWidth >= 600 ? 150.0 : 96.0, widthChartCap)
+                .toDouble();
+        final maxChartSize = math.min(widthChartCap, heightChartCap);
 
-        // Very thin ring: ~5% of diameter, clamped 6–14px
+        // Keep the mobile donut compact while the card stays scan-friendly.
+        final chartSize = math.min(availableWidth, maxChartSize);
+
+        // Very thin ring: about 5% of diameter, clamped 6-14px.
         final ringWidth = (chartSize * 0.05).clamp(6.0, 14.0);
         final outerRadius = chartSize / 2;
         final centerRadius = outerRadius - ringWidth;
 
         // Center text area fits inside the hole
-        final centerTextWidth = centerRadius * 1.55;
+        final centerTextWidth = centerRadius * 1.8;
 
         final activeSegmentCount = segments
             .where((s) => !s.isPlaceholder)
@@ -827,7 +932,7 @@ class _CenterBudgetText extends StatelessWidget {
     final availableColor = data.available >= 0
         ? const Color(0xFF16A34A)
         : const Color(0xFFDC2626);
-    final scale = (width / 122).clamp(0.65, 1.0).toDouble();
+    final scale = (width / 108).clamp(0.82, 1.0).toDouble();
     final surplusPercent = data.deposit > 0
         ? ((data.available / data.deposit) * 100).round()
         : 0;
@@ -842,11 +947,11 @@ class _CenterBudgetText extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: const Color.fromARGB(255, 0, 0, 0),
-              fontSize: 12 * scale,
+              fontSize: 10 * scale,
               fontWeight: FontWeight.w600,
             ),
           ),
-          SizedBox(height: 6 * scale),
+          SizedBox(height: 4 * scale),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
@@ -859,7 +964,7 @@ class _CenterBudgetText extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(height: 6 * scale),
+          SizedBox(height: 4 * scale),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
@@ -867,12 +972,12 @@ class _CenterBudgetText extends StatelessWidget {
               maxLines: 1,
               style: TextStyle(
                 color: availableColor,
-                fontSize: 14 * scale,
+                fontSize: 11 * scale,
                 fontWeight: FontWeight.w900,
               ),
             ),
           ),
-          SizedBox(height: 6 * scale),
+          SizedBox(height: 4 * scale),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
@@ -880,19 +985,19 @@ class _CenterBudgetText extends StatelessWidget {
               maxLines: 1,
               style: TextStyle(
                 color: Colors.black,
-                fontSize: 12 * scale,
+                fontSize: 10 * scale,
                 fontWeight: FontWeight.w900,
               ),
             ),
           ),
-          SizedBox(height: 6 * scale),
+          SizedBox(height: 4 * scale),
           Text(
             '${data.utilizationPercent}% utilized',
             maxLines: 1,
             textAlign: TextAlign.center,
             style: TextStyle(
               color: const Color(0xFF6B7280),
-              fontSize: 11 * scale,
+              fontSize: 9 * scale,
               fontWeight: FontWeight.w600,
             ),
           ),

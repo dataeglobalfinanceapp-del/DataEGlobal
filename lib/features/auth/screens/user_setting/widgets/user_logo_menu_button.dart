@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 
 class UserLogoMenuButton extends StatelessWidget {
   final VoidCallback onPressed;
+  final double size;
 
-  const UserLogoMenuButton({super.key, required this.onPressed});
+  const UserLogoMenuButton({
+    super.key,
+    required this.onPressed,
+    this.size = 42,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,28 +27,28 @@ class UserLogoMenuButton extends StatelessWidget {
               child: InkWell(
                 onTap: onPressed,
                 child: Ink(
-                  width: 42,
-                  height: 42,
+                  width: size,
+                  height: size,
                   decoration: const BoxDecoration(
                     color: Color(0xFFD8ECFF),
                     shape: BoxShape.circle,
                   ),
-                  child: const Stack(
+                  child: Stack(
                     alignment: Alignment.center,
                     children: [
                       Positioned(
-                        top: 8,
+                        top: size * 0.19,
                         child: CircleAvatar(
-                          radius: 7,
-                          backgroundColor: Color(0xFF334155),
+                          radius: size * 0.17,
+                          backgroundColor: const Color(0xFF334155),
                         ),
                       ),
                       Positioned(
-                        bottom: 6,
+                        bottom: size * 0.14,
                         child: Icon(
                           Icons.person,
-                          size: 30,
-                          color: Color(0xFF3B82C4),
+                          size: size * 0.72,
+                          color: const Color(0xFF3B82C4),
                         ),
                       ),
                     ],

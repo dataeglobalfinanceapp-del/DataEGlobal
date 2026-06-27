@@ -11,11 +11,19 @@ class BudgetDonutChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mediaSize = MediaQuery.sizeOf(context);
+    final double heightScale = (mediaSize.height / 844)
+        .clamp(0.78, 1.15)
+        .toDouble();
+    final double cardGap = ((mediaSize.width >= 600 ? 18 : 14) * heightScale)
+        .clamp(mediaSize.width >= 600 ? 14.0 : 8.0, 20.0)
+        .toDouble();
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         BudgetTotalsCard(data: data),
-        const SizedBox(height: 12),
+        SizedBox(height: cardGap),
         BudgetSumChart(data: data, periodKey: periodKey),
       ],
     );
