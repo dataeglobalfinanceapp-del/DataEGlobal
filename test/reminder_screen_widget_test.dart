@@ -31,7 +31,7 @@ void main() {
     expect(find.text('Tap a date to create a reminder.'), findsOneWidget);
   });
 
-  testWidgets('ReminderScreen weekly calendar shows only Sunday to Saturday', (
+  testWidgets('ReminderScreen weekly view keeps Month tab available', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: ReminderScreen()));
@@ -41,11 +41,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Week'), findsOneWidget);
-    expect(find.text('Month'), findsNothing);
+    expect(find.text('Month'), findsOneWidget);
     expect(find.text('14'), findsOneWidget);
     expect(find.text('20'), findsOneWidget);
     expect(find.text('13'), findsNothing);
     expect(find.text('21'), findsNothing);
+
+    await tester.tap(find.text('Month'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Spent this month'), findsOneWidget);
+    expect(find.text('13'), findsOneWidget);
+    expect(find.text('21'), findsOneWidget);
   });
 
   testWidgets('ReminderScreen shows reminder details inline on the card', (

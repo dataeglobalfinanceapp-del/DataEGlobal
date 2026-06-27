@@ -258,9 +258,6 @@ class _ViewModeToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<_ReminderViewMode> modes = selectedMode == _ReminderViewMode.week
-        ? const <_ReminderViewMode>[_ReminderViewMode.week]
-        : _ReminderViewMode.values;
     final Widget modeSelector = Container(
       height: 34,
       padding: const EdgeInsets.all(3),
@@ -271,7 +268,7 @@ class _ViewModeToolbar extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          for (final _ReminderViewMode mode in modes)
+          for (final _ReminderViewMode mode in _ReminderViewMode.values)
             Expanded(
               child: _ViewModeButton(
                 mode: mode,
@@ -285,11 +282,7 @@ class _ViewModeToolbar extends StatelessWidget {
 
     return Row(
       children: <Widget>[
-        if (selectedMode == _ReminderViewMode.week) ...<Widget>[
-          SizedBox(width: 78, child: modeSelector),
-          const Spacer(),
-        ] else
-          Expanded(child: modeSelector),
+        Expanded(child: modeSelector),
         const SizedBox(width: 10),
         _PeriodIconButton(icon: Icons.chevron_left, onPressed: onPrev),
         const SizedBox(width: 6),
