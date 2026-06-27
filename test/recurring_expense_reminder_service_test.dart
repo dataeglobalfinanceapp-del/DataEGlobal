@@ -75,9 +75,108 @@ void main() {
       expect(_amountFor(expenses, DateTime(2026, 5, 10)), 100);
       expect(_amountFor(expenses, DateTime(2026, 6, 10)), 225);
 
+      final List<ReminderRecord> updatedReminders =
+          await ReminderService.loadReminders();
+      expect(
+        _reminderAmountForDate(updatedReminders, DateTime(2026, 6, 10)),
+        225,
+      );
+      expect(
+        _reminderAmountForDate(updatedReminders, DateTime(2026, 7, 10)),
+        225,
+      );
+
       AppClock.set(DateTime(2026, 7, 10));
       expenses = await LiabilityService.loadExpenses();
       expect(_amountFor(expenses, DateTime(2026, 7, 10)), 225);
+    },
+  );
+
+  test(
+    'editing a future recurring reminder updates future reminders and expenses',
+    () async {
+      await RecurringExpenseReminderService.saveRecurringExpenseWithReminder(
+        checkNumber: '208',
+        totalAmount: 100,
+        transactionDate: DateTime(2026, 1, 10),
+        startDate: DateTime(2026, 1, 10),
+        category: 'Rent',
+        payee: 'Landlord',
+        isManual: true,
+        frequency: 'Monthly',
+      );
+
+      expect(_dateKeys(await LiabilityService.loadExpenses()), <String>[
+        '2026-01-10',
+        '2026-02-10',
+        '2026-03-10',
+        '2026-04-10',
+        '2026-05-10',
+        '2026-06-10',
+      ]);
+
+      final ReminderRecord octoberReminder =
+          (await ReminderService.loadReminders()).singleWhere(
+            (ReminderRecord record) => _dateKey(record.date) == '2026-10-10',
+          );
+
+      final bool updated =
+          await RecurringExpenseReminderService.updateReminderAmount(
+            reminderId: octoberReminder.id,
+            amount: 175,
+            scope: ReminderEditScope.single,
+          );
+
+      expect(updated, isTrue);
+
+      final List<ReminderRecord> reminders =
+          await ReminderService.loadReminders();
+      expect(_reminderAmountForDate(reminders, DateTime(2026, 9, 10)), 100);
+      expect(_reminderAmountForDate(reminders, DateTime(2026, 10, 10)), 175);
+      expect(_reminderAmountForDate(reminders, DateTime(2026, 12, 10)), 175);
+
+      var expenses = await LiabilityService.loadExpenses();
+      expect(_amountFor(expenses, DateTime(2026, 6, 10)), 100);
+      expect(_amountFor(expenses, DateTime(2026, 10, 10)), 175);
+      expect(
+        expenses
+            .where(
+              (ExpenseRecord record) =>
+                  record.recurringSeriesId ==
+                      octoberReminder.recurringSeriesId &&
+                  _dateKey(record.transactionDate) == '2026-10-10',
+            )
+            .length,
+        1,
+      );
+      expect(
+        expenses
+            .where(
+              (ExpenseRecord record) =>
+                  record.recurringSeriesId == octoberReminder.recurringSeriesId,
+            )
+            .map((ExpenseRecord record) => record.recurringSeriesId)
+            .toSet(),
+        <String>{octoberReminder.recurringSeriesId},
+      );
+
+      AppClock.set(DateTime(2026, 11, 10));
+      expenses = await LiabilityService.loadExpenses();
+
+      expect(_amountFor(expenses, DateTime(2026, 9, 10)), 100);
+      expect(_amountFor(expenses, DateTime(2026, 10, 10)), 175);
+      expect(_amountFor(expenses, DateTime(2026, 11, 10)), 175);
+      expect(
+        expenses
+            .where(
+              (ExpenseRecord record) =>
+                  record.recurringSeriesId ==
+                      octoberReminder.recurringSeriesId &&
+                  _dateKey(record.transactionDate) == '2026-10-10',
+            )
+            .length,
+        1,
+      );
     },
   );
 
@@ -118,9 +217,9 @@ void main() {
   );
 
   test(
-    'editing one recurring reminder updates the linked expense occurrence',
+    'editing recurring reminder updates linked expenses date-forward',
     () async {
-      AppClock.set(DateTime(2026, 6, 15));
+      AppClock.set(DateTime(2026, 6, 29));
       await RecurringExpenseReminderService.saveRecurringExpenseWithReminder(
         checkNumber: '204',
         totalAmount: 80,
@@ -143,10 +242,20 @@ void main() {
         scope: ReminderEditScope.single,
       );
 
-      final List<ExpenseRecord> expenses =
-          await LiabilityService.loadExpenses();
+      var expenses = await LiabilityService.loadExpenses();
       expect(_amountFor(expenses, DateTime(2026, 6, 1)), 80);
       expect(_amountFor(expenses, DateTime(2026, 6, 15)), 95);
+      expect(_amountFor(expenses, DateTime(2026, 6, 29)), 95);
+
+      final List<ReminderRecord> reminders =
+          await ReminderService.loadReminders();
+      expect(_reminderAmountForDate(reminders, DateTime(2026, 6, 1)), 80);
+      expect(_reminderAmountForDate(reminders, DateTime(2026, 6, 15)), 95);
+      expect(_reminderAmountForDate(reminders, DateTime(2026, 6, 29)), 95);
+
+      AppClock.set(DateTime(2026, 7, 13));
+      expenses = await LiabilityService.loadExpenses();
+      expect(_amountFor(expenses, DateTime(2026, 7, 13)), 95);
     },
   );
 
@@ -295,6 +404,17 @@ double _amountFor(List<ExpenseRecord> expenses, DateTime date) {
 double _reminderAmountFor(List<ReminderRecord> reminders, String reminderId) {
   return reminders
       .singleWhere((ReminderRecord record) => record.id == reminderId)
+      .amount;
+}
+
+double _reminderAmountForDate(List<ReminderRecord> reminders, DateTime date) {
+  return reminders
+      .singleWhere(
+        (ReminderRecord record) =>
+            record.date.year == date.year &&
+            record.date.month == date.month &&
+            record.date.day == date.day,
+      )
       .amount;
 }
 

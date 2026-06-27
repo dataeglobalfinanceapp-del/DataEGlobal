@@ -158,6 +158,15 @@ class _ReminderDateUtils {
     return date.subtract(Duration(days: date.weekday % 7));
   }
 
+  static List<DateTime> weekDates(DateTime weekStart) {
+    final DateTime start = dateOnly(weekStart);
+    return List<DateTime>.generate(
+      7,
+      (int index) => start.add(Duration(days: index)),
+      growable: false,
+    );
+  }
+
   static String dateKey(DateTime value) {
     final DateTime date = dateOnly(value);
     return '${date.year}-'

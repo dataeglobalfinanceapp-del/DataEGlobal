@@ -148,21 +148,47 @@ class LiabilityService {
     final DateTime cutoff = RecurrenceSchedule.dateOnly(
       fromDate ?? AppClock.now,
     );
-    final List<ExpenseRecord> expensesToUpdate = state.expenses
-        .where(
+    final List<ExpenseRecord> seriesExpenses =
+        state.expenses
+            .where((record) => record.recurringSeriesId == recurringSeriesId)
+            .toList()
+          ..sort((a, b) => a.transactionDate.compareTo(b.transactionDate));
+    if (seriesExpenses.isEmpty) return false;
+
+    final List<ExpenseRecord> expensesToUpdate = occurrence == null
+        ? seriesExpenses
+              .where(
+                (record) => !RecurrenceSchedule.dateOnly(
+                  record.transactionDate,
+                ).isBefore(cutoff),
+              )
+              .toList(growable: false)
+        : seriesExpenses
+              .where(
+                (record) => RecurrenceSchedule.isSameDate(
+                  record.transactionDate,
+                  occurrence,
+                ),
+              )
+              .toList(growable: false);
+
+    ExpenseRecord? newFutureExpense;
+    if (occurrence == null &&
+        !seriesExpenses.any(
           (record) =>
-              record.recurringSeriesId == recurringSeriesId &&
-              (occurrence == null
-                  ? !RecurrenceSchedule.dateOnly(
-                      record.transactionDate,
-                    ).isBefore(cutoff)
-                  : RecurrenceSchedule.isSameDate(
-                      record.transactionDate,
-                      occurrence,
-                    )),
-        )
-        .toList(growable: false);
-    if (expensesToUpdate.isEmpty) return false;
+              RecurrenceSchedule.isSameDate(record.transactionDate, cutoff),
+        )) {
+      if (!_isRecurringSeriesActiveAt(seriesExpenses, cutoff)) return false;
+      newFutureExpense = _recurringExpenseOccurrenceForDate(
+        records: seriesExpenses,
+        date: cutoff,
+        amount: amount,
+      );
+      if (newFutureExpense == null) return false;
+      _addExpense(state, newFutureExpense);
+    }
+
+    if (expensesToUpdate.isEmpty && newFutureExpense == null) return false;
 
     final Set<String> expenseIds = expensesToUpdate
         .map((record) => record.id)
@@ -179,6 +205,80 @@ class LiabilityService {
     await _saveState(state);
     _notifyDataChanged();
     return true;
+  }
+
+  static ExpenseRecord? _recurringExpenseOccurrenceForDate({
+    required List<ExpenseRecord> records,
+    required DateTime date,
+    required double amount,
+  }) {
+    if (records.isEmpty) return null;
+
+    final DateTime occurrenceDate = RecurrenceSchedule.dateOnly(date);
+    final ExpenseRecord first = records.first;
+    final DateTime startDate = RecurrenceSchedule.dateOnly(
+      first.transactionDate,
+    );
+    final String frequency = first.normalizedRecurringFrequency;
+    if (occurrenceDate.isBefore(startDate) ||
+        !_isRecurringOccurrenceDate(
+          startDate: startDate,
+          date: occurrenceDate,
+          frequency: frequency,
+        )) {
+      return null;
+    }
+
+    final ExpenseRecord? template = _latestRecurringExpenseOnOrBefore(
+      records,
+      occurrenceDate,
+    );
+    if (template == null) return null;
+
+    return SaveFutureExpense._expenseFromTemplate(
+      template: template,
+      date: occurrenceDate,
+      recurringIndex: SaveFutureExpense._recurringIndex(
+        startDate: startDate,
+        occurrenceDate: occurrenceDate,
+        frequency: frequency,
+      ),
+      idGenerator: _newId,
+    ).copyWith(totalAmount: amount);
+  }
+
+  static ExpenseRecord? _latestRecurringExpenseOnOrBefore(
+    List<ExpenseRecord> records,
+    DateTime date,
+  ) {
+    ExpenseRecord? template;
+    for (final ExpenseRecord record in records) {
+      if (RecurrenceSchedule.dateOnly(record.transactionDate).isAfter(date)) {
+        break;
+      }
+      template = record;
+    }
+    return template;
+  }
+
+  static bool _isRecurringOccurrenceDate({
+    required DateTime startDate,
+    required DateTime date,
+    required String frequency,
+  }) {
+    return RecurrenceSchedule.occurrenceDatesForYear(
+      startDate: startDate,
+      frequency: frequency,
+      year: date.year,
+    ).any((occurrence) => RecurrenceSchedule.isSameDate(occurrence, date));
+  }
+
+  static bool _isRecurringSeriesActiveAt(
+    List<ExpenseRecord> records,
+    DateTime date,
+  ) {
+    final int endMonthKey = SaveFutureExpense._seriesEndMonthKey(records);
+    return endMonthKey <= 0 || SaveFutureExpense._monthKey(date) < endMonthKey;
   }
 
   static Future<bool> deleteExpense(String id) async {

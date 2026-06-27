@@ -80,23 +80,22 @@ class RecurringExpenseReminderService {
     if (reminder == null) return false;
 
     if (!reminder.isRecurring) {
-      await ReminderService.updateAmount(reminderId, amount, scope: scope);
-      return true;
+      return ReminderService.updateAmount(reminderId, amount, scope: scope);
     }
 
     final bool expenseUpdated =
         await LiabilityService.updateRecurringExpenseAmount(
           recurringSeriesId: reminder.recurringSeriesId,
           amount: amount,
-          occurrenceDate: scope == ReminderEditScope.single
-              ? reminder.date
-              : null,
-          fromDate: scope == ReminderEditScope.series ? reminder.date : null,
+          fromDate: reminder.date,
         );
     if (!expenseUpdated) return false;
 
-    await ReminderService.updateAmount(reminderId, amount, scope: scope);
-    return true;
+    return ReminderService.updateAmount(
+      reminderId,
+      amount,
+      scope: ReminderEditScope.series,
+    );
   }
 
   static Future<bool> deleteReminder({

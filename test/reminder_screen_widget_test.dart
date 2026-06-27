@@ -31,6 +31,23 @@ void main() {
     expect(find.text('Tap a date to create a reminder.'), findsOneWidget);
   });
 
+  testWidgets('ReminderScreen weekly calendar shows only Sunday to Saturday', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: ReminderScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Week'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Week'), findsOneWidget);
+    expect(find.text('Month'), findsNothing);
+    expect(find.text('14'), findsOneWidget);
+    expect(find.text('20'), findsOneWidget);
+    expect(find.text('13'), findsNothing);
+    expect(find.text('21'), findsNothing);
+  });
+
   testWidgets('ReminderScreen shows reminder details inline on the card', (
     WidgetTester tester,
   ) async {
@@ -75,8 +92,7 @@ void main() {
     expect(find.text('Rent'), findsWidgets);
     expect(find.text('Monthly'), findsOneWidget);
     expect(find.text(r'$100.00'), findsWidgets);
-    expect(find.text('Remaining balance this year'), findsOneWidget);
-    expect(find.text(r'$700.00'), findsOneWidget);
+    expect(find.text('Balance left: \$700.00'), findsOneWidget);
   });
 
   testWidgets('ReminderScreen toggles month and week reminder summaries', (
@@ -208,7 +224,7 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: ReminderScreen()));
       await tester.pumpAndSettle();
 
-      expect(find.text(r'$700.00'), findsOneWidget);
+      expect(find.text('Balance left: \$700.00'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Completed'));
       await tester.pumpAndSettle();
@@ -216,7 +232,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('July 2026'), findsOneWidget);
-      expect(find.text(r'$600.00'), findsOneWidget);
+      expect(find.text('Balance left: \$600.00'), findsOneWidget);
     },
   );
 

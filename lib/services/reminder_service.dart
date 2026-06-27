@@ -86,15 +86,15 @@ class ReminderService {
     await _persist();
   }
 
-  static Future<void> updateAmount(
+  static Future<bool> updateAmount(
     String id,
     double amount, {
     ReminderEditScope scope = ReminderEditScope.single,
   }) async {
-    if (amount <= 0) return;
+    if (amount <= 0) return false;
     await _ensureLoaded();
     final index = _reminders.indexWhere((record) => record.id == id);
-    if (index == -1) return;
+    if (index == -1) return false;
     final record = _reminders[index];
 
     if (scope == ReminderEditScope.series && record.isRecurring) {
@@ -102,8 +102,11 @@ class ReminderService {
       if (series != null) {
         _series[series.id] = series.copyWith(amount: amount);
       }
+      final DateTime effectiveDate = _dateOnly(record.date);
       for (var i = 0; i < _reminders.length; i++) {
-        if (_reminders[i].recurringSeriesId == record.recurringSeriesId) {
+        final ReminderRecord reminder = _reminders[i];
+        if (reminder.recurringSeriesId == record.recurringSeriesId &&
+            !_dateOnly(reminder.date).isBefore(effectiveDate)) {
           _reminders[i] = _reminders[i].copyWith(amount: amount);
         }
       }
@@ -112,6 +115,7 @@ class ReminderService {
     }
 
     await _persist();
+    return true;
   }
 
   static Future<bool> deleteReminder(

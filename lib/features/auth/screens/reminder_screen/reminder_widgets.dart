@@ -258,33 +258,38 @@ class _ViewModeToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final List<_ReminderViewMode> modes = selectedMode == _ReminderViewMode.week
+        ? const <_ReminderViewMode>[_ReminderViewMode.week]
+        : _ReminderViewMode.values;
+    final Widget modeSelector = Container(
+      height: 34,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: _ReminderTokens.surface,
+        borderRadius: BorderRadius.circular(_ReminderTokens.controlRadius),
+        border: Border.all(color: _ReminderTokens.border),
+      ),
+      child: Row(
+        children: <Widget>[
+          for (final _ReminderViewMode mode in modes)
+            Expanded(
+              child: _ViewModeButton(
+                mode: mode,
+                isSelected: mode == selectedMode,
+                onPressed: () => onModeChanged(mode),
+              ),
+            ),
+        ],
+      ),
+    );
+
     return Row(
       children: <Widget>[
-        Expanded(
-          child: Container(
-            height: 34,
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: _ReminderTokens.surface,
-              borderRadius: BorderRadius.circular(
-                _ReminderTokens.controlRadius,
-              ),
-              border: Border.all(color: _ReminderTokens.border),
-            ),
-            child: Row(
-              children: <Widget>[
-                for (final _ReminderViewMode mode in _ReminderViewMode.values)
-                  Expanded(
-                    child: _ViewModeButton(
-                      mode: mode,
-                      isSelected: mode == selectedMode,
-                      onPressed: () => onModeChanged(mode),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
+        if (selectedMode == _ReminderViewMode.week) ...<Widget>[
+          SizedBox(width: 78, child: modeSelector),
+          const Spacer(),
+        ] else
+          Expanded(child: modeSelector),
         const SizedBox(width: 10),
         _PeriodIconButton(icon: Icons.chevron_left, onPressed: onPrev),
         const SizedBox(width: 6),
@@ -550,10 +555,35 @@ class _ReminderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final _ReminderStatus status = _ReminderStatus.fromRecord(record);
+    final Widget actionButtons = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        _ReminderIconActionButton(
+          tooltip: 'Completed',
+          icon: Icons.check_circle,
+          iconColor: _ReminderTokens.success,
+          onPressed: onMarkFinished,
+        ),
+        const SizedBox(width: 5),
+        _ReminderIconActionButton(
+          tooltip: 'Edit Amount',
+          icon: Icons.edit_outlined,
+          iconColor: _ReminderTokens.blue,
+          onPressed: onEditAmount,
+        ),
+        const SizedBox(width: 5),
+        _ReminderIconActionButton(
+          tooltip: 'Delete',
+          icon: Icons.delete_outline,
+          iconColor: _ReminderTokens.dangerDark,
+          onPressed: onDelete,
+        ),
+      ],
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.fromLTRB(10, 9, 8, 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 10, 9),
       decoration: BoxDecoration(
         color: _ReminderTokens.surface,
         borderRadius: BorderRadius.circular(_ReminderTokens.cardRadius),
@@ -564,133 +594,145 @@ class _ReminderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      _ReminderDateUtils.fullDate(record.date),
-                      style: const TextStyle(
-                        color: _ReminderTokens.textStrong,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      record.payee,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _ReminderTokens.textStrong,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 3,
-                      children: <Widget>[
-                        Text(
-                          record.category,
-                          style: const TextStyle(
-                            color: _ReminderTokens.textMuted,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Text(
-                          record.reminderCount,
-                          style: const TextStyle(
-                            color: _ReminderTokens.textMuted,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                child: Text(
+                  _ReminderDateUtils.fullDate(record.date),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _ReminderTokens.textStrong,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: <Widget>[
-                  Text(
-                    formatMoney(record.amount),
-                    style: TextStyle(
-                      color: status.amountColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      decoration: status == _ReminderStatus.paid
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
-                    ),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 132),
+                child: Text(
+                  formatMoney(record.amount),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: status.amountColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    decoration: status == _ReminderStatus.paid
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
                   ),
-                  const SizedBox(height: 5),
-                  _ReminderStatusChip(status: status),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      _ReminderIconActionButton(
-                        tooltip: 'Completed',
-                        icon: Icons.check_circle,
-                        iconColor: _ReminderTokens.success,
-                        onPressed: onMarkFinished,
-                      ),
-                      const SizedBox(width: 5),
-                      _ReminderIconActionButton(
-                        tooltip: 'Edit Amount',
-                        icon: Icons.edit_outlined,
-                        iconColor: _ReminderTokens.blue,
-                        onPressed: onEditAmount,
-                      ),
-                      const SizedBox(width: 5),
-                      _ReminderIconActionButton(
-                        tooltip: 'Delete',
-                        icon: Icons.delete_outline,
-                        iconColor: _ReminderTokens.dangerDark,
-                        onPressed: onDelete,
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ],
           ),
+          const SizedBox(height: 6),
+          _ReminderDetailLine(record: record, status: status),
+          const SizedBox(height: 8),
           if (record.isRecurring) ...<Widget>[
-            const SizedBox(height: 8),
             Row(
               children: <Widget>[
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Remaining balance this year',
+                    'Balance left: ${formatMoney(remainingBalanceThisYear)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: _ReminderTokens.textMuted,
                       fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  formatMoney(remainingBalanceThisYear),
-                  style: const TextStyle(
-                    color: _ReminderTokens.textStrong,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                actionButtons,
               ],
             ),
-          ],
+          ] else
+            Align(alignment: Alignment.centerRight, child: actionButtons),
         ],
+      ),
+    );
+  }
+}
+
+class _ReminderDetailLine extends StatelessWidget {
+  final ReminderRecord record;
+  final _ReminderStatus status;
+
+  const _ReminderDetailLine({required this.record, required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          flex: 4,
+          child: _ReminderDetailText(
+            text: record.payee,
+            color: _ReminderTokens.textStrong,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const _ReminderDetailSeparator(),
+        Expanded(flex: 3, child: _ReminderDetailText(text: record.category)),
+        const _ReminderDetailSeparator(),
+        Expanded(
+          flex: 3,
+          child: _ReminderDetailText(text: record.reminderCount),
+        ),
+        const _ReminderDetailSeparator(),
+        Flexible(
+          flex: 2,
+          child: _ReminderDetailText(
+            text: status.label,
+            color: status.chipColor,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReminderDetailText extends StatelessWidget {
+  final String text;
+  final Color color;
+  final FontWeight fontWeight;
+
+  const _ReminderDetailText({
+    required this.text,
+    this.color = _ReminderTokens.textMuted,
+    this.fontWeight = FontWeight.w700,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      softWrap: false,
+      style: TextStyle(color: color, fontSize: 11, fontWeight: fontWeight),
+    );
+  }
+}
+
+class _ReminderDetailSeparator extends StatelessWidget {
+  const _ReminderDetailSeparator();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 5),
+      child: Text(
+        '|',
+        style: TextStyle(
+          color: _ReminderTokens.textInactive,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -745,38 +787,6 @@ enum _ReminderStatus {
       _ReminderStatus.overdue => _ReminderTokens.dangerDark,
       _ReminderStatus.paid => _ReminderTokens.success,
     };
-  }
-}
-
-class _ReminderStatusChip extends StatelessWidget {
-  final _ReminderStatus status;
-
-  const _ReminderStatusChip({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: status.chipColor,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          status.label,
-          style: TextStyle(
-            color: status.chipColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
   }
 }
 
@@ -855,7 +865,6 @@ class _AmountEditDialog extends StatefulWidget {
 class _AmountEditDialogState extends State<_AmountEditDialog> {
   late final TextEditingController _controller;
   late final FocusNode _amountFocusNode;
-  late bool _applyToSeries;
 
   @override
   void initState() {
@@ -864,7 +873,6 @@ class _AmountEditDialogState extends State<_AmountEditDialog> {
       text: widget.record.amount.toStringAsFixed(2),
     );
     _amountFocusNode = FocusNode();
-    _applyToSeries = widget.record.isRecurring;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future<void>.delayed(Duration.zero, () {
         if (mounted) _amountFocusNode.requestFocus();
@@ -896,20 +904,6 @@ class _AmountEditDialogState extends State<_AmountEditDialog> {
               prefixText: r'$',
             ),
           ),
-          if (widget.record.isRecurring) ...<Widget>[
-            const SizedBox(height: 12),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              value: _applyToSeries,
-              onChanged: (bool value) {
-                setState(() => _applyToSeries = value);
-              },
-              title: const Text(
-                'Apply to all recurring reminders',
-                style: TextStyle(fontSize: 13),
-              ),
-            ),
-          ],
         ],
       ),
       actions: <Widget>[
@@ -925,7 +919,7 @@ class _AmountEditDialogState extends State<_AmountEditDialog> {
               context,
               _AmountEditResult(
                 amount: amount,
-                applyToSeries: widget.record.isRecurring && _applyToSeries,
+                applyToSeries: widget.record.isRecurring,
               ),
             );
           },

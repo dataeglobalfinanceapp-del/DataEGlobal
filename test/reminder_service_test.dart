@@ -249,35 +249,49 @@ void main() {
     },
   );
 
-  test('series amount edit updates every recurring occurrence', () async {
-    await ReminderService.saveReminders(<ReminderDraft>[
-      ReminderDraft(
-        date: DateTime(2026, 1, 10),
-        category: 'Loan',
-        amount: 450,
-        reminderCount: 'Monthly',
-        payee: 'Bank',
-      ),
-    ]);
+  test(
+    'series amount edit updates recurring occurrences date-forward',
+    () async {
+      await ReminderService.saveReminders(<ReminderDraft>[
+        ReminderDraft(
+          date: DateTime(2026, 1, 10),
+          category: 'Loan',
+          amount: 450,
+          reminderCount: 'Monthly',
+          payee: 'Bank',
+        ),
+      ]);
 
-    final List<ReminderRecord> reminders =
-        await ReminderService.loadReminders();
-    final ReminderRecord june = reminders.singleWhere(
-      (ReminderRecord record) => record.date.month == 6,
-    );
+      final List<ReminderRecord> reminders =
+          await ReminderService.loadReminders();
+      final ReminderRecord september = reminders.singleWhere(
+        (ReminderRecord record) => record.date.month == 9,
+      );
 
-    await ReminderService.updateAmount(
-      june.id,
-      500,
-      scope: ReminderEditScope.series,
-    );
+      await ReminderService.updateAmount(
+        september.id,
+        500,
+        scope: ReminderEditScope.series,
+      );
 
-    final List<ReminderRecord> updated = await ReminderService.loadReminders();
-    expect(
-      updated.map((ReminderRecord record) => record.amount).toSet(),
-      <double>{500},
-    );
-  });
+      final List<ReminderRecord> updated =
+          await ReminderService.loadReminders();
+      expect(
+        updated
+            .where((ReminderRecord record) => record.date.month < 9)
+            .map((ReminderRecord record) => record.amount)
+            .toSet(),
+        <double>{450},
+      );
+      expect(
+        updated
+            .where((ReminderRecord record) => record.date.month >= 9)
+            .map((ReminderRecord record) => record.amount)
+            .toSet(),
+        <double>{500},
+      );
+    },
+  );
 
   test(
     'remaining balance uses recurring occurrences in the selected year',

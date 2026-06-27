@@ -57,13 +57,15 @@ class _ReminderScreenState extends State<ReminderScreen> {
     );
     if (result == null) return;
 
-    await _controller.updateAmount(record, result);
+    final bool updated = await _controller.updateAmount(record, result);
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          result.applyToSeries
+          !updated
+              ? 'Could not update that reminder.'
+              : result.applyToSeries
               ? 'Recurring reminder amounts updated.'
               : 'Reminder amount updated.',
         ),

@@ -65,19 +65,21 @@ class _ReminderController extends ChangeNotifier {
         const <ReminderRecord>[];
   }
 
-  Future<void> updateAmount(
+  Future<bool> updateAmount(
     ReminderRecord record,
     _AmountEditResult result,
   ) async {
-    await RecurringExpenseReminderService.updateReminderAmount(
-      reminderId: record.id,
-      amount: result.amount,
-      scope: result.applyToSeries
-          ? ReminderEditScope.series
-          : ReminderEditScope.single,
-    );
-    if (_isDisposed) return;
+    final bool updated =
+        await RecurringExpenseReminderService.updateReminderAmount(
+          reminderId: record.id,
+          amount: result.amount,
+          scope: result.applyToSeries
+              ? ReminderEditScope.series
+              : ReminderEditScope.single,
+        );
+    if (_isDisposed) return updated;
     await loadReminders(showLoading: false);
+    return updated;
   }
 
   Future<bool> deleteReminder(
@@ -128,6 +130,9 @@ class _ReminderController extends ChangeNotifier {
         );
     final List<_CalendarDayModel> calendarDays =
         _ReminderDataMapper.calendarDays(
+          dates: _viewMode == _ReminderViewMode.week
+              ? _ReminderDateUtils.weekDates(_visibleWeekStart)
+              : _ReminderDateUtils.calendarDates(calendarMonth),
           visibleMonth: calendarMonth,
           selectedStart: periodStart,
           selectedEndExclusive: periodEndExclusive,
@@ -217,13 +222,14 @@ class _ReminderDataMapper {
   }
 
   static List<_CalendarDayModel> calendarDays({
+    required List<DateTime> dates,
     required DateTime visibleMonth,
     required DateTime selectedStart,
     required DateTime selectedEndExclusive,
     required Map<String, List<ReminderRecord>> remindersByDate,
   }) {
     final DateTime today = _ReminderDateUtils.dateOnly(AppClock.now);
-    return _ReminderDateUtils.calendarDates(visibleMonth)
+    return dates
         .map((DateTime date) {
           final List<ReminderRecord> reminders =
               remindersByDate[_ReminderDateUtils.dateKey(date)] ??
