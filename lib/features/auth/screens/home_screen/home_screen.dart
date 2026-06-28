@@ -9,6 +9,7 @@ import 'package:savetep/features/auth/screens/user_setting/widgets/user_logo_men
 import 'package:savetep/features/auth/services/auth_service.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
+import 'package:savetep/theme/dark_contrast.dart';
 
 import 'budget_donut_chart.dart';
 
@@ -417,10 +418,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final darkContrast = DarkContrastScope.of(context);
+    final darkContrastEnabled = darkContrast.enabled;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5ED),
+      backgroundColor: darkContrastEnabled
+          ? DarkContrastPalette.background
+          : const Color(0xFFF2F5ED),
       appBar: AppBar(
         toolbarHeight: _HomeLayoutTokens.appBarHeight,
+        backgroundColor: darkContrastEnabled
+            ? DarkContrastPalette.surface
+            : Colors.white,
+        foregroundColor: darkContrastEnabled
+            ? DarkContrastPalette.text
+            : Colors.black87,
         leadingWidth: 56,
         leading: UserLogoMenuButton(
           size: 36,
@@ -432,6 +444,16 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
         actions: [
+          IconButton(
+            tooltip: darkContrastEnabled
+                ? 'Disable Dark Contrast'
+                : 'Enable Dark Contrast',
+            icon: Icon(
+              darkContrastEnabled ? Icons.dark_mode : Icons.dark_mode_outlined,
+              size: 24,
+            ),
+            onPressed: () => unawaited(darkContrast.toggle()),
+          ),
           IconButton(
             icon: const Icon(Icons.logout, size: 24),
             onPressed: () async {
@@ -469,17 +491,33 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SizedBox(height: metrics.topPadding),
-                          _buildDateRangePill(metrics),
+                          _buildDateRangePill(metrics, darkContrastEnabled),
                           SizedBox(height: metrics.compactSectionGap),
                           Row(
                             children: [
-                              _buildPeriodButton('Day', metrics),
+                              _buildPeriodButton(
+                                'Day',
+                                metrics,
+                                darkContrastEnabled,
+                              ),
                               SizedBox(width: metrics.tabGap),
-                              _buildPeriodButton('Week', metrics),
+                              _buildPeriodButton(
+                                'Week',
+                                metrics,
+                                darkContrastEnabled,
+                              ),
                               SizedBox(width: metrics.tabGap),
-                              _buildPeriodButton('Month', metrics),
+                              _buildPeriodButton(
+                                'Month',
+                                metrics,
+                                darkContrastEnabled,
+                              ),
                               SizedBox(width: metrics.tabGap),
-                              _buildPeriodButton('3 Months', metrics),
+                              _buildPeriodButton(
+                                '3 Months',
+                                metrics,
+                                darkContrastEnabled,
+                              ),
                             ],
                           ),
                           SizedBox(height: metrics.sectionGap),
@@ -569,7 +607,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildDateRangePill(_HomeLayoutMetrics metrics) {
+  Widget _buildDateRangePill(
+    _HomeLayoutMetrics metrics,
+    bool darkContrastEnabled,
+  ) {
     final periodLabel = _budgetData.period.isEmpty
         ? '${_formatDate(_startDate)} - ${_formatDate(_endDate)}'
         : _budgetData.period;
@@ -598,16 +639,24 @@ class _HomeScreenState extends State<HomeScreen> {
       height: metrics.datePickerHeight,
       padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: darkContrastEnabled
+            ? DarkContrastPalette.elevatedSurface
+            : Colors.white,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: const Color(0xFFD7DEC9)),
+        border: Border.all(
+          color: darkContrastEnabled
+              ? DarkContrastPalette.border
+              : const Color(0xFFD7DEC9),
+        ),
       ),
       child: Row(
         children: [
           Icon(
             Icons.calendar_today,
             size: iconSize,
-            color: const Color(0xFF0E5E54),
+            color: darkContrastEnabled
+                ? DarkContrastPalette.primary
+                : const Color(0xFF0E5E54),
           ),
           SizedBox(width: iconGap),
           Expanded(
@@ -616,7 +665,9 @@ class _HomeScreenState extends State<HomeScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: const Color(0xFF173E37),
+                color: darkContrastEnabled
+                    ? DarkContrastPalette.text
+                    : const Color(0xFF173E37),
                 fontSize: fontSize,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0,
@@ -628,7 +679,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildPeriodButton(String label, _HomeLayoutMetrics metrics) {
+  Widget _buildPeriodButton(
+    String label,
+    _HomeLayoutMetrics metrics,
+    bool darkContrastEnabled,
+  ) {
     final isSelected = _selectedPeriod == label;
     final bool isTablet = metrics.isTablet;
     final scale = metrics.scaleFactor;
@@ -646,16 +701,27 @@ class _HomeScreenState extends State<HomeScreen> {
           onPressed: () => _selectPeriod(label),
           style: ElevatedButton.styleFrom(
             backgroundColor: isSelected
-                ? const Color(0xFF075E54)
-                : Colors.white,
+                ? (darkContrastEnabled
+                      ? DarkContrastPalette.primary
+                      : const Color(0xFF075E54))
+                : (darkContrastEnabled
+                      ? DarkContrastPalette.elevatedSurface
+                      : Colors.white),
             foregroundColor: isSelected
-                ? Colors.white
-                : const Color(0xFF173E37),
+                ? (darkContrastEnabled ? Colors.black : Colors.white)
+                : (darkContrastEnabled
+                      ? DarkContrastPalette.text
+                      : const Color(0xFF173E37)),
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             side: isSelected
                 ? BorderSide.none
-                : const BorderSide(color: Color(0xFFD7DEC9), width: 1),
+                : BorderSide(
+                    color: darkContrastEnabled
+                        ? DarkContrastPalette.border
+                        : const Color(0xFFD7DEC9),
+                    width: 1,
+                  ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(radius),
             ),

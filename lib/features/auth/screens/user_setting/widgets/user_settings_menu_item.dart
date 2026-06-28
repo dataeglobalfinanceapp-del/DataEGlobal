@@ -18,6 +18,14 @@ class UserSettingsMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final darkContrastEnabled = Theme.of(context).brightness == Brightness.dark;
+    final textColor = darkContrastEnabled
+        ? const Color(0xFFF8FAFC)
+        : const Color(0xFF202124);
+    final chevronColor = darkContrastEnabled
+        ? const Color(0xFFC7D2E3)
+        : const Color(0xFF64748B);
+
     return InkWell(
       onTap: onTap,
       child: ConstrainedBox(
@@ -43,18 +51,14 @@ class UserSettingsMenuItem extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF202124),
+                  style: TextStyle(
+                    color: textColor,
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-              const Icon(
-                Icons.chevron_right,
-                color: Color(0xFF64748B),
-                size: 22,
-              ),
+              Icon(Icons.chevron_right, color: chevronColor, size: 22),
             ],
           ),
         ),

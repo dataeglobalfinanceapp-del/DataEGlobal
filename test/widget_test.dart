@@ -8,11 +8,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:savetep/data/local/local_store.dart';
 import 'package:savetep/features/auth/screens/user_setting/user_settings_routes.dart';
 import 'package:savetep/features/auth/widgets/app_bottom_navigation_bar.dart';
 import 'package:savetep/main.dart';
+import 'package:savetep/theme/dark_contrast.dart';
 
 void main() {
+  late Map<String, String> localStoreValues;
+
+  setUp(() {
+    localStoreValues = <String, String>{};
+    LocalStore.setOverridesForTesting(
+      read: (key) async => localStoreValues[key],
+      write: (key, value) async {
+        localStoreValues[key] = value;
+      },
+    );
+  });
+
+  tearDown(LocalStore.resetOverridesForTesting);
+
   testWidgets('App builds a MaterialApp', (WidgetTester tester) async {
     await tester.pumpWidget(const SaveTepApp());
 
@@ -88,6 +104,29 @@ void main() {
       expect(find.byType(AppBottomNavigationBar), findsOneWidget);
     },
   );
+
+  testWidgets('App loads saved dark contrast preference', (
+    WidgetTester tester,
+  ) async {
+    localStoreValues[DarkContrastController.storageKey] = 'true';
+
+    await tester.pumpWidget(
+      const SaveTepApp(initialRoute: UserSettingsRoutes.settings),
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(tester.takeException(), isNull);
+
+    final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(materialApp.theme?.brightness, Brightness.dark);
+
+    final switchWidget = tester.widget<Switch>(
+      find.byKey(const ValueKey('settings.darkContrastSwitch')),
+    );
+    expect(switchWidget.value, isTrue);
+  });
 
   testWidgets('App shell hides bottom navigation on auth routes', (
     WidgetTester tester,
