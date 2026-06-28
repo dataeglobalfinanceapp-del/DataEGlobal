@@ -18,6 +18,7 @@ import 'features/auth/screens/saving_screen/saving_screen.dart';
 import 'features/auth/screens/reminder_screen/reminder_screen.dart';
 import 'features/auth/screens/tax_screen/tax_screen.dart';
 import 'features/auth/screens/user_setting/user_setting_screens.dart';
+import 'features/auth/widgets/bottom_nav_bar.dart';
 import 'widgets/test_clock_overlay.dart';
 
 final GlobalKey<NavigatorState> _appNavigatorKey = GlobalKey<NavigatorState>();
@@ -65,14 +66,34 @@ class _AmplifyConfigurationErrorApp extends StatelessWidget {
   }
 }
 
-class SaveTepApp extends StatelessWidget {
-  const SaveTepApp({super.key});
+class SaveTepApp extends StatefulWidget {
+  final String? initialRoute;
+
+  const SaveTepApp({super.key, this.initialRoute});
+
+  @override
+  State<SaveTepApp> createState() => _SaveTepAppState();
+}
+
+class _SaveTepAppState extends State<SaveTepApp> {
+  final ValueNotifier<AppBottomNavItem?> _currentBottomNavItem =
+      ValueNotifier<AppBottomNavItem?>(null);
+
+  @override
+  void dispose() {
+    _currentBottomNavItem.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return _StartupFocusGate(
       child: MaterialApp(
         navigatorKey: _appNavigatorKey,
+        navigatorObservers: [
+          _BottomNavRouteObserver(currentItem: _currentBottomNavItem),
+        ],
+        initialRoute: widget.initialRoute,
         title: 'Save Tep',
         debugShowCheckedModeBanner: false, // ← hides debug banner
         theme: ThemeData(
@@ -94,11 +115,15 @@ class SaveTepApp extends StatelessWidget {
             policy: WidgetOrderTraversalPolicy(),
             child: TestClockOverlay(
               navigatorKey: _appNavigatorKey,
-              child: child ?? const SizedBox.shrink(),
+              child: _AppBottomNavShell(
+                navigatorKey: _appNavigatorKey,
+                currentItemListenable: _currentBottomNavItem,
+                child: child ?? const SizedBox.shrink(),
+              ),
             ),
           );
         },
-        home: const SplashScreen(),
+        home: widget.initialRoute == null ? const SplashScreen() : null,
         routes: {
           '/login': (context) => const LoginScreen(),
           '/signup': (context) => const SignUpScreen(),
@@ -151,6 +176,80 @@ class SaveTepApp extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+class _AppBottomNavShell extends StatelessWidget {
+  final GlobalKey<NavigatorState> navigatorKey;
+  final ValueNotifier<AppBottomNavItem?> currentItemListenable;
+  final Widget child;
+
+  const _AppBottomNavShell({
+    required this.navigatorKey,
+    required this.currentItemListenable,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<AppBottomNavItem?>(
+      valueListenable: currentItemListenable,
+      child: child,
+      builder: (context, currentItem, child) {
+        final routeContent = child ?? const SizedBox.shrink();
+        if (currentItem == null) return routeContent;
+
+        return Scaffold(
+          body: routeContent,
+          bottomNavigationBar: AppBottomNavigationBar(
+            currentItem: currentItem,
+            onItemSelected: (item) {
+              navigatorKey.currentState?.pushReplacementNamed(item.routeName);
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BottomNavRouteObserver extends NavigatorObserver {
+  final ValueNotifier<AppBottomNavItem?> currentItem;
+
+  _BottomNavRouteObserver({required this.currentItem});
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _sync(route);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _sync(previousRoute);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _sync(previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    _sync(newRoute);
+  }
+
+  void _sync(Route<dynamic>? route) {
+    final nextItem = bottomNavItemForRouteName(
+      route?.settings.name,
+      fallback: currentItem.value,
+    );
+    if (currentItem.value == nextItem) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (currentItem.value != nextItem) {
+        currentItem.value = nextItem;
+      }
+    });
   }
 }
 

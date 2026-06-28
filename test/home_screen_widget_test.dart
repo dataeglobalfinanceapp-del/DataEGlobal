@@ -34,6 +34,7 @@ void main() {
     expect(find.text('Investments'), findsOneWidget);
     expect(find.text('TRANSACTION'), findsNothing);
     expect(_actionGridDelegate(tester).crossAxisCount, 4);
+    _expectBudgetCardsAlignedWithDateRange(tester);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -55,7 +56,7 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
       await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
+      expect(tester.takeException(), isNull, reason: '${testCase.size}');
       expect(_actionGridDelegate(tester).crossAxisCount, testCase.columns);
       await tester.pumpWidget(const SizedBox.shrink());
     }
@@ -74,4 +75,22 @@ SliverGridDelegateWithFixedCrossAxisCount _actionGridDelegate(
 ) {
   final GridView grid = tester.widget<GridView>(find.byType(GridView));
   return grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+}
+
+void _expectBudgetCardsAlignedWithDateRange(WidgetTester tester) {
+  final dateRangeRect = tester.getRect(
+    find.byKey(const ValueKey('home.dateRangeCard')),
+  );
+  final totalBalanceRect = tester.getRect(
+    find.byKey(const ValueKey('home.totalBalanceCard')),
+  );
+  final overviewRect = tester.getRect(
+    find.byKey(const ValueKey('home.overviewCard')),
+  );
+
+  for (final cardRect in <Rect>[totalBalanceRect, overviewRect]) {
+    expect(cardRect.left, moreOrLessEquals(dateRangeRect.left));
+    expect(cardRect.right, moreOrLessEquals(dateRangeRect.right));
+    expect(cardRect.width, moreOrLessEquals(dateRangeRect.width));
+  }
 }

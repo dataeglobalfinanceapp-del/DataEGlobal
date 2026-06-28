@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../widgets/app_bottom_navigation_bar.dart';
 import 'user_settings_routes.dart';
 import 'widgets/user_settings_menu_item.dart';
 
@@ -78,9 +77,6 @@ class UserSettingsScreen extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-      ),
-      bottomNavigationBar: const AppBottomNavigationBar(
-        currentItem: AppBottomNavItem.settings,
       ),
       body: SafeArea(
         child: ListView(

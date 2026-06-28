@@ -17,8 +17,13 @@ enum AppBottomNavItem {
 
 class AppBottomNavigationBar extends StatelessWidget {
   final AppBottomNavItem currentItem;
+  final ValueChanged<AppBottomNavItem>? onItemSelected;
 
-  const AppBottomNavigationBar({super.key, required this.currentItem});
+  const AppBottomNavigationBar({
+    super.key,
+    required this.currentItem,
+    this.onItemSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -91,6 +96,10 @@ class AppBottomNavigationBar extends StatelessWidget {
 
   void _navigate(BuildContext context, AppBottomNavItem item) {
     if (item == currentItem) return;
+    if (onItemSelected != null) {
+      onItemSelected!(item);
+      return;
+    }
     Navigator.pushReplacementNamed(context, item.routeName);
   }
 }

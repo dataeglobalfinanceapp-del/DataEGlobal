@@ -8,12 +8,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:savetep/features/auth/screens/user_setting/user_settings_routes.dart';
+import 'package:savetep/features/auth/widgets/app_bottom_navigation_bar.dart';
 import 'package:savetep/main.dart';
 
 void main() {
   testWidgets('App builds a MaterialApp', (WidgetTester tester) async {
     await tester.pumpWidget(const SaveTepApp());
 
+    expect(tester.takeException(), isNull);
     expect(find.byType(MaterialApp), findsOneWidget);
   });
 
@@ -23,6 +26,7 @@ void main() {
     const Key gateKey = Key('startup-focus-gate');
 
     await tester.pumpWidget(const SaveTepApp());
+    expect(tester.takeException(), isNull);
 
     FocusScope gate = tester.widget<FocusScope>(find.byKey(gateKey));
     expect(gate.canRequestFocus, isFalse);
@@ -30,6 +34,7 @@ void main() {
     expect(gate.descendantsAreTraversable, isFalse);
 
     await tester.pump();
+    expect(tester.takeException(), isNull);
 
     gate = tester.widget<FocusScope>(find.byKey(gateKey));
     expect(gate.canRequestFocus, isTrue);
@@ -47,4 +52,87 @@ void main() {
 
     expect(traversal.policy, isA<WidgetOrderTraversalPolicy>());
   });
+
+  testWidgets('App shell shows bottom navigation on app routes', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const SaveTepApp());
+    expect(tester.takeException(), isNull);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    navigator.pushReplacementNamed(UserSettingsRoutes.settings);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    expect(find.byType(AppBottomNavigationBar), findsOneWidget);
+    expect(find.text('Settings'), findsWidgets);
+
+    navigator.pushReplacementNamed('/login');
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    expect(find.byType(AppBottomNavigationBar), findsNothing);
+  });
+
+  testWidgets(
+    'App shell restores an app route without build-phase nav errors',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const SaveTepApp(initialRoute: '/home'));
+      expect(tester.takeException(), isNull);
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AppBottomNavigationBar), findsOneWidget);
+    },
+  );
+
+  testWidgets('App shell hides bottom navigation on auth routes', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const SaveTepApp());
+    expect(tester.takeException(), isNull);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    expect(find.byType(AppBottomNavigationBar), findsNothing);
+
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    const authRoutes = <_AuthRouteCase>[
+      _AuthRouteCase('/login'),
+      _AuthRouteCase('/signup'),
+      _AuthRouteCase('/forgot-password'),
+      _AuthRouteCase('/confirm-signup', arguments: 'person@example.com'),
+      _AuthRouteCase('/confirm-reset', arguments: 'person@example.com'),
+    ];
+
+    for (final authRoute in authRoutes) {
+      navigator.pushReplacementNamed(UserSettingsRoutes.settings);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AppBottomNavigationBar), findsOneWidget);
+
+      navigator.pushReplacementNamed(
+        authRoute.routeName,
+        arguments: authRoute.arguments,
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: authRoute.routeName);
+
+      expect(
+        find.byType(AppBottomNavigationBar),
+        findsNothing,
+        reason: authRoute.routeName,
+      );
+    }
+  });
+}
+
+class _AuthRouteCase {
+  final String routeName;
+  final Object? arguments;
+
+  const _AuthRouteCase(this.routeName, {this.arguments});
 }

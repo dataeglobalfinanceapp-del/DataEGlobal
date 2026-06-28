@@ -7,7 +7,6 @@ import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/money_formatter.dart';
 import 'package:savetep/services/recurring_expense_reminder_service.dart';
 import 'package:savetep/services/reminder_service.dart';
-import '../../widgets/app_bottom_navigation_bar.dart';
 
 part 'reminder_controller.dart';
 part 'reminder_models.dart';
@@ -137,9 +136,6 @@ class _ReminderScreenState extends State<ReminderScreen> {
             onPressed: () => _openCreate(initialDate: AppClock.now),
           ),
         ],
-      ),
-      bottomNavigationBar: const AppBottomNavigationBar(
-        currentItem: AppBottomNavItem.calendar,
       ),
       body: ListenableBuilder(
         listenable: _controller,

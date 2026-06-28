@@ -74,7 +74,7 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
     final mediaSize = MediaQuery.sizeOf(context);
     final heightScale = (mediaSize.height / 844).clamp(0.78, 1.15).toDouble();
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 720),
+      constraints: const BoxConstraints(),
       child: LayoutBuilder(
         builder: (context, cardConstraints) {
           final isWideCard = cardConstraints.maxWidth >= 560;
@@ -91,6 +91,7 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
               .clamp(isWideCard ? 14.0 : 7.0, isWideCard ? 22.0 : 10.0)
               .toDouble();
           return Container(
+            key: const ValueKey('home.overviewCard'),
             width: double.infinity,
             padding: EdgeInsets.fromLTRB(
               horizontalPadding,
@@ -339,7 +340,7 @@ class BudgetTotalsCard extends StatelessWidget {
         : const Color(0xFFFF5E63);
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 720),
+      constraints: const BoxConstraints(),
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           final mediaSize = MediaQuery.sizeOf(context);
@@ -358,7 +359,7 @@ class BudgetTotalsCard extends StatelessWidget {
           final double height = (baseHeight * heightScale)
               .clamp(isTablet ? 150.0 : 112.0, isTablet ? 190.0 : 160.0)
               .toDouble();
-          final double padding = ((isTablet ? 22.0 : 18.0) * heightScale)
+          final double padding = ((isTablet ? 18.0 : 14.0) * heightScale)
               .clamp(isTablet ? 14.0 : 10.0, isTablet ? 20.0 : 14.0)
               .toDouble();
           final double labelFontSize = ((isTablet ? 12.0 : 10.0) * heightScale)
@@ -385,6 +386,7 @@ class BudgetTotalsCard extends StatelessWidget {
           return SizedBox(
             height: height,
             child: Container(
+              key: const ValueKey('home.totalBalanceCard'),
               width: double.infinity,
               padding: EdgeInsets.all(padding),
               decoration: BoxDecoration(

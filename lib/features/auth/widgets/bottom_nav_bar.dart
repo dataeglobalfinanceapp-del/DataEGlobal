@@ -1,44 +1,78 @@
 import 'package:flutter/material.dart';
 
-class BottomNavBar extends StatelessWidget {
-  const BottomNavBar({super.key, this.currentIndex = 0, this.onTap});
+import '../screens/user_setting/user_settings_routes.dart';
+import 'app_bottom_navigation_bar.dart';
 
+export 'app_bottom_navigation_bar.dart';
+
+bool isAuthBottomNavRoute(String? routeName) {
+  switch (routeName) {
+    case Navigator.defaultRouteName:
+    case '/login':
+    case '/signup':
+    case '/confirm-signup':
+    case '/forgot-password':
+    case '/confirm-reset':
+      return true;
+  }
+
+  return false;
+}
+
+AppBottomNavItem? bottomNavItemForRouteName(
+  String? routeName, {
+  AppBottomNavItem? fallback,
+}) {
+  if (routeName == null) return fallback;
+  if (isAuthBottomNavRoute(routeName)) return null;
+
+  switch (routeName) {
+    case '/reminders':
+      return AppBottomNavItem.calendar;
+    case '/transactions':
+    case '/tax':
+      return AppBottomNavItem.report;
+    case UserSettingsRoutes.settings:
+    case UserSettingsRoutes.businessManagement:
+    case UserSettingsRoutes.enterpriseCodeId:
+    case UserSettingsRoutes.changePassword:
+    case UserSettingsRoutes.institutionSupport:
+    case UserSettingsRoutes.managePartner:
+    case UserSettingsRoutes.deactivateAccess:
+      return AppBottomNavItem.settings;
+    case '/home':
+    case '/scan':
+    case '/scan-deposit':
+    case '/scan-expense':
+    case '/liabilities':
+    case '/saving':
+      return AppBottomNavItem.home;
+  }
+
+  return null;
+}
+
+class BottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int>? onTap;
 
-  static const List<BottomNavigationBarItem> _items = [
-    BottomNavigationBarItem(
-      icon: Icon(Icons.home_outlined),
-      activeIcon: Icon(Icons.home),
-      label: 'Home',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.add_circle_outline),
-      activeIcon: Icon(Icons.add_circle),
-      label: 'Add',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.insert_chart_outlined),
-      activeIcon: Icon(Icons.insert_chart),
-      label: 'Reports',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.person_outline),
-      activeIcon: Icon(Icons.person),
-      label: 'Account',
-    ),
-  ];
+  const BottomNavBar({super.key, this.currentIndex = 0, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: currentIndex,
-      onTap: onTap,
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: const Color.fromARGB(255, 187, 22, 22),
-      unselectedItemColor: Colors.blueGrey,
-      showUnselectedLabels: true,
-      items: _items,
+    if (isAuthBottomNavRoute(ModalRoute.of(context)?.settings.name)) {
+      return const SizedBox.shrink();
+    }
+
+    final items = AppBottomNavItem.values;
+    final selectedIndex = currentIndex.clamp(0, items.length - 1).toInt();
+    final currentItem = items[selectedIndex];
+
+    return AppBottomNavigationBar(
+      currentItem: currentItem,
+      onItemSelected: onTap == null
+          ? null
+          : (item) => onTap!(items.indexOf(item)),
     );
   }
 }

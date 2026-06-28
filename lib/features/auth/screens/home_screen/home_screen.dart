@@ -7,7 +7,6 @@ import 'package:savetep/features/auth/models/budget_data.dart';
 import 'package:savetep/features/auth/screens/user_setting/user_settings_routes.dart';
 import 'package:savetep/features/auth/screens/user_setting/widgets/user_logo_menu_button.dart';
 import 'package:savetep/features/auth/services/auth_service.dart';
-import 'package:savetep/features/auth/widgets/app_bottom_navigation_bar.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 
@@ -55,8 +54,8 @@ class _HomeLayoutMetrics {
 
   double get pagePadding {
     if (width >= 600) return 24;
-    if (width >= 380) return 12;
-    return 10;
+    if (width >= 380) return 8;
+    return 8;
   }
 
   double get contentWidth {
@@ -101,21 +100,11 @@ class _HomeLayoutMetrics {
     final fixedWithoutBudget = _fixedHeightWithoutBudgetAndGrid;
     final budgetRoomAfterGrid =
         availableHeight - fixedWithoutBudget - _minimumGridHeight(itemCount);
-    final preferredBudgetHeight = _scaled(
-      isTablet ? 390 : 315,
-      min: isTablet ? 350 : 238,
-      max: isTablet ? 430 : 350,
-    );
-    final minimumBudgetHeight = _scaled(
-      isTablet ? 330 : 250,
-      min: isTablet ? 310 : 225,
-      max: isTablet ? 380 : 290,
-    );
 
     return math
         .min(
-          preferredBudgetHeight,
-          math.max(minimumBudgetHeight, budgetRoomAfterGrid),
+          _preferredBudgetSectionHeight,
+          math.max(_minimumBudgetSectionHeight, budgetRoomAfterGrid),
         )
         .toDouble();
   }
@@ -228,6 +217,18 @@ class _HomeLayoutMetrics {
     final rows = _actionRowCount(itemCount);
     return (_preferredTileHeight * rows) + (actionGridSpacing * (rows - 1));
   }
+
+  double get _preferredBudgetSectionHeight => _scaled(
+    isTablet ? 600 : 455,
+    min: isTablet ? 500 : 405,
+    max: isTablet ? 660 : 470,
+  );
+
+  double get _minimumBudgetSectionHeight => _scaled(
+    isTablet ? 560 : 405,
+    min: isTablet ? 460 : 370,
+    max: isTablet ? 620 : 440,
+  );
 
   double get _minimumTileHeight =>
       _scaled(isTablet ? 86 : 52, min: isTablet ? 78 : 42, max: 100);
@@ -441,9 +442,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: const AppBottomNavigationBar(
-        currentItem: AppBottomNavItem.home,
-      ),
       body: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           final metrics = _HomeLayoutTokens.fromConstraints(
@@ -558,8 +556,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return SizedBox(
       width: double.infinity,
       height: sectionHeight,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
+      child: Align(
         alignment: Alignment.topCenter,
         child: SizedBox(
           width: metrics.contentWidth,
@@ -596,6 +593,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .toDouble();
 
     return Container(
+      key: const ValueKey('home.dateRangeCard'),
       width: double.infinity,
       height: metrics.datePickerHeight,
       padding: EdgeInsets.symmetric(horizontal: horizontalPadding),

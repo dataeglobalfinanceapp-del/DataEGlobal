@@ -12,7 +12,6 @@ import 'package:savetep/services/money_formatter.dart';
 import 'package:savetep/services/yearly_pdf_report.dart';
 
 import '../tax_screen/tax_estimator.dart';
-import '../../widgets/app_bottom_navigation_bar.dart';
 import '../../widgets/app_date_range_selector.dart';
 import '../../widgets/expense_category_link.dart';
 
@@ -362,9 +361,6 @@ class _TransactionScreenState extends State<TransactionScreen> {
             tooltip: 'Refresh',
           ),
         ],
-      ),
-      bottomNavigationBar: const AppBottomNavigationBar(
-        currentItem: AppBottomNavItem.report,
       ),
       body: ListenableBuilder(
         listenable: _controller,
