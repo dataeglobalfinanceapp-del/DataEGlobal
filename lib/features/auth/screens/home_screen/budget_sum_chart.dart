@@ -358,7 +358,7 @@ class BudgetTotalsCard extends StatelessWidget {
           final double height = (baseHeight * heightScale)
               .clamp(isTablet ? 150.0 : 112.0, isTablet ? 190.0 : 160.0)
               .toDouble();
-          final double padding = ((isTablet ? 18.0 : 14.0) * heightScale)
+          final double padding = ((isTablet ? 22.0 : 18.0) * heightScale)
               .clamp(isTablet ? 14.0 : 10.0, isTablet ? 20.0 : 14.0)
               .toDouble();
           final double labelFontSize = ((isTablet ? 12.0 : 10.0) * heightScale)
@@ -866,10 +866,10 @@ class _BudgetDonutFigure extends StatelessWidget {
 
         final screenSize = MediaQuery.sizeOf(context);
         final screenWidth = screenSize.width;
-        final widthChartCap = screenWidth >= 600 ? 180.0 : 130.0;
+        final widthChartCap = screenWidth >= 800 ? 300.0 : 220.0;
         final heightChartCap =
-            (screenSize.height * (screenWidth >= 600 ? 0.18 : 0.16))
-                .clamp(screenWidth >= 600 ? 150.0 : 96.0, widthChartCap)
+            (screenSize.height * (screenWidth >= 800 ? 0.30 : 0.22))
+                .clamp(screenWidth >= 800 ? 150.0 : 96.0, widthChartCap)
                 .toDouble();
         final maxChartSize = math.min(widthChartCap, heightChartCap);
 
@@ -959,7 +959,7 @@ class _CenterBudgetText extends StatelessWidget {
               maxLines: 1,
               style: TextStyle(
                 color: availableColor,
-                fontSize: 20 * scale,
+                fontSize: 15 * scale,
                 fontWeight: FontWeight.w900,
               ),
             ),
