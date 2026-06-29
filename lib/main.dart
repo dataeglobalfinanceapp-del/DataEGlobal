@@ -17,6 +17,7 @@ import 'features/auth/screens/scan_screen/expense_screen/scan_expense_choice.dar
 import 'features/auth/screens/transaction_screen/transaction_screen.dart';
 import 'features/auth/screens/liabilities_screen/liabilities_screen.dart';
 import 'features/auth/screens/saving_screen/saving_screen.dart';
+import 'features/auth/screens/payroll_screen/payroll_screen.dart';
 import 'features/auth/screens/reminder_screen/reminder_screen.dart';
 import 'features/auth/screens/tax_screen/tax_screen.dart';
 import 'features/auth/screens/user_setting/user_setting_screens.dart';
@@ -166,6 +167,7 @@ class _SaveTepAppState extends State<SaveTepApp> {
                 },
                 '/liabilities': (context) => const LiabilitiesScreen(),
                 '/saving': (context) => const SavingScreen(),
+                '/payroll': (context) => const PayrollScreen(),
                 '/reminders': (context) => const ReminderScreen(),
                 '/tax': (context) => const TaxScreen(),
                 UserSettingsRoutes.settings: (context) =>

@@ -46,6 +46,7 @@ AppBottomNavItem? bottomNavItemForRouteName(
     case '/scan-expense':
     case '/liabilities':
     case '/saving':
+    case '/payroll':
       return AppBottomNavItem.home;
   }
 

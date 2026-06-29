@@ -307,6 +307,7 @@ const List<_HomeFeatureAction> _homeFeatureActions = <_HomeFeatureAction>[
     icon: Icons.people,
     label: 'Payroll',
     color: Color(0xFFFECDD3),
+    routeName: '/payroll',
   ),
   _HomeFeatureAction(
     icon: Icons.trending_up,

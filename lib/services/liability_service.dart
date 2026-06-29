@@ -103,6 +103,58 @@ class LiabilityService {
     _notifyDataChanged();
   }
 
+  static Future<String?> syncPayrollExpense({
+    required String payrollId,
+    required String existingExpenseId,
+    required double totalAmount,
+    required DateTime payDate,
+  }) async {
+    final state = await _loadPreparedState();
+    final String checkNumber = _payrollCheckNumber(payrollId);
+    final int existingIndex = state.expenses.indexWhere(
+      (ExpenseRecord record) =>
+          record.id == existingExpenseId ||
+          (existingExpenseId.isEmpty &&
+              record.checkNumber == checkNumber &&
+              record.category == 'Payroll'),
+    );
+
+    if (totalAmount <= 0) {
+      if (existingIndex == -1) return null;
+
+      final ExpenseRecord removed = state.expenses.removeAt(existingIndex);
+      _removeExpenseLiabilities(state, <ExpenseRecord>[removed]);
+      await _saveState(state);
+      _notifyDataChanged();
+      return null;
+    }
+
+    final ExpenseRecord syncedExpense = ExpenseRecord(
+      id: existingIndex == -1
+          ? _newId('expense-payroll')
+          : state.expenses[existingIndex].id,
+      checkNumber: checkNumber,
+      totalAmount: totalAmount,
+      transactionDate: RecurrenceSchedule.dateOnly(payDate),
+      category: 'Payroll',
+      payee: 'Payroll',
+      isManual: true,
+    );
+
+    if (existingIndex == -1) {
+      _addExpense(state, syncedExpense);
+    } else {
+      final ExpenseRecord oldExpense = state.expenses[existingIndex];
+      _removeExpenseLiabilities(state, <ExpenseRecord>[oldExpense]);
+      state.expenses[existingIndex] = syncedExpense;
+      _addExpenseLiability(state, syncedExpense);
+    }
+
+    await _saveState(state);
+    _notifyDataChanged();
+    return syncedExpense.id;
+  }
+
   static void _addExpense(_TransactionState state, ExpenseRecord expense) {
     state.expenses.add(expense);
     _addExpenseLiability(state, expense);
@@ -1024,6 +1076,8 @@ class LiabilityService {
 
   static String _newId(String prefix) =>
       '$prefix-${AppClock.now.microsecondsSinceEpoch}-${_idCounter++}';
+
+  static String _payrollCheckNumber(String payrollId) => 'PAYROLL-$payrollId';
 
   static void _notifyDataChanged() {
     _dataVersion.value++;

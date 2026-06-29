@@ -78,6 +78,47 @@ class ReminderService {
     await _persist();
   }
 
+  static Future<void> syncRecurringReminderSeries({
+    required String seriesId,
+    required DateTime startDate,
+    required String category,
+    required double amount,
+    required String reminderCount,
+    required String payee,
+  }) async {
+    final String normalizedSeriesId = seriesId.trim();
+    if (normalizedSeriesId.isEmpty) return;
+    if (!RecurrenceSchedule.isRecurringFrequency(reminderCount)) return;
+
+    final DateTime now = AppClock.now;
+    await _ensureLoaded();
+
+    final ReminderSeries series = ReminderSeries(
+      id: normalizedSeriesId,
+      startDate: _dateOnly(startDate),
+      category: category,
+      amount: amount < 0 ? 0 : amount,
+      reminderCount: reminderCount,
+      payee: payee.isEmpty ? category : payee,
+      alertEnabled: true,
+      createdAt: now,
+    );
+
+    _series[series.id] = series;
+    _deletedRecurringKeys.removeWhere(
+      (String key) => key.startsWith('$normalizedSeriesId|'),
+    );
+    _reminders.removeWhere(
+      (ReminderRecord record) => record.recurringSeriesId == series.id,
+    );
+    _addMissingOccurrencesForSeries(
+      series,
+      upToYear: _maxInt(now.year, series.startDate.year),
+    );
+    _deleteRemindersBeforeCurrentMonth(now);
+    await _persist();
+  }
+
   static Future<void> updateAlert(String id, bool enabled) async {
     await _ensureLoaded();
     final index = _reminders.indexWhere((record) => record.id == id);

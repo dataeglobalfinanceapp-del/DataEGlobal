@@ -1,0 +1,165 @@
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:savetep/features/auth/screens/payroll_screen/payroll_models.dart';
+import 'package:savetep/features/auth/screens/payroll_screen/payroll_service.dart';
+import 'package:savetep/services/app_clock.dart';
+import 'package:savetep/services/liability_service.dart';
+import 'package:savetep/services/reminder_service.dart';
+
+void main() {
+  setUp(() {
+    AppClock.set(DateTime(2026, 6, 15));
+    LiabilityService.resetForTesting();
+    ReminderService.resetForTesting();
+    PayrollService.resetForTesting();
+  });
+
+  tearDown(() {
+    AppClock.reset();
+    LiabilityService.resetForTesting(disablePersistence: false);
+    ReminderService.resetForTesting(disablePersistence: false);
+    PayrollService.resetForTesting(disablePersistence: false);
+  });
+
+  test(
+    'employee payroll total includes regular, overtime, commission, and tips',
+    () {
+      const employee = PayrollEmployee(
+        id: 'employee-1',
+        name: 'Alex',
+        rate: 20,
+        regularHours: 40,
+        overtimeHours: 10,
+        commission: 50,
+        tips: 25,
+      );
+
+      expect(employee.totalPay, 1175);
+    },
+  );
+
+  test(
+    'saving payroll syncs one payroll expense and a recurring reminder',
+    () async {
+      await LiabilityService.saveDeposit(
+        orderNumber: 'DEP-1',
+        totalAmount: 5000,
+        creditDeposit: 5000,
+        cash: 0,
+        giftCard: 0,
+        other: 0,
+        transactionDate: DateTime(2026, 6, 1),
+        isManual: true,
+      );
+      await LiabilityService.saveExpense(
+        checkNumber: 'EXP-1',
+        totalAmount: 500,
+        transactionDate: DateTime(2026, 6, 10),
+        category: 'Utilities',
+        payee: 'Utilities',
+        isManual: true,
+      );
+
+      final saved = await PayrollService.savePayroll(
+        PayrollRecord(
+          id: 'payroll-test',
+          payDate: DateTime(2026, 6, 20),
+          schedule: PayrollSchedule.biWeekly,
+          processDaysBefore: 7,
+          employees: const <PayrollEmployee>[
+            PayrollEmployee(
+              id: 'employee-1',
+              name: 'Alex',
+              rate: 20,
+              regularHours: 40,
+              overtimeHours: 10,
+              commission: 50,
+              tips: 25,
+            ),
+          ],
+        ),
+      );
+
+      expect(saved.syncedExpenseId, isNotEmpty);
+      expect(saved.reminderSeriesId, isNotEmpty);
+
+      final expenses = await LiabilityService.loadExpenses();
+      final payrollExpenses = expenses
+          .where((record) => record.category == 'Payroll')
+          .toList(growable: false);
+
+      expect(payrollExpenses, hasLength(1));
+      expect(payrollExpenses.single.id, saved.syncedExpenseId);
+      expect(payrollExpenses.single.checkNumber, 'PAYROLL-payroll-test');
+      expect(payrollExpenses.single.totalAmount, 1175);
+      expect(_dateKey(payrollExpenses.single.transactionDate), '2026-06-20');
+
+      final reminders = await ReminderService.loadReminders();
+      expect(
+        reminders.any(
+          (record) =>
+              record.category == 'Payroll' &&
+              record.amount == 1175 &&
+              record.reminderCount == 'Biweekly' &&
+              _dateKey(record.date) == '2026-06-13',
+        ),
+        true,
+      );
+
+      final updated = await PayrollService.savePayroll(
+        saved.copyWith(
+          payDate: DateTime(2026, 6, 21),
+          schedule: PayrollSchedule.monthly,
+          processDaysBefore: 5,
+          employees: const <PayrollEmployee>[
+            PayrollEmployee(
+              id: 'employee-1',
+              name: 'Alex',
+              rate: 25,
+              regularHours: 40,
+            ),
+          ],
+        ),
+      );
+
+      final updatedExpenses = await LiabilityService.loadExpenses();
+      final updatedPayrollExpenses = updatedExpenses
+          .where((record) => record.category == 'Payroll')
+          .toList(growable: false);
+      expect(updatedPayrollExpenses, hasLength(1));
+      expect(updatedPayrollExpenses.single.id, saved.syncedExpenseId);
+      expect(updatedPayrollExpenses.single.id, updated.syncedExpenseId);
+      expect(updatedPayrollExpenses.single.totalAmount, 1000);
+      expect(
+        _dateKey(updatedPayrollExpenses.single.transactionDate),
+        '2026-06-21',
+      );
+
+      final updatedReminders = await ReminderService.loadReminders();
+      expect(
+        updatedReminders.where(
+          (record) =>
+              record.category == 'Payroll' &&
+              _dateKey(record.date) == '2026-06-13',
+        ),
+        isEmpty,
+      );
+      expect(
+        updatedReminders.any(
+          (record) =>
+              record.category == 'Payroll' &&
+              record.amount == 1000 &&
+              record.reminderCount == 'Monthly' &&
+              _dateKey(record.date) == '2026-06-16',
+        ),
+        true,
+      );
+    },
+  );
+}
+
+String _dateKey(DateTime date) {
+  return '${date.year}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+}
