@@ -95,10 +95,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text(r'$1,107.00'), findsWidgets);
 
-      await tester.tap(
+      expect(
         find.byKey(const ValueKey<String>('payroll.employee.0.edit')),
+        findsNothing,
       );
-      await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const ValueKey<String>('payroll.employee.0.tips')),
         '3',

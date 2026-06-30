@@ -3,13 +3,11 @@ part of '../payroll_screen.dart';
 class _EmployeePayrollList extends StatelessWidget {
   final PayrollViewState state;
   final VoidCallback onAddEmployee;
-  final ValueChanged<String> onRemoveEmployee;
   final _EmployeeChanged onEmployeeChanged;
 
   const _EmployeePayrollList({
     required this.state,
     required this.onAddEmployee,
-    required this.onRemoveEmployee,
     required this.onEmployeeChanged,
   });
 
@@ -42,8 +40,6 @@ class _EmployeePayrollList extends StatelessWidget {
               ),
               index: index,
               employee: employees[index],
-              canRemove: employees.length > 1,
-              onRemove: () => onRemoveEmployee(employees[index].id),
               onChanged:
                   ({
                     String? name,
@@ -74,8 +70,6 @@ class _EmployeePayrollList extends StatelessWidget {
 class _PayrollEmployeeCard extends StatefulWidget {
   final int index;
   final PayrollEmployee employee;
-  final bool canRemove;
-  final VoidCallback onRemove;
   final void Function({
     String? name,
     double? rate,
@@ -90,8 +84,6 @@ class _PayrollEmployeeCard extends StatefulWidget {
     super.key,
     required this.index,
     required this.employee,
-    required this.canRemove,
-    required this.onRemove,
     required this.onChanged,
   });
 
@@ -106,7 +98,6 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
   late final TextEditingController _overtimeHoursController;
   late final TextEditingController _commissionController;
   late final TextEditingController _tipsController;
-  late bool _isLocked;
 
   @override
   void initState() {
@@ -118,7 +109,6 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
     _commissionController = TextEditingController();
     _tipsController = TextEditingController();
     _syncControllersFromEmployee(widget.employee);
-    _isLocked = _hasConfirmedPay(widget.employee);
   }
 
   @override
@@ -126,12 +116,10 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.employee.id != widget.employee.id) {
       _syncControllersFromEmployee(widget.employee);
-      _isLocked = _hasConfirmedPay(widget.employee);
       return;
     }
 
-    if (_isLocked &&
-        _payrollValuesChanged(oldWidget.employee, widget.employee)) {
+    if (_payrollValuesChanged(oldWidget.employee, widget.employee)) {
       _syncControllersFromEmployee(widget.employee);
     }
   }
@@ -156,8 +144,6 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
     _tipsController.text = _amountText(employee.tips);
   }
 
-  bool _hasConfirmedPay(PayrollEmployee employee) => employee.totalPay > 0;
-
   bool _payrollValuesChanged(PayrollEmployee previous, PayrollEmployee next) {
     return previous.name != next.name ||
         previous.rate != next.rate ||
@@ -165,10 +151,6 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
         previous.overtimeHours != next.overtimeHours ||
         previous.commission != next.commission ||
         previous.tips != next.tips;
-  }
-
-  void _edit() {
-    setState(() => _isLocked = false);
   }
 
   void _confirm() {
@@ -182,7 +164,6 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
       tips: parseMoney(_tipsController.text),
     );
     FocusScope.of(context).unfocus();
-    setState(() => _isLocked = true);
   }
 
   @override
@@ -202,7 +183,6 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                     'payroll.employee.${widget.index}.name',
                   ),
                   controller: _nameController,
-                  readOnly: _isLocked,
                   minLines: 1,
                   maxLines: 2,
                   style: _PayrollTokens.employeeName,
@@ -225,15 +205,6 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                   ),
                 ],
               ),
-              if (widget.canRemove)
-                SizedBox(
-                  width: 36,
-                  child: IconButton(
-                    tooltip: 'Remove employee',
-                    onPressed: widget.onRemove,
-                    icon: const Icon(Icons.close, size: 18),
-                  ),
-                ),
             ],
           ),
           const SizedBox(height: 14),
@@ -244,7 +215,6 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                 field: 'rate',
                 label: 'RATE',
                 controller: _rateController,
-                readOnly: _isLocked,
               ),
               _PayrollAmountField(
                 index: widget.index,
@@ -252,7 +222,6 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                 label: 'REG HRS',
                 controller: _regularHoursController,
                 hintText: 'Enter',
-                readOnly: _isLocked,
               ),
               _PayrollAmountField(
                 index: widget.index,
@@ -260,7 +229,6 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                 label: 'OT HRS',
                 controller: _overtimeHoursController,
                 hintText: 'Enter',
-                readOnly: _isLocked,
               ),
               _PayrollAmountField(
                 index: widget.index,
@@ -268,7 +236,6 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                 label: 'COMM',
                 controller: _commissionController,
                 hintText: 'Enter',
-                readOnly: _isLocked,
               ),
               _PayrollAmountField(
                 index: widget.index,
@@ -276,16 +243,11 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                 label: 'TIPS',
                 controller: _tipsController,
                 hintText: 'Enter',
-                readOnly: _isLocked,
               ),
             ],
           ),
           const SizedBox(height: 18),
-          _PayrollEmployeeActions(
-            index: widget.index,
-            onEdit: _edit,
-            onConfirm: _confirm,
-          ),
+          _PayrollEmployeeActions(index: widget.index, onConfirm: _confirm),
         ],
       ),
     );
@@ -326,33 +288,15 @@ class _EmployeeInputGrid extends StatelessWidget {
 
 class _PayrollEmployeeActions extends StatelessWidget {
   final int index;
-  final VoidCallback onEdit;
   final VoidCallback onConfirm;
 
-  const _PayrollEmployeeActions({
-    required this.index,
-    required this.onEdit,
-    required this.onConfirm,
-  });
+  const _PayrollEmployeeActions({required this.index, required this.onConfirm});
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final bool narrow = constraints.maxWidth < 330;
-        final Widget editButton = OutlinedButton(
-          key: ValueKey<String>('payroll.employee.$index.edit'),
-          onPressed: onEdit,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: _PayrollTokens.tabSelected,
-            side: const BorderSide(color: _PayrollTokens.tabSelected),
-            minimumSize: const Size(0, 48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
-            ),
-          ),
-          child: const Text('Edit'),
-        );
         final Widget confirmButton = FilledButton(
           key: ValueKey<String>('payroll.employee.$index.confirm'),
           onPressed: onConfirm,
@@ -368,22 +312,12 @@ class _PayrollEmployeeActions extends StatelessWidget {
         );
 
         if (narrow) {
-          return Row(
-            children: <Widget>[
-              Expanded(child: editButton),
-              const SizedBox(width: 12),
-              Expanded(child: confirmButton),
-            ],
-          );
+          return Row(children: <Widget>[Expanded(child: confirmButton)]);
         }
 
         return Row(
           mainAxisAlignment: MainAxisAlignment.end,
-          children: <Widget>[
-            SizedBox(width: 112, child: editButton),
-            const SizedBox(width: 12),
-            SizedBox(width: 128, child: confirmButton),
-          ],
+          children: <Widget>[SizedBox(width: 128, child: confirmButton)],
         );
       },
     );
@@ -396,14 +330,12 @@ class _PayrollAmountField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final String? hintText;
-  final bool readOnly;
 
   const _PayrollAmountField({
     required this.index,
     required this.field,
     required this.label,
     required this.controller,
-    required this.readOnly,
     this.hintText,
   });
 
@@ -419,7 +351,6 @@ class _PayrollAmountField extends StatelessWidget {
           child: TextField(
             key: ValueKey<String>('payroll.employee.$index.$field'),
             controller: controller,
-            readOnly: readOnly,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: <TextInputFormatter>[
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
@@ -430,9 +361,7 @@ class _PayrollAmountField extends StatelessWidget {
               hintText: hintText,
               hintStyle: _PayrollTokens.inputHint,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              fillColor: readOnly
-                  ? _PayrollTokens.lockedFieldBackground
-                  : _PayrollTokens.surface,
+              fillColor: _PayrollTokens.surface,
               filled: true,
               enabledBorder: _PayrollTokens.cellBorder,
               focusedBorder: _PayrollTokens.focusedCellBorder,

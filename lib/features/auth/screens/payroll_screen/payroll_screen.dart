@@ -199,7 +199,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
                   onChooseProcessDays: _chooseProcessDays,
                   onScheduleChanged: _controller.setSchedule,
                   onAddEmployee: _controller.addEmployee,
-                  onRemoveEmployee: _controller.removeEmployee,
                   onEmployeeChanged: _controller.updateEmployee,
                   onSavePayroll: _savePayroll,
                 )

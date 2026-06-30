@@ -13,7 +13,6 @@ class _PayrollTokens {
   static const Color divider = Color(0xFFE5E7EB);
   static const Color success = Color(0xFF57B82F);
   static const Color selectedRow = Color(0xFFEAF4FF);
-  static const Color lockedFieldBackground = Color(0xFFF8FAFC);
 
   static const double cardRadius = 8;
   static const double controlRadius = 6;
