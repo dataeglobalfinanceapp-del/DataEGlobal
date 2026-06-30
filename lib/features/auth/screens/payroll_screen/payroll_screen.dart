@@ -16,6 +16,12 @@ typedef _EmployeeChanged =
       double? overtimeHours,
       double? commission,
       double? tips,
+      String? birthday,
+      String? phone,
+      String? address,
+      String? dateHire,
+      String? jobType,
+      String? linkW4,
     });
 
 enum _PayrollTab {
@@ -411,6 +417,15 @@ class _EmployeesManagementViewState extends State<_EmployeesManagementView> {
 
   void _selectEmployee(PayrollEmployee employee) {
     setState(() => _selectedEmployeeId = employee.id);
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return _EmployeeInformationDialog(
+          employee: employee,
+          onEmployeeChanged: widget.onEmployeeChanged,
+        );
+      },
+    );
   }
 
   void _addEmployee() {
@@ -428,25 +443,15 @@ class _EmployeesManagementViewState extends State<_EmployeesManagementView> {
               query.isEmpty || employee.name.toLowerCase().contains(query),
         )
         .toList(growable: false);
-    final PayrollEmployee? selectedEmployee = employees
-        .cast<PayrollEmployee?>()
-        .firstWhere(
-          (PayrollEmployee? employee) => employee?.id == _selectedEmployeeId,
-          orElse: () => employees.isEmpty ? null : employees.first,
-        );
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool wide = constraints.maxWidth >= 760;
         final Widget listCard = _EmployeeListCard(
           employees: filteredEmployees,
-          selectedEmployeeId: selectedEmployee?.id,
+          selectedEmployeeId: _selectedEmployeeId,
           searchController: _searchController,
           totalEmployeeCount: employees.length,
           onSelectEmployee: _selectEmployee,
-        );
-        final Widget informationCard = _EmployeeInformationCard(
-          employee: selectedEmployee,
         );
 
         return Column(
@@ -454,20 +459,7 @@ class _EmployeesManagementViewState extends State<_EmployeesManagementView> {
           children: <Widget>[
             _EmployeesHeader(onAddEmployee: _addEmployee),
             const SizedBox(height: 18),
-            if (wide)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Expanded(flex: 5, child: listCard),
-                  const SizedBox(width: 20),
-                  Expanded(flex: 7, child: informationCard),
-                ],
-              )
-            else ...<Widget>[
-              listCard,
-              const SizedBox(height: 14),
-              informationCard,
-            ],
+            listCard,
           ],
         );
       },
@@ -646,86 +638,409 @@ class _EmployeeListRow extends StatelessWidget {
   }
 }
 
-class _EmployeeInformationCard extends StatelessWidget {
-  final PayrollEmployee? employee;
+class _EmployeeInformationDialog extends StatefulWidget {
+  final PayrollEmployee employee;
+  final _EmployeeChanged onEmployeeChanged;
 
-  const _EmployeeInformationCard({required this.employee});
+  const _EmployeeInformationDialog({
+    required this.employee,
+    required this.onEmployeeChanged,
+  });
+
+  @override
+  State<_EmployeeInformationDialog> createState() =>
+      _EmployeeInformationDialogState();
+}
+
+class _EmployeeInformationDialogState
+    extends State<_EmployeeInformationDialog> {
+  static const List<String> _jobTypes = <String>[
+    'Hourly',
+    'Salary',
+    'Contractor',
+    'Part Time',
+    'Full Time',
+  ];
+
+  late PayrollEmployee _employee;
+  late final TextEditingController _nameController;
+  late final TextEditingController _birthdayController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _addressController;
+  late final TextEditingController _dateHireController;
+  late final TextEditingController _linkW4Controller;
+  late String _jobType;
+  bool _isEditing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _employee = widget.employee;
+    _nameController = TextEditingController(text: _employee.name);
+    _birthdayController = TextEditingController(text: _employee.birthday);
+    _phoneController = TextEditingController(text: _employee.phone);
+    _addressController = TextEditingController(text: _employee.address);
+    _dateHireController = TextEditingController(text: _employee.dateHire);
+    _linkW4Controller = TextEditingController(text: _employee.linkW4);
+    _jobType = _jobTypes.contains(_employee.jobType)
+        ? _employee.jobType
+        : _jobTypes.first;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _birthdayController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _dateHireController.dispose();
+    _linkW4Controller.dispose();
+    super.dispose();
+  }
+
+  void _startEditing() {
+    setState(() => _isEditing = true);
+  }
+
+  void _confirm() {
+    final PayrollEmployee updated = _employee.copyWith(
+      name: _nameController.text.trim().isEmpty
+          ? _employee.name
+          : _nameController.text.trim(),
+      birthday: _birthdayController.text.trim(),
+      phone: _phoneController.text.trim(),
+      address: _addressController.text.trim(),
+      dateHire: _dateHireController.text.trim(),
+      jobType: _jobType,
+      linkW4: _linkW4Controller.text.trim(),
+    );
+    widget.onEmployeeChanged(
+      _employee.id,
+      name: updated.name,
+      birthday: updated.birthday,
+      phone: updated.phone,
+      address: updated.address,
+      dateHire: updated.dateHire,
+      jobType: updated.jobType,
+      linkW4: updated.linkW4,
+    );
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _employee = updated;
+      _isEditing = false;
+    });
+  }
+
+  List<_EmployeeDetailData> get _details {
+    return <_EmployeeDetailData>[
+      _EmployeeDetailData(label: 'Full Name', value: _employee.name),
+      _EmployeeDetailData(label: 'Birthday', value: _employee.birthday),
+      _EmployeeDetailData(label: 'Phone', value: _employee.phone),
+      _EmployeeDetailData(label: 'Address', value: _employee.address),
+      _EmployeeDetailData(label: 'Date Hire', value: _employee.dateHire),
+      _EmployeeDetailData(label: 'Job Type', value: _employee.jobType),
+      if (_employee.linkW4.trim().isNotEmpty)
+        _EmployeeDetailData(label: 'W4', value: _employee.linkW4),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
-    final PayrollEmployee? selected = employee;
+    final Size screenSize = MediaQuery.sizeOf(context);
 
-    return Container(
-      decoration: _PayrollTokens.panelDecoration,
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-      child: selected == null
-          ? const SizedBox(
-              height: 260,
-              child: Center(
-                child: Text(
-                  'Select an employee.',
-                  style: _PayrollTokens.helperText,
-                ),
-              ),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const Expanded(
-                      child: Text(
-                        'Employee Information',
-                        style: _PayrollTokens.cardTitle,
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      backgroundColor: _PayrollTokens.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_PayrollTokens.cardRadius),
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 560,
+          maxHeight: screenSize.height - 48,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+              child: Row(
+                children: <Widget>[
+                  const Expanded(
+                    child: Text(
+                      'Employee Information',
+                      style: _PayrollTokens.cardTitle,
+                    ),
+                  ),
+                  IconButton(
+                    key: const ValueKey<String>('payroll.employeeInfo.edit'),
+                    tooltip: 'Edit employee',
+                    onPressed: _startEditing,
+                    icon: const Icon(Icons.edit_outlined),
+                    style: IconButton.styleFrom(
+                      foregroundColor: _PayrollTokens.textMuted,
+                      side: const BorderSide(color: _PayrollTokens.border),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          _PayrollTokens.controlRadius,
+                        ),
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'Edit employee',
-                      onPressed: () {},
-                      icon: const Icon(Icons.edit_outlined),
-                      style: IconButton.styleFrom(
-                        foregroundColor: _PayrollTokens.textMuted,
-                        side: const BorderSide(color: _PayrollTokens.border),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    key: const ValueKey<String>('payroll.employeeInfo.close'),
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                    color: _PayrollTokens.textMuted,
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                child: _isEditing
+                    ? _EmployeeInformationEditFields(
+                        nameController: _nameController,
+                        birthdayController: _birthdayController,
+                        phoneController: _phoneController,
+                        addressController: _addressController,
+                        dateHireController: _dateHireController,
+                        linkW4Controller: _linkW4Controller,
+                        jobType: _jobType,
+                        jobTypes: _jobTypes,
+                        showW4: _employee.linkW4.trim().isNotEmpty,
+                        onJobTypeChanged: (String? value) {
+                          if (value == null) return;
+                          setState(() => _jobType = value);
+                        },
+                      )
+                    : _EmployeeDetailGrid(details: _details),
+              ),
+            ),
+            if (_isEditing) ...<Widget>[
+              const Divider(height: 1, color: _PayrollTokens.divider),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: SizedBox(
+                    width: 128,
+                    height: 48,
+                    child: FilledButton(
+                      key: const ValueKey<String>(
+                        'payroll.employeeInfo.confirm',
+                      ),
+                      onPressed: _confirm,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _PayrollTokens.tabSelected,
+                        foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(
                             _PayrollTokens.controlRadius,
                           ),
                         ),
                       ),
+                      child: const Text('Confirm'),
                     ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 24),
-                _EmployeeDetailGrid(
-                  details: <_EmployeeDetailData>[
-                    _EmployeeDetailData(
-                      label: 'Full Name',
-                      value: selected.name,
-                    ),
-                    _EmployeeDetailData(
-                      label: 'Birthday',
-                      value: selected.birthday,
-                    ),
-                    _EmployeeDetailData(label: 'Phone', value: selected.phone),
-                    _EmployeeDetailData(
-                      label: 'Address',
-                      value: selected.address,
-                    ),
-                    _EmployeeDetailData(
-                      label: 'Date Hire',
-                      value: selected.dateHire,
-                    ),
-                    _EmployeeDetailData(
-                      label: 'Job Type',
-                      value: selected.jobType,
-                    ),
-                    if (selected.linkW4.trim().isNotEmpty)
-                      _EmployeeDetailData(label: 'W4', value: selected.linkW4),
-                  ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmployeeInformationEditFields extends StatelessWidget {
+  final TextEditingController nameController;
+  final TextEditingController birthdayController;
+  final TextEditingController phoneController;
+  final TextEditingController addressController;
+  final TextEditingController dateHireController;
+  final TextEditingController linkW4Controller;
+  final String jobType;
+  final List<String> jobTypes;
+  final bool showW4;
+  final ValueChanged<String?> onJobTypeChanged;
+
+  const _EmployeeInformationEditFields({
+    required this.nameController,
+    required this.birthdayController,
+    required this.phoneController,
+    required this.addressController,
+    required this.dateHireController,
+    required this.linkW4Controller,
+    required this.jobType,
+    required this.jobTypes,
+    required this.showW4,
+    required this.onJobTypeChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool twoColumns = constraints.maxWidth >= 520;
+        const double gap = 16;
+        final double fieldWidth = twoColumns
+            ? (constraints.maxWidth - gap) / 2
+            : constraints.maxWidth;
+
+        return Wrap(
+          spacing: gap,
+          runSpacing: 16,
+          children: <Widget>[
+            SizedBox(
+              width: fieldWidth,
+              child: _EmployeeInformationTextField(
+                fieldKey: const ValueKey<String>(
+                  'payroll.employeeInfo.fullName',
                 ),
-              ],
+                label: 'Full Name',
+                controller: nameController,
+              ),
             ),
+            SizedBox(
+              width: fieldWidth,
+              child: _EmployeeInformationTextField(
+                fieldKey: const ValueKey<String>(
+                  'payroll.employeeInfo.birthday',
+                ),
+                label: 'Birthday',
+                controller: birthdayController,
+              ),
+            ),
+            SizedBox(
+              width: fieldWidth,
+              child: _EmployeeInformationTextField(
+                fieldKey: const ValueKey<String>('payroll.employeeInfo.phone'),
+                label: 'Phone',
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+              ),
+            ),
+            SizedBox(
+              width: fieldWidth,
+              child: _EmployeeInformationTextField(
+                fieldKey: const ValueKey<String>(
+                  'payroll.employeeInfo.dateHire',
+                ),
+                label: 'Date Hire',
+                controller: dateHireController,
+              ),
+            ),
+            SizedBox(
+              width: fieldWidth,
+              child: _EmployeeInformationJobTypeField(
+                value: jobType,
+                jobTypes: jobTypes,
+                onChanged: onJobTypeChanged,
+              ),
+            ),
+            SizedBox(
+              width: constraints.maxWidth,
+              child: _EmployeeInformationTextField(
+                fieldKey: const ValueKey<String>(
+                  'payroll.employeeInfo.address',
+                ),
+                label: 'Address',
+                controller: addressController,
+                minLines: 2,
+                maxLines: 3,
+              ),
+            ),
+            if (showW4)
+              SizedBox(
+                width: constraints.maxWidth,
+                child: _EmployeeInformationTextField(
+                  fieldKey: const ValueKey<String>('payroll.employeeInfo.w4'),
+                  label: 'W4',
+                  controller: linkW4Controller,
+                  keyboardType: TextInputType.url,
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _EmployeeInformationTextField extends StatelessWidget {
+  final Key fieldKey;
+  final String label;
+  final TextEditingController controller;
+  final TextInputType? keyboardType;
+  final int minLines;
+  final int maxLines;
+
+  const _EmployeeInformationTextField({
+    required this.fieldKey,
+    required this.label,
+    required this.controller,
+    this.keyboardType,
+    this.minLines = 1,
+    this.maxLines = 1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(label, style: _PayrollTokens.detailLabel),
+        const SizedBox(height: 8),
+        TextField(
+          key: fieldKey,
+          controller: controller,
+          keyboardType: keyboardType,
+          minLines: minLines,
+          maxLines: maxLines,
+          style: _PayrollTokens.detailValue,
+          decoration: _PayrollTokens.inputDecoration,
+        ),
+      ],
+    );
+  }
+}
+
+class _EmployeeInformationJobTypeField extends StatelessWidget {
+  final String value;
+  final List<String> jobTypes;
+  final ValueChanged<String?> onChanged;
+
+  const _EmployeeInformationJobTypeField({
+    required this.value,
+    required this.jobTypes,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Text('Job Type', style: _PayrollTokens.detailLabel),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          key: const ValueKey<String>('payroll.employeeInfo.jobType'),
+          initialValue: value,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down),
+          decoration: _PayrollTokens.inputDecoration,
+          items: <DropdownMenuItem<String>>[
+            for (final String jobType in jobTypes)
+              DropdownMenuItem<String>(value: jobType, child: Text(jobType)),
+          ],
+          onChanged: onChanged,
+        ),
+      ],
     );
   }
 }

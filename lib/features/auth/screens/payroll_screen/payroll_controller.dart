@@ -139,6 +139,12 @@ class PayrollController extends ChangeNotifier {
     double? overtimeHours,
     double? commission,
     double? tips,
+    String? birthday,
+    String? phone,
+    String? address,
+    String? dateHire,
+    String? jobType,
+    String? linkW4,
   }) {
     final employees = _payroll.employees
         .map((PayrollEmployee employee) {
@@ -150,6 +156,12 @@ class PayrollController extends ChangeNotifier {
             overtimeHours: overtimeHours,
             commission: commission,
             tips: tips,
+            birthday: birthday,
+            phone: phone,
+            address: address,
+            dateHire: dateHire,
+            jobType: jobType,
+            linkW4: linkW4,
           );
         })
         .toList(growable: false);
@@ -227,6 +239,36 @@ class PayrollController extends ChangeNotifier {
     required DateTime payPeriodEnd,
     required double projectedPayrollExpense,
   }) {
+    bool payDateIsInSelectedPeriod(DateTime payDate) {
+      final DateTime normalizedPayDate = RecurrenceSchedule.dateOnly(payDate);
+      late final DateTime expensePeriodStart;
+      late final DateTime expensePeriodEnd;
+
+      if (_payroll.schedule == PayrollSchedule.monthly) {
+        final DateTime previousMonth = DateTime(
+          normalizedPayDate.year,
+          normalizedPayDate.month - 1,
+        );
+        expensePeriodStart = DateTime(previousMonth.year, previousMonth.month);
+        expensePeriodEnd = DateTime(
+          normalizedPayDate.year,
+          normalizedPayDate.month,
+          0,
+        );
+      } else {
+        expensePeriodEnd = normalizedPayDate.subtract(const Duration(days: 6));
+        expensePeriodStart = expensePeriodEnd.subtract(
+          const Duration(days: 13),
+        );
+      }
+
+      return RecurrenceSchedule.isSameDate(
+            expensePeriodStart,
+            payPeriodStart,
+          ) &&
+          RecurrenceSchedule.isSameDate(expensePeriodEnd, payPeriodEnd);
+    }
+
     final double savedPayrollExpenses = _expenses
         .where((ExpenseRecord record) {
           if (record.category != 'Payroll') return false;
@@ -238,17 +280,7 @@ class PayrollController extends ChangeNotifier {
           final DateTime transactionDate = RecurrenceSchedule.dateOnly(
             record.transactionDate,
           );
-          final PayrollRecord periodForExpensePayDate = _payroll.copyWith(
-            payDate: transactionDate,
-          );
-          return RecurrenceSchedule.isSameDate(
-                periodForExpensePayDate.payPeriodStart,
-                payPeriodStart,
-              ) &&
-              RecurrenceSchedule.isSameDate(
-                periodForExpensePayDate.payPeriodEnd,
-                payPeriodEnd,
-              );
+          return payDateIsInSelectedPeriod(transactionDate);
         })
         .fold<double>(
           0,

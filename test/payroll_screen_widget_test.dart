@@ -123,18 +123,32 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Employee List'), findsOneWidget);
-      expect(find.text('Employee Information'), findsOneWidget);
       expect(find.text('Add New Employee'), findsOneWidget);
+      expect(find.text('Employee Information'), findsNothing);
+      expect(find.text('Full Name'), findsNothing);
+      expect(find.text('Showing 6 employees'), findsOneWidget);
+      expect(find.text('Manage and view your employees.'), findsNothing);
+      expect(find.byIcon(Icons.call_outlined), findsNothing);
+      expect(find.byType(SingleChildScrollView), findsNothing);
+
+      await tester.tap(find.text('Jack Nicholson'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Employee Information'), findsOneWidget);
       expect(find.text('Full Name'), findsOneWidget);
       expect(find.text('Birthday'), findsOneWidget);
       expect(find.text('Phone'), findsOneWidget);
       expect(find.text('Address'), findsOneWidget);
       expect(find.text('Date Hire'), findsOneWidget);
       expect(find.text('Job Type'), findsOneWidget);
-      expect(find.text('Showing 6 employees'), findsOneWidget);
-      expect(find.text('Manage and view your employees.'), findsNothing);
       expect(find.byIcon(Icons.call_outlined), findsNothing);
-      expect(find.byType(SingleChildScrollView), findsNothing);
+      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.employeeInfo.close')),
+      );
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Add New Employee'));
       await tester.pumpAndSettle();
@@ -225,6 +239,26 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('https://example.com/taylor-w4.pdf'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.employeeInfo.edit')),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('payroll.employeeInfo.phone')),
+        '555-4400',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.employeeInfo.confirm')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('555-4400'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.employeeInfo.close')),
+      );
+      await tester.pumpAndSettle();
 
       await tester.enterText(
         find.byKey(const ValueKey<String>('payroll.employees.search')),
