@@ -111,6 +111,16 @@ class PayrollController extends ChangeNotifier {
     _notify();
   }
 
+  void addEmployeeRecord(PayrollEmployee employee) {
+    final PayrollEmployee savedEmployee = employee.id.trim().isEmpty
+        ? employee.copyWith(id: _newEmployeeId())
+        : employee;
+    final employees = <PayrollEmployee>[..._payroll.employees, savedEmployee];
+    _payroll = _payroll.copyWith(employees: employees);
+    _rebuildState();
+    _notify();
+  }
+
   void removeEmployee(String id) {
     if (_payroll.employees.length <= 1) return;
 

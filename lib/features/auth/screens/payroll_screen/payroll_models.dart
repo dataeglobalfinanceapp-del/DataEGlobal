@@ -37,6 +37,13 @@ class PayrollEmployee {
   final double overtimeHours;
   final double commission;
   final double tips;
+  final String birthday;
+  final String phone;
+  final String address;
+  final String jobType;
+  final String dateHire;
+  final String payMethod;
+  final String linkW4;
 
   const PayrollEmployee({
     required this.id,
@@ -46,6 +53,13 @@ class PayrollEmployee {
     this.overtimeHours = 0,
     this.commission = 0,
     this.tips = 0,
+    this.birthday = '',
+    this.phone = '',
+    this.address = '',
+    this.jobType = '',
+    this.dateHire = '',
+    this.payMethod = '',
+    this.linkW4 = '',
   });
 
   factory PayrollEmployee.fromJson(Map<dynamic, dynamic> json) {
@@ -57,6 +71,13 @@ class PayrollEmployee {
       overtimeHours: _asDouble(json['overtimeHours']),
       commission: _asDouble(json['commission']),
       tips: _asDouble(json['tips']),
+      birthday: _asString(json['birthday']),
+      phone: _asString(json['phone']),
+      address: _asString(json['address']),
+      jobType: _asString(json['jobType']),
+      dateHire: _asString(json['dateHire']),
+      payMethod: _asString(json['payMethod']),
+      linkW4: _asString(json['linkW4']),
     );
   }
 
@@ -75,6 +96,13 @@ class PayrollEmployee {
     double? overtimeHours,
     double? commission,
     double? tips,
+    String? birthday,
+    String? phone,
+    String? address,
+    String? jobType,
+    String? dateHire,
+    String? payMethod,
+    String? linkW4,
   }) {
     return PayrollEmployee(
       id: id ?? this.id,
@@ -84,6 +112,13 @@ class PayrollEmployee {
       overtimeHours: overtimeHours ?? this.overtimeHours,
       commission: commission ?? this.commission,
       tips: tips ?? this.tips,
+      birthday: birthday ?? this.birthday,
+      phone: phone ?? this.phone,
+      address: address ?? this.address,
+      jobType: jobType ?? this.jobType,
+      dateHire: dateHire ?? this.dateHire,
+      payMethod: payMethod ?? this.payMethod,
+      linkW4: linkW4 ?? this.linkW4,
     );
   }
 
@@ -95,6 +130,13 @@ class PayrollEmployee {
     'overtimeHours': overtimeHours,
     'commission': commission,
     'tips': tips,
+    'birthday': birthday,
+    'phone': phone,
+    'address': address,
+    'jobType': jobType,
+    'dateHire': dateHire,
+    'payMethod': payMethod,
+    'linkW4': linkW4,
   };
 }
 
@@ -151,15 +193,54 @@ class PayrollRecord {
   }
 
   static const List<PayrollEmployee> defaultEmployees = <PayrollEmployee>[
-    PayrollEmployee(id: 'employee-jack-nicholson', name: 'Jack Nicholson'),
-    PayrollEmployee(id: 'employee-waylon-dalton', name: 'Waylon Dalton'),
-    PayrollEmployee(id: 'employee-abdullah-lang', name: 'Abdullah Lang'),
+    PayrollEmployee(
+      id: 'employee-jack-nicholson',
+      name: 'Jack Nicholson',
+      birthday: '04/22/1988',
+      phone: '555-2601',
+      address: '195 Spruce Ave, #202, Bayshore, CA 94326',
+      jobType: 'Hourly',
+    ),
+    PayrollEmployee(
+      id: 'employee-waylon-dalton',
+      name: 'Waylon Dalton',
+      birthday: '11/08/1991',
+      phone: '555-7194',
+      address: '84 Market Street, San Mateo, CA 94401',
+      jobType: 'Hourly',
+    ),
+    PayrollEmployee(
+      id: 'employee-abdullah-lang',
+      name: 'Abdullah Lang',
+      birthday: '02/14/1986',
+      phone: '555-4188',
+      address: '410 Oak Lane, Daly City, CA 94015',
+      jobType: 'Hourly',
+    ),
     PayrollEmployee(
       id: 'employee-justine-henderson',
       name: 'Justine Henderson',
+      birthday: '07/30/1994',
+      phone: '555-8320',
+      address: '72 Lincoln Drive, South City, CA 94080',
+      jobType: 'Hourly',
     ),
-    PayrollEmployee(id: 'employee-joanna-shaffer', name: 'Joanna Shaffer'),
-    PayrollEmployee(id: 'employee-mathias-little', name: 'Mathias Little'),
+    PayrollEmployee(
+      id: 'employee-joanna-shaffer',
+      name: 'Joanna Shaffer',
+      birthday: '09/18/1989',
+      phone: '555-0137',
+      address: '33 Garden Court, Burlingame, CA 94010',
+      jobType: 'Hourly',
+    ),
+    PayrollEmployee(
+      id: 'employee-mathias-little',
+      name: 'Mathias Little',
+      birthday: '12/03/1990',
+      phone: '555-4412',
+      address: '925 Pine Road, San Bruno, CA 94066',
+      jobType: 'Hourly',
+    ),
   ];
 
   DateTime get processDate =>
