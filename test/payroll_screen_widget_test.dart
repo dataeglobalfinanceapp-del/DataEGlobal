@@ -256,9 +256,37 @@ void main() {
       expect(find.text('555-4400'), findsOneWidget);
 
       await tester.tap(
-        find.byKey(const ValueKey<String>('payroll.employeeInfo.close')),
+        find.byKey(const ValueKey<String>('payroll.employeeInfo.edit')),
       );
       await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.employeeInfo.remove')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Are you sure you want to remove this employee?'),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.employeeInfo.cancelRemove')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Taylor Reed'), findsWidgets);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.employeeInfo.remove')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('payroll.employeeInfo.confirmRemove'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Employee Information'), findsNothing);
+      expect(find.text('Taylor Reed'), findsNothing);
+      expect(find.text('Showing 6 employees'), findsOneWidget);
 
       await tester.enterText(
         find.byKey(const ValueKey<String>('payroll.employees.search')),

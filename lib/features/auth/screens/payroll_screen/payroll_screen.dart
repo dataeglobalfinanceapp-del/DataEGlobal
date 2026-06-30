@@ -171,46 +171,118 @@ class _PayrollScreenState extends State<PayrollScreen> {
       body: ListenableBuilder(
         listenable: _controller,
         builder: (BuildContext context, Widget? child) {
-          final PayrollViewState state = _controller.state;
-          if (state.isLoading) {
+          if (_controller.state.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          return RefreshIndicator(
-            onRefresh: _controller.load,
-            child: ListView(
-              padding: _PayrollTokens.pagePadding,
-              children: <Widget>[
-                _PayrollTabCard(
-                  selectedTab: _selectedTab,
-                  onChanged: _selectTab,
-                ),
-                const SizedBox(height: 16),
-                if (_selectedTab == _PayrollTab.payroll)
-                  _PayrollProcessingView(
-                    state: state,
-                    onPickPayDate: _pickPayDate,
-                    onChooseProcessDays: _chooseProcessDays,
-                    onScheduleChanged: _controller.setSchedule,
-                    onAddEmployee: _controller.addEmployee,
-                    onRemoveEmployee: _controller.removeEmployee,
-                    onEmployeeChanged: _controller.updateEmployee,
-                    onSavePayroll: _savePayroll,
-                  )
-                else
-                  _EmployeesManagementView(
-                    state: state,
-                    onAddEmployee: _openAddEmployeeDialog,
-                    onRemoveEmployee: _controller.removeEmployee,
-                    onEmployeeChanged: _controller.updateEmployee,
-                    onSavePayroll: _savePayroll,
-                  ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          );
+          return child!;
         },
+        child: RefreshIndicator(
+          onRefresh: _controller.load,
+          child: ListView(
+            padding: _PayrollTokens.pagePadding,
+            children: <Widget>[
+              _PayrollTabCard(selectedTab: _selectedTab, onChanged: _selectTab),
+              const SizedBox(height: 16),
+              if (_selectedTab == _PayrollTab.payroll)
+                _PayrollTabContentConsumer(
+                  controller: _controller,
+                  onPickPayDate: _pickPayDate,
+                  onChooseProcessDays: _chooseProcessDays,
+                  onScheduleChanged: _controller.setSchedule,
+                  onAddEmployee: _controller.addEmployee,
+                  onRemoveEmployee: _controller.removeEmployee,
+                  onEmployeeChanged: _controller.updateEmployee,
+                  onSavePayroll: _savePayroll,
+                )
+              else
+                _EmployeesTabContentConsumer(
+                  controller: _controller,
+                  onAddEmployee: _openAddEmployeeDialog,
+                  onRemoveEmployee: _controller.removeEmployee,
+                  onEmployeeChanged: _controller.updateEmployee,
+                  onSavePayroll: _savePayroll,
+                ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+}
+
+class _PayrollTabContentConsumer extends StatelessWidget {
+  final PayrollController controller;
+  final VoidCallback onPickPayDate;
+  final VoidCallback onChooseProcessDays;
+  final ValueChanged<PayrollSchedule> onScheduleChanged;
+  final VoidCallback onAddEmployee;
+  final ValueChanged<String> onRemoveEmployee;
+  final _EmployeeChanged onEmployeeChanged;
+  final VoidCallback onSavePayroll;
+
+  const _PayrollTabContentConsumer({
+    required this.controller,
+    required this.onPickPayDate,
+    required this.onChooseProcessDays,
+    required this.onScheduleChanged,
+    required this.onAddEmployee,
+    required this.onRemoveEmployee,
+    required this.onEmployeeChanged,
+    required this.onSavePayroll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (BuildContext context, Widget? child) {
+        final PayrollViewState state = controller.state;
+        return _PayrollProcessingView(
+          state: state,
+          onPickPayDate: onPickPayDate,
+          onChooseProcessDays: onChooseProcessDays,
+          onScheduleChanged: onScheduleChanged,
+          onAddEmployee: onAddEmployee,
+          onRemoveEmployee: onRemoveEmployee,
+          onEmployeeChanged: onEmployeeChanged,
+          onSavePayroll: onSavePayroll,
+        );
+      },
+    );
+  }
+}
+
+class _EmployeesTabContentConsumer extends StatelessWidget {
+  final PayrollController controller;
+  final VoidCallback onAddEmployee;
+  final ValueChanged<String> onRemoveEmployee;
+  final _EmployeeChanged onEmployeeChanged;
+  final VoidCallback onSavePayroll;
+
+  const _EmployeesTabContentConsumer({
+    required this.controller,
+    required this.onAddEmployee,
+    required this.onRemoveEmployee,
+    required this.onEmployeeChanged,
+    required this.onSavePayroll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (BuildContext context, Widget? child) {
+        final PayrollViewState state = controller.state;
+        return _EmployeesManagementView(
+          state: state,
+          onAddEmployee: onAddEmployee,
+          onRemoveEmployee: onRemoveEmployee,
+          onEmployeeChanged: onEmployeeChanged,
+          onSavePayroll: onSavePayroll,
+        );
+      },
     );
   }
 }
@@ -423,6 +495,7 @@ class _EmployeesManagementViewState extends State<_EmployeesManagementView> {
         return _EmployeeInformationDialog(
           employee: employee,
           onEmployeeChanged: widget.onEmployeeChanged,
+          onRemoveEmployee: widget.onRemoveEmployee,
         );
       },
     );
@@ -641,10 +714,12 @@ class _EmployeeListRow extends StatelessWidget {
 class _EmployeeInformationDialog extends StatefulWidget {
   final PayrollEmployee employee;
   final _EmployeeChanged onEmployeeChanged;
+  final ValueChanged<String> onRemoveEmployee;
 
   const _EmployeeInformationDialog({
     required this.employee,
     required this.onEmployeeChanged,
+    required this.onRemoveEmployee,
   });
 
   @override
@@ -729,6 +804,33 @@ class _EmployeeInformationDialogState
       _employee = updated;
       _isEditing = false;
     });
+  }
+
+  Future<void> _remove() async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: const Text('Are you sure you want to remove this employee?'),
+          actions: <Widget>[
+            TextButton(
+              key: const ValueKey<String>('payroll.employeeInfo.cancelRemove'),
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              key: const ValueKey<String>('payroll.employeeInfo.confirmRemove'),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !mounted) return;
+
+    widget.onRemoveEmployee(_employee.id);
+    Navigator.pop(context);
   }
 
   List<_EmployeeDetailData> get _details {
@@ -827,25 +929,51 @@ class _EmployeeInformationDialogState
                 padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
                 child: Align(
                   alignment: Alignment.centerRight,
-                  child: SizedBox(
-                    width: 128,
-                    height: 48,
-                    child: FilledButton(
-                      key: const ValueKey<String>(
-                        'payroll.employeeInfo.confirm',
-                      ),
-                      onPressed: _confirm,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _PayrollTokens.tabSelected,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            _PayrollTokens.controlRadius,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      SizedBox(
+                        width: 112,
+                        height: 48,
+                        child: OutlinedButton(
+                          key: const ValueKey<String>(
+                            'payroll.employeeInfo.remove',
                           ),
+                          onPressed: _remove,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                _PayrollTokens.controlRadius,
+                              ),
+                            ),
+                          ),
+                          child: const Text('Remove'),
                         ),
                       ),
-                      child: const Text('Confirm'),
-                    ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 128,
+                        height: 48,
+                        child: FilledButton(
+                          key: const ValueKey<String>(
+                            'payroll.employeeInfo.confirm',
+                          ),
+                          onPressed: _confirm,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _PayrollTokens.tabSelected,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                _PayrollTokens.controlRadius,
+                              ),
+                            ),
+                          ),
+                          child: const Text('Confirm'),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
