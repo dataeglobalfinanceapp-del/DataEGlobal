@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_screen.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_service.dart';
+import 'package:savetep/domain/services/employee_service.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/reminder_service.dart';
@@ -13,6 +14,7 @@ void main() {
     LiabilityService.resetForTesting();
     ReminderService.resetForTesting();
     PayrollService.resetForTesting();
+    EmployeeService.resetForTesting();
   });
 
   tearDown(() {
@@ -20,6 +22,7 @@ void main() {
     LiabilityService.resetForTesting(disablePersistence: false);
     ReminderService.resetForTesting(disablePersistence: false);
     PayrollService.resetForTesting(disablePersistence: false);
+    EmployeeService.resetForTesting(disablePersistence: false);
   });
 
   testWidgets(

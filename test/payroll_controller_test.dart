@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:savetep/domain/services/employee_service.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_controller.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_service.dart';
 import 'package:savetep/services/app_clock.dart';
@@ -10,12 +11,14 @@ void main() {
     AppClock.set(DateTime(2026, 6, 15));
     LiabilityService.resetForTesting();
     PayrollService.resetForTesting();
+    EmployeeService.resetForTesting();
   });
 
   tearDown(() {
     AppClock.reset();
     LiabilityService.resetForTesting(disablePersistence: false);
     PayrollService.resetForTesting(disablePersistence: false);
+    EmployeeService.resetForTesting(disablePersistence: false);
   });
 
   test('pay period total pay follows the selected payroll date', () async {
