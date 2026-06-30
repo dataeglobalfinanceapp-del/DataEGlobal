@@ -713,9 +713,15 @@ class _EmployeeInformationCard extends StatelessWidget {
                       value: selected.address,
                     ),
                     _EmployeeDetailData(
+                      label: 'Date Hire',
+                      value: selected.dateHire,
+                    ),
+                    _EmployeeDetailData(
                       label: 'Job Type',
                       value: selected.jobType,
                     ),
+                    if (selected.linkW4.trim().isNotEmpty)
+                      _EmployeeDetailData(label: 'W4', value: selected.linkW4),
                   ],
                 ),
               ],
@@ -1408,9 +1414,9 @@ class _PayrollSetupCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               if (narrow) ...<Widget>[
-                _SummaryMetric(
-                  label: 'BALANCE',
-                  value: formatMoney(state.balance),
+                _PayrollHeaderMetrics(
+                  balance: state.balance,
+                  totalPay: state.payPeriodTotalPay,
                 ),
                 const SizedBox(height: 18),
                 const Divider(height: 1, color: _PayrollTokens.divider),
@@ -1424,9 +1430,9 @@ class _PayrollSetupCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Expanded(
-                      child: _SummaryMetric(
-                        label: 'BALANCE',
-                        value: formatMoney(state.balance),
+                      child: _PayrollHeaderMetrics(
+                        balance: state.balance,
+                        totalPay: state.payPeriodTotalPay,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -1489,14 +1495,54 @@ class _PayrollSetupCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              _MoneySyncStrip(
-                totalPay: payroll.totalPay,
-                totalDeposits: state.totalDeposits,
-                totalExpenses: state.totalExpenses,
-              ),
             ],
           ),
+        );
+      },
+    );
+  }
+}
+
+class _PayrollHeaderMetrics extends StatelessWidget {
+  final double balance;
+  final double totalPay;
+
+  const _PayrollHeaderMetrics({required this.balance, required this.totalPay});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        if (constraints.maxWidth < 300) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              _SummaryMetric(label: 'BALANCE', value: formatMoney(balance)),
+              const SizedBox(height: 16),
+              _SummaryMetric(label: 'TOTAL PAY', value: formatMoney(totalPay)),
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(
+              child: _SummaryMetric(
+                label: 'BALANCE',
+                value: formatMoney(balance),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Container(width: 1, height: 76, color: _PayrollTokens.divider),
+            const SizedBox(width: 14),
+            Expanded(
+              child: _SummaryMetric(
+                label: 'TOTAL PAY',
+                value: formatMoney(totalPay),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -1727,89 +1773,6 @@ class _TappableField extends StatelessWidget {
   }
 }
 
-class _MoneySyncStrip extends StatelessWidget {
-  final double totalPay;
-  final double totalDeposits;
-  final double totalExpenses;
-
-  const _MoneySyncStrip({
-    required this.totalPay,
-    required this.totalDeposits,
-    required this.totalExpenses,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final List<_MoneyMetricData> metrics = <_MoneyMetricData>[
-      _MoneyMetricData(label: 'Total Pay', value: totalPay),
-      _MoneyMetricData(label: 'Total Deposit', value: totalDeposits),
-      _MoneyMetricData(label: 'Total Expense', value: totalExpenses),
-    ];
-
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final double gap = constraints.maxWidth < 360 ? 8 : 12;
-        final int columns = constraints.maxWidth >= 480 ? 3 : 2;
-        final double itemWidth =
-            (constraints.maxWidth - (gap * (columns - 1))) / columns;
-
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: _PayrollTokens.syncBackground,
-            borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
-            border: Border.all(color: _PayrollTokens.border),
-          ),
-          child: Wrap(
-            spacing: gap,
-            runSpacing: 10,
-            children: <Widget>[
-              for (final _MoneyMetricData metric in metrics)
-                SizedBox(
-                  width: itemWidth,
-                  child: _InlineMoneyMetric(
-                    label: metric.label,
-                    value: metric.value,
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _MoneyMetricData {
-  final String label;
-  final double value;
-
-  const _MoneyMetricData({required this.label, required this.value});
-}
-
-class _InlineMoneyMetric extends StatelessWidget {
-  final String label;
-  final double value;
-
-  const _InlineMoneyMetric({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(label, style: _PayrollTokens.inlineLabel),
-        const SizedBox(height: 4),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(formatMoney(value), style: _PayrollTokens.inlineValue),
-        ),
-      ],
-    );
-  }
-}
-
 class _EmployeePayrollList extends StatelessWidget {
   final PayrollViewState state;
   final VoidCallback onAddEmployee;
@@ -1847,6 +1810,9 @@ class _EmployeePayrollList extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: _PayrollEmployeeCard(
+              key: ValueKey<String>(
+                'payroll.employee.card.${employees[index].id}',
+              ),
               index: index,
               employee: employees[index],
               canRemove: employees.length > 1,
@@ -1894,6 +1860,7 @@ class _PayrollEmployeeCard extends StatefulWidget {
   onChanged;
 
   const _PayrollEmployeeCard({
+    super.key,
     required this.index,
     required this.employee,
     required this.canRemove,
@@ -1912,39 +1879,34 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
   late final TextEditingController _overtimeHoursController;
   late final TextEditingController _commissionController;
   late final TextEditingController _tipsController;
+  late bool _isLocked;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.employee.name);
-    _rateController = TextEditingController(
-      text: _amountText(widget.employee.rate),
-    );
-    _regularHoursController = TextEditingController(
-      text: _amountText(widget.employee.regularHours),
-    );
-    _overtimeHoursController = TextEditingController(
-      text: _amountText(widget.employee.overtimeHours),
-    );
-    _commissionController = TextEditingController(
-      text: _amountText(widget.employee.commission),
-    );
-    _tipsController = TextEditingController(
-      text: _amountText(widget.employee.tips),
-    );
+    _rateController = TextEditingController();
+    _regularHoursController = TextEditingController();
+    _overtimeHoursController = TextEditingController();
+    _commissionController = TextEditingController();
+    _tipsController = TextEditingController();
+    _syncControllersFromEmployee(widget.employee);
+    _isLocked = _hasConfirmedPay(widget.employee);
   }
 
   @override
   void didUpdateWidget(covariant _PayrollEmployeeCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.employee.id == widget.employee.id) return;
+    if (oldWidget.employee.id != widget.employee.id) {
+      _syncControllersFromEmployee(widget.employee);
+      _isLocked = _hasConfirmedPay(widget.employee);
+      return;
+    }
 
-    _nameController.text = widget.employee.name;
-    _rateController.text = _amountText(widget.employee.rate);
-    _regularHoursController.text = _amountText(widget.employee.regularHours);
-    _overtimeHoursController.text = _amountText(widget.employee.overtimeHours);
-    _commissionController.text = _amountText(widget.employee.commission);
-    _tipsController.text = _amountText(widget.employee.tips);
+    if (_isLocked &&
+        _payrollValuesChanged(oldWidget.employee, widget.employee)) {
+      _syncControllersFromEmployee(widget.employee);
+    }
   }
 
   @override
@@ -1958,28 +1920,62 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
     super.dispose();
   }
 
+  void _syncControllersFromEmployee(PayrollEmployee employee) {
+    _nameController.text = employee.name;
+    _rateController.text = _amountText(employee.rate);
+    _regularHoursController.text = _amountText(employee.regularHours);
+    _overtimeHoursController.text = _amountText(employee.overtimeHours);
+    _commissionController.text = _amountText(employee.commission);
+    _tipsController.text = _amountText(employee.tips);
+  }
+
+  bool _hasConfirmedPay(PayrollEmployee employee) => employee.totalPay > 0;
+
+  bool _payrollValuesChanged(PayrollEmployee previous, PayrollEmployee next) {
+    return previous.name != next.name ||
+        previous.rate != next.rate ||
+        previous.regularHours != next.regularHours ||
+        previous.overtimeHours != next.overtimeHours ||
+        previous.commission != next.commission ||
+        previous.tips != next.tips;
+  }
+
+  void _edit() {
+    setState(() => _isLocked = false);
+  }
+
+  void _confirm() {
+    final String name = _nameController.text.trim();
+    widget.onChanged(
+      name: name.isEmpty ? widget.employee.name : name,
+      rate: parseMoney(_rateController.text),
+      regularHours: parseMoney(_regularHoursController.text),
+      overtimeHours: parseMoney(_overtimeHoursController.text),
+      commission: parseMoney(_commissionController.text),
+      tips: parseMoney(_tipsController.text),
+    );
+    FocusScope.of(context).unfocus();
+    setState(() => _isLocked = true);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: _PayrollTokens.panelDecoration,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: _SelectedEmployeeMark(),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: TextField(
                   key: ValueKey<String>(
                     'payroll.employee.${widget.index}.name',
                   ),
                   controller: _nameController,
+                  readOnly: _isLocked,
                   minLines: 1,
                   maxLines: 2,
                   style: _PayrollTokens.employeeName,
@@ -1988,7 +1984,6 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  onChanged: (String value) => widget.onChanged(name: value),
                 ),
               ),
               const SizedBox(width: 10),
@@ -2022,7 +2017,7 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                 field: 'rate',
                 label: 'RATE',
                 controller: _rateController,
-                onChanged: (double value) => widget.onChanged(rate: value),
+                readOnly: _isLocked,
               ),
               _PayrollAmountField(
                 index: widget.index,
@@ -2030,8 +2025,7 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                 label: 'REG HRS',
                 controller: _regularHoursController,
                 hintText: 'Enter',
-                onChanged: (double value) =>
-                    widget.onChanged(regularHours: value),
+                readOnly: _isLocked,
               ),
               _PayrollAmountField(
                 index: widget.index,
@@ -2039,8 +2033,7 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                 label: 'OT HRS',
                 controller: _overtimeHoursController,
                 hintText: 'Enter',
-                onChanged: (double value) =>
-                    widget.onChanged(overtimeHours: value),
+                readOnly: _isLocked,
               ),
               _PayrollAmountField(
                 index: widget.index,
@@ -2048,8 +2041,7 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                 label: 'COMM',
                 controller: _commissionController,
                 hintText: 'Enter',
-                onChanged: (double value) =>
-                    widget.onChanged(commission: value),
+                readOnly: _isLocked,
               ),
               _PayrollAmountField(
                 index: widget.index,
@@ -2057,36 +2049,18 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                 label: 'TIPS',
                 controller: _tipsController,
                 hintText: 'Enter',
-                onChanged: (double value) => widget.onChanged(tips: value),
+                readOnly: _isLocked,
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          const Icon(
-            Icons.badge_outlined,
-            color: _PayrollTokens.textMuted,
-            size: 21,
+          const SizedBox(height: 18),
+          _PayrollEmployeeActions(
+            index: widget.index,
+            onEdit: _edit,
+            onConfirm: _confirm,
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SelectedEmployeeMark extends StatelessWidget {
-  const _SelectedEmployeeMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 30,
-      height: 30,
-      decoration: BoxDecoration(
-        color: _PayrollTokens.surface,
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: _PayrollTokens.border),
-      ),
-      child: const Icon(Icons.check, color: _PayrollTokens.success, size: 24),
     );
   }
 }
@@ -2102,12 +2076,10 @@ class _EmployeeInputGrid extends StatelessWidget {
       builder: (BuildContext context, BoxConstraints constraints) {
         final double maxWidth = constraints.maxWidth;
         final int columns = switch (maxWidth) {
-          >= 680 => 5,
-          >= 500 => 3,
           >= 300 => 2,
           _ => 1,
         };
-        const double gap = 10;
+        const double gap = 16;
         final double width = columns == 1
             ? maxWidth
             : (maxWidth - (gap * (columns - 1))) / columns;
@@ -2125,20 +2097,86 @@ class _EmployeeInputGrid extends StatelessWidget {
   }
 }
 
+class _PayrollEmployeeActions extends StatelessWidget {
+  final int index;
+  final VoidCallback onEdit;
+  final VoidCallback onConfirm;
+
+  const _PayrollEmployeeActions({
+    required this.index,
+    required this.onEdit,
+    required this.onConfirm,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool narrow = constraints.maxWidth < 330;
+        final Widget editButton = OutlinedButton(
+          key: ValueKey<String>('payroll.employee.$index.edit'),
+          onPressed: onEdit,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _PayrollTokens.tabSelected,
+            side: const BorderSide(color: _PayrollTokens.tabSelected),
+            minimumSize: const Size(0, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+            ),
+          ),
+          child: const Text('Edit'),
+        );
+        final Widget confirmButton = FilledButton(
+          key: ValueKey<String>('payroll.employee.$index.confirm'),
+          onPressed: onConfirm,
+          style: FilledButton.styleFrom(
+            backgroundColor: _PayrollTokens.tabSelected,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(0, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+            ),
+          ),
+          child: const Text('Confirm'),
+        );
+
+        if (narrow) {
+          return Row(
+            children: <Widget>[
+              Expanded(child: editButton),
+              const SizedBox(width: 12),
+              Expanded(child: confirmButton),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: <Widget>[
+            SizedBox(width: 112, child: editButton),
+            const SizedBox(width: 12),
+            SizedBox(width: 128, child: confirmButton),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _PayrollAmountField extends StatelessWidget {
   final int index;
   final String field;
   final String label;
   final TextEditingController controller;
   final String? hintText;
-  final ValueChanged<double> onChanged;
+  final bool readOnly;
 
   const _PayrollAmountField({
     required this.index,
     required this.field,
     required this.label,
     required this.controller,
-    required this.onChanged,
+    required this.readOnly,
     this.hintText,
   });
 
@@ -2154,6 +2192,7 @@ class _PayrollAmountField extends StatelessWidget {
           child: TextField(
             key: ValueKey<String>('payroll.employee.$index.$field'),
             controller: controller,
+            readOnly: readOnly,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: <TextInputFormatter>[
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
@@ -2164,11 +2203,14 @@ class _PayrollAmountField extends StatelessWidget {
               hintText: hintText,
               hintStyle: _PayrollTokens.inputHint,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              fillColor: readOnly
+                  ? _PayrollTokens.lockedFieldBackground
+                  : _PayrollTokens.surface,
+              filled: true,
               enabledBorder: _PayrollTokens.cellBorder,
               focusedBorder: _PayrollTokens.focusedCellBorder,
               border: _PayrollTokens.cellBorder,
             ),
-            onChanged: (String value) => onChanged(parseMoney(value)),
           ),
         ),
       ],
@@ -2274,13 +2316,13 @@ class _PayrollTokens {
   static const Color surface = Colors.white;
   static const Color primary = Color(0xFF0F766E);
   static const Color tabSelected = Color(0xFF0B7CFF);
-  static const Color syncBackground = Color(0xFFF8FAFC);
   static const Color textStrong = Color(0xFF111827);
   static const Color textMuted = Color(0xFF4B5563);
   static const Color border = Color(0xFFD8DEE8);
   static const Color divider = Color(0xFFE5E7EB);
   static const Color success = Color(0xFF57B82F);
   static const Color selectedRow = Color(0xFFEAF4FF);
+  static const Color lockedFieldBackground = Color(0xFFF8FAFC);
 
   static const double cardRadius = 8;
   static const double controlRadius = 6;
@@ -2399,7 +2441,7 @@ class _PayrollTokens {
   );
   static const TextStyle cardFieldLabel = TextStyle(
     color: Color(0xFF4B5563),
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: FontWeight.w900,
   );
   static const TextStyle balanceValue = TextStyle(
@@ -2443,25 +2485,20 @@ class _PayrollTokens {
     fontSize: 12,
     fontWeight: FontWeight.w900,
   );
-  static const TextStyle inlineValue = TextStyle(
-    color: textStrong,
-    fontSize: 14,
-    fontWeight: FontWeight.w800,
-  );
   static const TextStyle cardMiniLabel = TextStyle(
     color: textMuted,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: FontWeight.w900,
   );
   static const TextStyle employeeName = TextStyle(
     color: Colors.black,
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: FontWeight.w800,
     height: 1.25,
   );
   static const TextStyle rowTotal = TextStyle(
     color: Colors.black,
-    fontSize: 18,
+    fontSize: 26,
     fontWeight: FontWeight.w900,
   );
   static const TextStyle footerTotal = TextStyle(

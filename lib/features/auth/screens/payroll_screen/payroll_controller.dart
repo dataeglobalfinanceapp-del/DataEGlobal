@@ -11,17 +11,15 @@ class PayrollViewState {
   final bool isLoading;
   final bool isSaving;
   final PayrollRecord payroll;
-  final double totalDeposits;
-  final double totalExpenses;
   final double balance;
+  final double payPeriodTotalPay;
 
   const PayrollViewState({
     required this.isLoading,
     required this.isSaving,
     required this.payroll,
-    required this.totalDeposits,
-    required this.totalExpenses,
     required this.balance,
+    required this.payPeriodTotalPay,
   });
 
   factory PayrollViewState.initial() {
@@ -29,9 +27,8 @@ class PayrollViewState {
       isLoading: true,
       isSaving: false,
       payroll: PayrollRecord.draft(id: 'payroll-loading'),
-      totalDeposits: 0,
-      totalExpenses: 0,
       balance: 0,
+      payPeriodTotalPay: 0,
     );
   }
 }
@@ -178,6 +175,12 @@ class PayrollController extends ChangeNotifier {
 
   void _rebuildState() {
     final DateTime payDate = RecurrenceSchedule.dateOnly(_payroll.payDate);
+    final DateTime payPeriodStart = RecurrenceSchedule.dateOnly(
+      _payroll.payPeriodStart,
+    );
+    final DateTime payPeriodEnd = RecurrenceSchedule.dateOnly(
+      _payroll.payPeriodEnd,
+    );
     final double totalDeposits = _deposits
         .where(
           (DepositRecord record) => !RecurrenceSchedule.dateOnly(
@@ -204,15 +207,55 @@ class PayrollController extends ChangeNotifier {
         : 0;
     final double totalExpenses =
         totalExpensesBeforePayroll + projectedPayrollExpense;
+    final double payPeriodTotalPay = _payPeriodPayrollExpenseTotal(
+      payPeriodStart: payPeriodStart,
+      payPeriodEnd: payPeriodEnd,
+      projectedPayrollExpense: projectedPayrollExpense,
+    );
 
     _state = PayrollViewState(
       isLoading: _isLoading,
       isSaving: _isSaving,
       payroll: _payroll,
-      totalDeposits: totalDeposits,
-      totalExpenses: totalExpenses,
       balance: totalDeposits - totalExpenses,
+      payPeriodTotalPay: payPeriodTotalPay,
     );
+  }
+
+  double _payPeriodPayrollExpenseTotal({
+    required DateTime payPeriodStart,
+    required DateTime payPeriodEnd,
+    required double projectedPayrollExpense,
+  }) {
+    final double savedPayrollExpenses = _expenses
+        .where((ExpenseRecord record) {
+          if (record.category != 'Payroll') return false;
+          if (record.id == _payroll.syncedExpenseId &&
+              projectedPayrollExpense > 0) {
+            return false;
+          }
+
+          final DateTime transactionDate = RecurrenceSchedule.dateOnly(
+            record.transactionDate,
+          );
+          final PayrollRecord periodForExpensePayDate = _payroll.copyWith(
+            payDate: transactionDate,
+          );
+          return RecurrenceSchedule.isSameDate(
+                periodForExpensePayDate.payPeriodStart,
+                payPeriodStart,
+              ) &&
+              RecurrenceSchedule.isSameDate(
+                periodForExpensePayDate.payPeriodEnd,
+                payPeriodEnd,
+              );
+        })
+        .fold<double>(
+          0,
+          (double total, ExpenseRecord record) => total + record.totalAmount,
+        );
+
+    return _roundMoney(savedPayrollExpenses + projectedPayrollExpense);
   }
 
   void _notify() {
@@ -230,3 +273,5 @@ class PayrollController extends ChangeNotifier {
     super.dispose();
   }
 }
+
+double _roundMoney(double value) => (value * 100).roundToDouble() / 100;
