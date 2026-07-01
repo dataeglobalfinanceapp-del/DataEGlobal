@@ -5,14 +5,12 @@ class _EmployeesManagementView extends StatefulWidget {
   final VoidCallback onAddEmployee;
   final ValueChanged<String> onRemoveEmployee;
   final _EmployeeChanged onEmployeeChanged;
-  final VoidCallback onSavePayroll;
 
   const _EmployeesManagementView({
     required this.state,
     required this.onAddEmployee,
     required this.onRemoveEmployee,
     required this.onEmployeeChanged,
-    required this.onSavePayroll,
   });
 
   @override

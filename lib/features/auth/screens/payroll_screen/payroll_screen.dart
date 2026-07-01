@@ -16,7 +16,7 @@ part 'payroll/helpers.dart';
 part 'payroll/tokens.dart';
 
 typedef _EmployeeChanged =
-    void Function(
+    Future<void> Function(
       String id, {
       String? name,
       double? rate,
@@ -127,23 +127,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
     _controller.setProcessDaysBefore(selected);
   }
 
-  Future<void> _savePayroll() async {
-    try {
-      await _controller.save();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Payroll saved to expenses and reminders.'),
-        ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Payroll save failed: $error')));
-    }
-  }
-
   Future<void> _openAddEmployeeDialog() async {
     final PayrollEmployee? employee = await showDialog<PayrollEmployee>(
       context: context,
@@ -200,7 +183,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
                   onScheduleChanged: _controller.setSchedule,
                   onAddEmployee: _controller.addEmployee,
                   onEmployeeChanged: _controller.updateEmployee,
-                  onSavePayroll: _savePayroll,
                 )
               else
                 _EmployeesTabContentConsumer(
@@ -208,7 +190,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
                   onAddEmployee: _openAddEmployeeDialog,
                   onRemoveEmployee: _controller.removeEmployee,
                   onEmployeeChanged: _controller.updateEmployee,
-                  onSavePayroll: _savePayroll,
                 ),
               const SizedBox(height: 20),
             ],

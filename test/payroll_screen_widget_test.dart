@@ -310,19 +310,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.dragUntilVisible(
-        find.text('Save payroll'),
-        find.byType(ListView).first,
-        const Offset(0, -500),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Save payroll'));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text('Payroll saved to expenses and reminders.'),
-        findsOneWidget,
-      );
+      expect(find.text('Save payroll'), findsNothing);
 
       final expenses = await LiabilityService.loadExpenses();
       final payrollExpenses = expenses

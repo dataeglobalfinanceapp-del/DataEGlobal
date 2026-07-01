@@ -7,7 +7,6 @@ class _PayrollTabContentConsumer extends StatelessWidget {
   final ValueChanged<PayrollSchedule> onScheduleChanged;
   final VoidCallback onAddEmployee;
   final _EmployeeChanged onEmployeeChanged;
-  final VoidCallback onSavePayroll;
 
   const _PayrollTabContentConsumer({
     required this.controller,
@@ -16,7 +15,6 @@ class _PayrollTabContentConsumer extends StatelessWidget {
     required this.onScheduleChanged,
     required this.onAddEmployee,
     required this.onEmployeeChanged,
-    required this.onSavePayroll,
   });
 
   @override
@@ -28,7 +26,6 @@ class _PayrollTabContentConsumer extends StatelessWidget {
       onScheduleChanged: onScheduleChanged,
       onAddEmployee: onAddEmployee,
       onEmployeeChanged: onEmployeeChanged,
-      onSavePayroll: onSavePayroll,
     );
   }
 }
@@ -38,14 +35,12 @@ class _EmployeesTabContentConsumer extends StatelessWidget {
   final VoidCallback onAddEmployee;
   final ValueChanged<String> onRemoveEmployee;
   final _EmployeeChanged onEmployeeChanged;
-  final VoidCallback onSavePayroll;
 
   const _EmployeesTabContentConsumer({
     required this.controller,
     required this.onAddEmployee,
     required this.onRemoveEmployee,
     required this.onEmployeeChanged,
-    required this.onSavePayroll,
   });
 
   @override
@@ -59,7 +54,6 @@ class _EmployeesTabContentConsumer extends StatelessWidget {
           onAddEmployee: onAddEmployee,
           onRemoveEmployee: onRemoveEmployee,
           onEmployeeChanged: onEmployeeChanged,
-          onSavePayroll: onSavePayroll,
         );
       },
     );
@@ -161,7 +155,6 @@ class _PayrollProcessingView extends StatelessWidget {
   final ValueChanged<PayrollSchedule> onScheduleChanged;
   final VoidCallback onAddEmployee;
   final _EmployeeChanged onEmployeeChanged;
-  final VoidCallback onSavePayroll;
 
   const _PayrollProcessingView({
     required this.controller,
@@ -170,7 +163,6 @@ class _PayrollProcessingView extends StatelessWidget {
     required this.onScheduleChanged,
     required this.onAddEmployee,
     required this.onEmployeeChanged,
-    required this.onSavePayroll,
   });
 
   @override
@@ -189,11 +181,6 @@ class _PayrollProcessingView extends StatelessWidget {
           controller: controller,
           onAddEmployee: onAddEmployee,
           onEmployeeChanged: onEmployeeChanged,
-        ),
-        const SizedBox(height: 16),
-        _SavePayrollButtonConsumer(
-          controller: controller,
-          onSavePayroll: onSavePayroll,
         ),
       ],
     );
@@ -318,63 +305,6 @@ class _EmployeePayrollListConsumerState
       state: _state,
       onAddEmployee: widget.onAddEmployee,
       onEmployeeChanged: widget.onEmployeeChanged,
-    );
-  }
-}
-
-class _SavePayrollButtonConsumer extends StatefulWidget {
-  final PayrollController controller;
-  final VoidCallback onSavePayroll;
-
-  const _SavePayrollButtonConsumer({
-    required this.controller,
-    required this.onSavePayroll,
-  });
-
-  @override
-  State<_SavePayrollButtonConsumer> createState() =>
-      _SavePayrollButtonConsumerState();
-}
-
-class _SavePayrollButtonConsumerState
-    extends State<_SavePayrollButtonConsumer> {
-  late bool _isSaving;
-
-  @override
-  void initState() {
-    super.initState();
-    _isSaving = widget.controller.state.isSaving;
-    widget.controller.addListener(_handleControllerChanged);
-  }
-
-  @override
-  void didUpdateWidget(covariant _SavePayrollButtonConsumer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller == widget.controller) return;
-
-    oldWidget.controller.removeListener(_handleControllerChanged);
-    _isSaving = widget.controller.state.isSaving;
-    widget.controller.addListener(_handleControllerChanged);
-  }
-
-  @override
-  void dispose() {
-    widget.controller.removeListener(_handleControllerChanged);
-    super.dispose();
-  }
-
-  void _handleControllerChanged() {
-    final bool nextIsSaving = widget.controller.state.isSaving;
-    if (_isSaving == nextIsSaving) return;
-
-    setState(() => _isSaving = nextIsSaving);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _SavePayrollButton(
-      isSaving: _isSaving,
-      onPressed: _isSaving ? null : widget.onSavePayroll,
     );
   }
 }

@@ -66,7 +66,7 @@ class _EmployeeInformationDialogState
     setState(() => _isEditing = true);
   }
 
-  void _confirm() {
+  Future<void> _confirm() async {
     final PayrollEmployee updated = _employee.copyWith(
       name: _nameController.text.trim().isEmpty
           ? _employee.name
@@ -78,7 +78,7 @@ class _EmployeeInformationDialogState
       jobType: _jobType,
       linkW4: _linkW4Controller.text.trim(),
     );
-    widget.onEmployeeChanged(
+    await widget.onEmployeeChanged(
       _employee.id,
       name: updated.name,
       birthday: updated.birthday,
@@ -88,6 +88,8 @@ class _EmployeeInformationDialogState
       jobType: updated.jobType,
       linkW4: updated.linkW4,
     );
+    if (!mounted) return;
+
     FocusScope.of(context).unfocus();
     setState(() {
       _employee = updated;

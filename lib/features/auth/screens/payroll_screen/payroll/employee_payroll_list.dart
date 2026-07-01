@@ -49,7 +49,7 @@ class _EmployeePayrollList extends StatelessWidget {
                     double? commission,
                     double? tips,
                   }) {
-                    onEmployeeChanged(
+                    return onEmployeeChanged(
                       employees[index].id,
                       name: name,
                       rate: rate,
@@ -70,7 +70,7 @@ class _EmployeePayrollList extends StatelessWidget {
 class _PayrollEmployeeCard extends StatefulWidget {
   final int index;
   final PayrollEmployee employee;
-  final void Function({
+  final Future<void> Function({
     String? name,
     double? rate,
     double? regularHours,
@@ -153,9 +153,9 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
         previous.tips != next.tips;
   }
 
-  void _confirm() {
+  Future<void> _confirm() async {
     final String name = _nameController.text.trim();
-    widget.onChanged(
+    await widget.onChanged(
       name: name.isEmpty ? widget.employee.name : name,
       rate: parseMoney(_rateController.text),
       regularHours: parseMoney(_regularHoursController.text),
@@ -163,6 +163,8 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
       commission: parseMoney(_commissionController.text),
       tips: parseMoney(_tipsController.text),
     );
+    if (!mounted) return;
+
     FocusScope.of(context).unfocus();
   }
 
@@ -402,40 +404,6 @@ class _PayrollTotalFooter extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SavePayrollButton extends StatelessWidget {
-  final bool isSaving;
-  final VoidCallback? onPressed;
-
-  const _SavePayrollButton({required this.isSaving, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: FilledButton.icon(
-        onPressed: onPressed,
-        icon: isSaving
-            ? const SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Icon(Icons.save_outlined),
-        label: Text(isSaving ? 'Saving payroll' : 'Save payroll'),
-        style: FilledButton.styleFrom(
-          backgroundColor: _PayrollTokens.primary,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(_PayrollTokens.cardRadius),
-          ),
-        ),
       ),
     );
   }

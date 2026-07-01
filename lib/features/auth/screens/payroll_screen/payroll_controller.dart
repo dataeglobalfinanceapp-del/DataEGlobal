@@ -11,14 +11,12 @@ import 'payroll_service.dart';
 
 class PayrollViewState {
   final bool isLoading;
-  final bool isSaving;
   final PayrollRecord payroll;
   final double balance;
   final double payPeriodTotalPay;
 
   const PayrollViewState({
     required this.isLoading,
-    required this.isSaving,
     required this.payroll,
     required this.balance,
     required this.payPeriodTotalPay,
@@ -27,7 +25,6 @@ class PayrollViewState {
   factory PayrollViewState.initial() {
     return PayrollViewState(
       isLoading: true,
-      isSaving: false,
       payroll: PayrollRecord.draft(id: 'payroll-loading'),
       balance: 0,
       payPeriodTotalPay: 0,
@@ -37,7 +34,6 @@ class PayrollViewState {
 
 class PayrollController extends ChangeNotifier {
   bool _isLoading = true;
-  bool _isSaving = false;
   bool _isDisposed = false;
 
   final EmployeeService _employeeService;
@@ -68,24 +64,6 @@ class PayrollController extends ChangeNotifier {
     _isLoading = false;
     _rebuildState();
     _notify();
-  }
-
-  Future<bool> save() async {
-    _setSaving(true);
-    try {
-      _payroll = await PayrollService.savePayroll(_payroll);
-      _deposits = List<DepositRecord>.unmodifiable(
-        await LiabilityService.loadDeposits(),
-      );
-      _expenses = List<ExpenseRecord>.unmodifiable(
-        await LiabilityService.loadExpenses(),
-      );
-      _rebuildState();
-      _notify();
-      return true;
-    } finally {
-      _setSaving(false);
-    }
   }
 
   void setPayDate(DateTime payDate) {
@@ -178,6 +156,12 @@ class PayrollController extends ChangeNotifier {
     String? payMethod,
     String? linkW4,
   }) async {
+    final bool shouldSyncPayrollExpense =
+        rate != null ||
+        regularHours != null ||
+        overtimeHours != null ||
+        commission != null ||
+        tips != null;
     PayrollEmployee? updatedEmployee;
     final employees = _payroll.employees
         .map((PayrollEmployee employee) {
@@ -208,18 +192,14 @@ class PayrollController extends ChangeNotifier {
     await _employeeService.saveEmployee(
       _saveEmployeeRequestFrom(updatedEmployee!),
     );
+    if (shouldSyncPayrollExpense) {
+      await _saveConfirmedPayroll();
+    }
   }
 
   void _setLoading(bool isLoading) {
     if (_isLoading == isLoading) return;
     _isLoading = isLoading;
-    _rebuildState();
-    _notify();
-  }
-
-  void _setSaving(bool isSaving) {
-    if (_isSaving == isSaving) return;
-    _isSaving = isSaving;
     _rebuildState();
     _notify();
   }
@@ -266,7 +246,6 @@ class PayrollController extends ChangeNotifier {
 
     _state = PayrollViewState(
       isLoading: _isLoading,
-      isSaving: _isSaving,
       payroll: _payroll,
       balance: totalDeposits - totalExpenses,
       payPeriodTotalPay: payPeriodTotalPay,
@@ -332,6 +311,21 @@ class PayrollController extends ChangeNotifier {
   void _notify() {
     if (_isDisposed) return;
     notifyListeners();
+  }
+
+  Future<void> _saveConfirmedPayroll() async {
+    final PayrollRecord savedPayroll = await PayrollService.savePayroll(
+      _payroll,
+    );
+    final List<DepositRecord> deposits = await LiabilityService.loadDeposits();
+    final List<ExpenseRecord> expenses = await LiabilityService.loadExpenses();
+    if (_isDisposed) return;
+
+    _payroll = savedPayroll;
+    _deposits = List<DepositRecord>.unmodifiable(deposits);
+    _expenses = List<ExpenseRecord>.unmodifiable(expenses);
+    _rebuildState();
+    _notify();
   }
 
   Future<List<EmployeeRecord>> _loadEmployeeRecordsFor(
