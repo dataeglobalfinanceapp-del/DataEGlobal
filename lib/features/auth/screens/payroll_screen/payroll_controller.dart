@@ -155,17 +155,27 @@ class PayrollController extends ChangeNotifier {
     String? jobType,
     String? payMethod,
     String? linkW4,
+    PayrollAction? payrollAction,
+    bool? confirmPayroll,
   }) async {
-    final bool shouldSyncPayrollExpense =
+    final bool shouldConfirmPayroll = confirmPayroll == true;
+    final bool payrollFieldsChanged =
         rate != null ||
         regularHours != null ||
         overtimeHours != null ||
         commission != null ||
         tips != null;
+    final bool payrollStateChanged =
+        payrollFieldsChanged || payrollAction != null || shouldConfirmPayroll;
     PayrollEmployee? updatedEmployee;
     final employees = _payroll.employees
         .map((PayrollEmployee employee) {
           if (employee.id != id) return employee;
+          final PayrollAction nextPayrollAction =
+              payrollAction ??
+              (payrollFieldsChanged
+                  ? PayrollAction.change
+                  : employee.payrollAction);
           updatedEmployee = employee.copyWith(
             name: name,
             rate: rate,
@@ -180,6 +190,12 @@ class PayrollController extends ChangeNotifier {
             jobType: jobType,
             payMethod: payMethod,
             linkW4: linkW4,
+            payrollAction: nextPayrollAction,
+            isPayrollConfirmed: shouldConfirmPayroll
+                ? true
+                : payrollStateChanged
+                ? false
+                : employee.isPayrollConfirmed,
           );
           return updatedEmployee!;
         })
@@ -192,8 +208,10 @@ class PayrollController extends ChangeNotifier {
     await _employeeService.saveEmployee(
       _saveEmployeeRequestFrom(updatedEmployee!),
     );
-    if (shouldSyncPayrollExpense) {
+    if (payrollStateChanged && _payroll.allEmployeesConfirmed) {
       await _saveConfirmedPayroll();
+    } else if (payrollStateChanged) {
+      await _saveDraftPayroll(clearPayrollExpense: true);
     }
   }
 
@@ -328,6 +346,22 @@ class PayrollController extends ChangeNotifier {
     _notify();
   }
 
+  Future<void> _saveDraftPayroll({required bool clearPayrollExpense}) async {
+    final PayrollRecord savedPayroll = await PayrollService.savePayrollDraft(
+      _payroll,
+      clearPayrollExpense: clearPayrollExpense,
+    );
+    final List<DepositRecord> deposits = await LiabilityService.loadDeposits();
+    final List<ExpenseRecord> expenses = await LiabilityService.loadExpenses();
+    if (_isDisposed) return;
+
+    _payroll = savedPayroll;
+    _deposits = List<DepositRecord>.unmodifiable(deposits);
+    _expenses = List<ExpenseRecord>.unmodifiable(expenses);
+    _rebuildState();
+    _notify();
+  }
+
   Future<List<EmployeeRecord>> _loadEmployeeRecordsFor(
     PayrollRecord payroll,
   ) async {
@@ -367,7 +401,7 @@ class PayrollController extends ChangeNotifier {
       name: record.fullName.trim().isEmpty
           ? existing?.name ?? ''
           : record.fullName,
-      rate: record.rate > 0 ? record.rate : existing?.rate ?? 0,
+      rate: existing?.rate ?? record.rate,
       regularHours: existing?.regularHours ?? 0,
       overtimeHours: existing?.overtimeHours ?? 0,
       commission: existing?.commission ?? 0,
@@ -379,6 +413,8 @@ class PayrollController extends ChangeNotifier {
       dateHire: record.dateHire,
       payMethod: record.payMethod,
       linkW4: record.linkW4,
+      payrollAction: existing?.payrollAction ?? PayrollAction.same,
+      isPayrollConfirmed: existing?.isPayrollConfirmed ?? false,
     );
   }
 

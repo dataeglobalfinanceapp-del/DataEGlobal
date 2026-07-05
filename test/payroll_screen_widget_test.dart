@@ -26,7 +26,7 @@ void main() {
   });
 
   testWidgets(
-    'PayrollScreen fits phone width, tabs, and saves payroll expense',
+    'PayrollScreen fits phone width, tabs, and requires payroll confirmations',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -53,6 +53,28 @@ void main() {
       expect(find.text('BALANCE'), findsOneWidget);
       expect(find.text('PAY DATE'), findsOneWidget);
       expect(find.text('Jack Nicholson'), findsOneWidget);
+      expect(
+        find.text('6 employees still need to confirm payroll.'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('payroll.employee.0.action.same')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('payroll.employee.0.action.change')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey<String>('payroll.employee.0.action.vacation'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('payroll.employee.0.action.off')),
+        findsOneWidget,
+      );
       expect(find.text(r'$5,000.00'), findsWidgets);
       expect(find.text('Total Deposit'), findsNothing);
       expect(find.text('Total Expense'), findsNothing);
@@ -94,11 +116,25 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text(r'$1,107.00'), findsWidgets);
+      expect(
+        find.text('Please confirm payroll for this employee.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('5 employees still need to confirm payroll.'),
+        findsOneWidget,
+      );
 
       expect(
         find.byKey(const ValueKey<String>('payroll.employee.0.edit')),
         findsNothing,
       );
+      await tester.dragUntilVisible(
+        find.byKey(const ValueKey<String>('payroll.employee.0.tips')),
+        find.byType(ListView).first,
+        const Offset(0, 300),
+      );
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const ValueKey<String>('payroll.employee.0.tips')),
         '3',
@@ -127,6 +163,22 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Employee List'), findsOneWidget);
       expect(find.text('Add New Employee'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('payroll.employees.status.same')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('payroll.employees.status.change')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('payroll.employees.status.vacation')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('payroll.employees.status.off')),
+        findsOneWidget,
+      );
       expect(find.text('Employee Information'), findsNothing);
       expect(find.text('Full Name'), findsNothing);
       expect(find.text('Showing 6 employees'), findsOneWidget);
@@ -316,8 +368,7 @@ void main() {
       final payrollExpenses = expenses
           .where((record) => record.category == 'Payroll')
           .toList(growable: false);
-      expect(payrollExpenses, hasLength(1));
-      expect(payrollExpenses.single.totalAmount, 1108);
+      expect(payrollExpenses, isEmpty);
     },
   );
 }

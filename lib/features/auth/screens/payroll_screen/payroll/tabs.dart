@@ -315,6 +315,8 @@ bool _setupStateChanged(PayrollViewState previous, PayrollViewState next) {
 
   return previous.balance != next.balance ||
       previous.payPeriodTotalPay != next.payPeriodTotalPay ||
+      previousPayroll.unconfirmedEmployeeCount !=
+          nextPayroll.unconfirmedEmployeeCount ||
       previousPayroll.schedule != nextPayroll.schedule ||
       previousPayroll.processDaysBefore != nextPayroll.processDaysBefore ||
       !_dateOnly(
@@ -359,5 +361,7 @@ bool _samePayrollEmployee(PayrollEmployee previous, PayrollEmployee next) {
       previous.jobType == next.jobType &&
       previous.dateHire == next.dateHire &&
       previous.payMethod == next.payMethod &&
-      previous.linkW4 == next.linkW4;
+      previous.linkW4 == next.linkW4 &&
+      previous.payrollAction == next.payrollAction &&
+      previous.isPayrollConfirmed == next.isPayrollConfirmed;
 }

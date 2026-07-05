@@ -53,12 +53,13 @@ void main() {
   });
 
   test(
-    'confirming employee payroll syncs expense and persists values',
+    'confirming all employee payrolls syncs expense and persists values',
     () async {
       final PayrollController controller = PayrollController();
       addTearDown(controller.dispose);
 
       await controller.load();
+      controller.setPayDate(DateTime(2026, 6, 29));
       final firstEmployee = controller.state.payroll.employees.first;
 
       await controller.updateEmployee(
@@ -68,14 +69,24 @@ void main() {
         overtimeHours: 10,
         commission: 5,
         tips: 2,
+        confirmPayroll: true,
       );
 
       var payrollExpenses = (await LiabilityService.loadExpenses())
           .where((record) => record.category == 'Payroll')
           .toList(growable: false);
+      expect(payrollExpenses, isEmpty);
+
+      for (final employee in controller.state.payroll.employees.skip(1)) {
+        await controller.updateEmployee(employee.id, confirmPayroll: true);
+      }
+
+      payrollExpenses = (await LiabilityService.loadExpenses())
+          .where((record) => record.category == 'Payroll')
+          .toList(growable: false);
       expect(payrollExpenses, hasLength(1));
       expect(payrollExpenses.single.totalAmount, 1107);
-      expect(payrollExpenses.single.transactionDate, DateTime(2026, 6, 15));
+      expect(payrollExpenses.single.transactionDate, DateTime(2026, 6, 29));
 
       await controller.updateEmployee(
         firstEmployee.id,
@@ -84,6 +95,7 @@ void main() {
         overtimeHours: 10,
         commission: 5,
         tips: 3,
+        confirmPayroll: true,
       );
 
       payrollExpenses = (await LiabilityService.loadExpenses())
@@ -99,6 +111,55 @@ void main() {
       final reloadedEmployee = reloadedController.state.payroll.employees.first;
       expect(reloadedEmployee.tips, 3);
       expect(reloadedEmployee.totalPay, 1108);
+      expect(reloadedController.state.payroll.allEmployeesConfirmed, isTrue);
+    },
+  );
+
+  test(
+    'missed unconfirmed payroll rolls forward with zeroed payroll fields',
+    () async {
+      final PayrollController controller = PayrollController();
+      addTearDown(controller.dispose);
+
+      await controller.load();
+      controller.setPayDate(DateTime(2026, 6, 29));
+      final firstEmployee = controller.state.payroll.employees.first;
+
+      await controller.updateEmployee(
+        firstEmployee.id,
+        rate: 20,
+        regularHours: 40,
+        overtimeHours: 10,
+        commission: 5,
+        tips: 2,
+        confirmPayroll: true,
+      );
+
+      AppClock.set(DateTime(2026, 6, 23));
+      final PayrollController reloadedController = PayrollController();
+      addTearDown(reloadedController.dispose);
+
+      await reloadedController.load();
+
+      expect(reloadedController.state.payroll.payDate, DateTime(2026, 7, 13));
+      expect(reloadedController.state.payroll.totalPay, 0);
+      expect(
+        reloadedController.state.payroll.employees.every(
+          (employee) =>
+              employee.rate == 0 &&
+              employee.regularHours == 0 &&
+              employee.overtimeHours == 0 &&
+              employee.commission == 0 &&
+              employee.tips == 0 &&
+              !employee.isPayrollConfirmed,
+        ),
+        isTrue,
+      );
+
+      final payrollExpenses = (await LiabilityService.loadExpenses())
+          .where((record) => record.category == 'Payroll')
+          .toList(growable: false);
+      expect(payrollExpenses, isEmpty);
     },
   );
 }

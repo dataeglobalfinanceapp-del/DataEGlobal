@@ -29,6 +29,42 @@ enum PayrollSchedule {
   }
 }
 
+enum PayrollAction {
+  same('Same'),
+  change('Change'),
+  vacation('Vacation'),
+  off('Off');
+
+  final String label;
+
+  const PayrollAction(this.label);
+
+  bool get clearsPayroll {
+    return switch (this) {
+      PayrollAction.vacation || PayrollAction.off => true,
+      PayrollAction.same || PayrollAction.change => false,
+    };
+  }
+
+  PayrollAction get nextDefault {
+    return switch (this) {
+      PayrollAction.vacation => PayrollAction.vacation,
+      PayrollAction.off => PayrollAction.off,
+      PayrollAction.same || PayrollAction.change => PayrollAction.same,
+    };
+  }
+
+  static PayrollAction fromLabel(String value) {
+    final normalized = value.trim().toLowerCase();
+    return switch (normalized) {
+      'change' => PayrollAction.change,
+      'vacation' => PayrollAction.vacation,
+      'off' => PayrollAction.off,
+      _ => PayrollAction.same,
+    };
+  }
+}
+
 class PayrollEmployee {
   final String id;
   final String name;
@@ -44,6 +80,8 @@ class PayrollEmployee {
   final String dateHire;
   final String payMethod;
   final String linkW4;
+  final PayrollAction payrollAction;
+  final bool isPayrollConfirmed;
 
   const PayrollEmployee({
     required this.id,
@@ -60,6 +98,8 @@ class PayrollEmployee {
     this.dateHire = '',
     this.payMethod = '',
     this.linkW4 = '',
+    this.payrollAction = PayrollAction.same,
+    this.isPayrollConfirmed = false,
   });
 
   factory PayrollEmployee.fromJson(Map<dynamic, dynamic> json) {
@@ -78,6 +118,8 @@ class PayrollEmployee {
       dateHire: _asString(json['dateHire']),
       payMethod: _asString(json['payMethod']),
       linkW4: _asString(json['linkW4']),
+      payrollAction: PayrollAction.fromLabel(_asString(json['payrollAction'])),
+      isPayrollConfirmed: json['isPayrollConfirmed'] == true,
     );
   }
 
@@ -87,6 +129,16 @@ class PayrollEmployee {
 
   double get totalPay =>
       _roundMoney(regularPay + overtimePay + commission + tips);
+
+  PayrollEmployee get withClearedPayroll {
+    return copyWith(
+      rate: 0,
+      regularHours: 0,
+      overtimeHours: 0,
+      commission: 0,
+      tips: 0,
+    );
+  }
 
   PayrollEmployee copyWith({
     String? id,
@@ -103,6 +155,8 @@ class PayrollEmployee {
     String? dateHire,
     String? payMethod,
     String? linkW4,
+    PayrollAction? payrollAction,
+    bool? isPayrollConfirmed,
   }) {
     return PayrollEmployee(
       id: id ?? this.id,
@@ -119,6 +173,8 @@ class PayrollEmployee {
       dateHire: dateHire ?? this.dateHire,
       payMethod: payMethod ?? this.payMethod,
       linkW4: linkW4 ?? this.linkW4,
+      payrollAction: payrollAction ?? this.payrollAction,
+      isPayrollConfirmed: isPayrollConfirmed ?? this.isPayrollConfirmed,
     );
   }
 
@@ -137,6 +193,8 @@ class PayrollEmployee {
     'dateHire': dateHire,
     'payMethod': payMethod,
     'linkW4': linkW4,
+    'payrollAction': payrollAction.label,
+    'isPayrollConfirmed': isPayrollConfirmed,
   };
 }
 
@@ -252,6 +310,15 @@ class PayrollRecord {
       (double total, PayrollEmployee employee) => total + employee.totalPay,
     ),
   );
+
+  int get unconfirmedEmployeeCount {
+    return employees
+        .where((PayrollEmployee employee) => !employee.isPayrollConfirmed)
+        .length;
+  }
+
+  bool get allEmployeesConfirmed =>
+      employees.isNotEmpty && unconfirmedEmployeeCount == 0;
 
   DateTime get payPeriodStart {
     if (schedule == PayrollSchedule.monthly) {

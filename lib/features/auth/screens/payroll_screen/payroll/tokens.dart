@@ -13,6 +13,9 @@ class _PayrollTokens {
   static const Color divider = Color(0xFFE5E7EB);
   static const Color success = Color(0xFF57B82F);
   static const Color selectedRow = Color(0xFFEAF4FF);
+  static const Color warning = Color(0xFFB45309);
+  static const Color warningBackground = Color(0xFFFFFBEB);
+  static const Color error = Color(0xFFDC2626);
 
   static const double cardRadius = 8;
   static const double controlRadius = 6;
@@ -153,6 +156,18 @@ class _PayrollTokens {
     color: textMuted,
     fontSize: 12,
     fontWeight: FontWeight.w600,
+  );
+  static const TextStyle cautionText = TextStyle(
+    color: warning,
+    fontSize: 12,
+    fontWeight: FontWeight.w700,
+    height: 1.3,
+  );
+  static const TextStyle errorText = TextStyle(
+    color: error,
+    fontSize: 12,
+    fontWeight: FontWeight.w800,
+    height: 1.3,
   );
   static const TextStyle employeeListName = TextStyle(
     color: textStrong,

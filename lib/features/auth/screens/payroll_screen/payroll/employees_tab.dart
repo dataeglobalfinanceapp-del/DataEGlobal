@@ -80,9 +80,40 @@ class _EmployeesManagementViewState extends State<_EmployeesManagementView> {
     setState(() {});
   }
 
+  Future<void> _selectPayrollAction(PayrollAction action) async {
+    final PayrollEmployee? employee = _selectedEmployeeFrom(
+      widget.state.payroll.employees,
+    );
+    if (employee == null) return;
+    if (employee.payrollAction == action && !action.clearsPayroll) return;
+
+    if (action.clearsPayroll) {
+      await widget.onEmployeeChanged(
+        employee.id,
+        rate: 0,
+        regularHours: 0,
+        overtimeHours: 0,
+        commission: 0,
+        tips: 0,
+        payrollAction: action,
+      );
+      return;
+    }
+
+    await widget.onEmployeeChanged(employee.id, payrollAction: action);
+  }
+
+  PayrollEmployee? _selectedEmployeeFrom(List<PayrollEmployee> employees) {
+    for (final PayrollEmployee employee in employees) {
+      if (employee.id == _selectedEmployeeId) return employee;
+    }
+    return employees.isEmpty ? null : employees.first;
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<PayrollEmployee> employees = widget.state.payroll.employees;
+    final PayrollEmployee? selectedEmployee = _selectedEmployeeFrom(employees);
     final String query = _searchController.text.trim().toLowerCase();
     final List<PayrollEmployee> filteredEmployees = employees
         .where(
@@ -107,6 +138,17 @@ class _EmployeesManagementViewState extends State<_EmployeesManagementView> {
             _EmployeesHeader(onAddEmployee: _addEmployee),
             const SizedBox(height: 18),
             listCard,
+            if (selectedEmployee != null) ...<Widget>[
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: _PayrollStatusOptionHolder(
+                  keyPrefix: 'payroll.employees.status',
+                  selectedAction: selectedEmployee.payrollAction,
+                  onSelected: _selectPayrollAction,
+                ),
+              ),
+            ],
           ],
         );
       },

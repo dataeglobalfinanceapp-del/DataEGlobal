@@ -156,6 +156,43 @@ void main() {
       );
     },
   );
+
+  test(
+    'vacation action carries forward as a zeroed next payroll default',
+    () async {
+      AppClock.set(DateTime(2026, 6, 1));
+
+      await PayrollService.savePayroll(
+        PayrollRecord(
+          id: 'payroll-vacation',
+          payDate: DateTime(2026, 6, 20),
+          schedule: PayrollSchedule.biWeekly,
+          processDaysBefore: 7,
+          employees: const <PayrollEmployee>[
+            PayrollEmployee(
+              id: 'employee-1',
+              name: 'Alex',
+              rate: 20,
+              regularHours: 40,
+              payrollAction: PayrollAction.vacation,
+              isPayrollConfirmed: true,
+            ),
+          ],
+        ),
+      );
+
+      AppClock.set(DateTime(2026, 6, 14));
+      final currentPayroll = await PayrollService.loadCurrentPayroll();
+
+      expect(currentPayroll.payDate, DateTime(2026, 7, 4));
+      expect(
+        currentPayroll.employees.single.payrollAction,
+        PayrollAction.vacation,
+      );
+      expect(currentPayroll.employees.single.isPayrollConfirmed, isFalse);
+      expect(currentPayroll.employees.single.totalPay, 0);
+    },
+  );
 }
 
 String _dateKey(DateTime date) {

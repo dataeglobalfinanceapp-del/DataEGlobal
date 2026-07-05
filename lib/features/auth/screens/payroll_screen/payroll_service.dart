@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:savetep/data/local/local_store.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
+import 'package:savetep/services/recurrence_schedule.dart';
 import 'package:savetep/services/reminder_service.dart';
 
 import 'payroll_models.dart';
@@ -23,6 +24,36 @@ class PayrollService {
       return PayrollRecord.draft(id: _newId('payroll'));
     }
 
+    return _rollCurrentPayrollForwardIfNeeded();
+  }
+
+  static Future<PayrollRecord> _rollCurrentPayrollForwardIfNeeded() async {
+    var current = _latestPayrollRecord();
+    var changed = false;
+    final DateTime today = RecurrenceSchedule.dateOnly(AppClock.now);
+
+    while (today.isAfter(current.processDate)) {
+      final bool missedConfirmation = !current.allEmployeesConfirmed;
+      if (missedConfirmation) {
+        current = await _saveMissedPayrollAsZero(current);
+      } else {
+        current = await savePayroll(current);
+      }
+
+      final nextPayroll = _nextPayrollFrom(
+        current,
+        forceClearedPayroll: missedConfirmation,
+      );
+      _upsertPayroll(nextPayroll);
+      current = nextPayroll;
+      changed = true;
+    }
+
+    if (changed) await _persist();
+    return current;
+  }
+
+  static PayrollRecord _latestPayrollRecord() {
     final records = List<PayrollRecord>.from(_records)
       ..sort((PayrollRecord a, PayrollRecord b) {
         final dateCompare = b.payDate.compareTo(a.payDate);
@@ -72,17 +103,104 @@ class PayrollService {
       reminderSeriesId: reminderSeriesId,
     );
 
-    final int index = _records.indexWhere(
-      (PayrollRecord record) => record.id == saved.id,
-    );
-    if (index == -1) {
-      _records.add(saved);
-    } else {
-      _records[index] = saved;
-    }
+    _upsertPayroll(saved);
 
     await _persist();
     return saved;
+  }
+
+  static Future<PayrollRecord> savePayrollDraft(
+    PayrollRecord payroll, {
+    bool clearPayrollExpense = false,
+  }) async {
+    await _ensureLoaded();
+
+    PayrollRecord saved = payroll.id.trim().isEmpty
+        ? payroll.copyWith(id: _newId('payroll'))
+        : payroll;
+
+    if (clearPayrollExpense && saved.syncedExpenseId.trim().isNotEmpty) {
+      await LiabilityService.syncPayrollExpense(
+        payrollId: saved.id,
+        existingExpenseId: saved.syncedExpenseId,
+        totalAmount: 0,
+        payDate: saved.payDate,
+      );
+      saved = saved.copyWith(syncedExpenseId: '');
+    }
+
+    _upsertPayroll(saved);
+    await _persist();
+    return saved;
+  }
+
+  static Future<PayrollRecord> _saveMissedPayrollAsZero(
+    PayrollRecord payroll,
+  ) async {
+    final PayrollRecord clearedPayroll = payroll.copyWith(
+      employees: payroll.employees
+          .map(
+            (PayrollEmployee employee) =>
+                employee.withClearedPayroll.copyWith(isPayrollConfirmed: false),
+          )
+          .toList(growable: false),
+    );
+
+    return savePayrollDraft(clearedPayroll, clearPayrollExpense: true);
+  }
+
+  static PayrollRecord _nextPayrollFrom(
+    PayrollRecord payroll, {
+    required bool forceClearedPayroll,
+  }) {
+    final employees = payroll.employees
+        .map((PayrollEmployee employee) {
+          final PayrollAction nextAction = employee.payrollAction.nextDefault;
+          final PayrollEmployee nextEmployee = employee.copyWith(
+            payrollAction: nextAction,
+            isPayrollConfirmed: false,
+          );
+          if (forceClearedPayroll || nextAction.clearsPayroll) {
+            return nextEmployee.withClearedPayroll;
+          }
+          return nextEmployee;
+        })
+        .toList(growable: false);
+
+    return PayrollRecord(
+      id: _newId('payroll'),
+      payDate: _nextPayDate(payroll),
+      schedule: payroll.schedule,
+      processDaysBefore: payroll.processDaysBefore,
+      employees: employees,
+    );
+  }
+
+  static DateTime _nextPayDate(PayrollRecord payroll) {
+    final payDate = RecurrenceSchedule.dateOnly(payroll.payDate);
+    return switch (payroll.schedule) {
+      PayrollSchedule.biWeekly => payDate.add(const Duration(days: 14)),
+      PayrollSchedule.monthly => _addMonthsClamped(payDate, 1),
+    };
+  }
+
+  static DateTime _addMonthsClamped(DateTime date, int months) {
+    final totalMonths = date.year * 12 + date.month - 1 + months;
+    final year = totalMonths ~/ 12;
+    final month = totalMonths % 12 + 1;
+    final day = _minInt(date.day, DateTime(year, month + 1, 0).day);
+    return DateTime(year, month, day);
+  }
+
+  static void _upsertPayroll(PayrollRecord payroll) {
+    final int index = _records.indexWhere(
+      (PayrollRecord record) => record.id == payroll.id,
+    );
+    if (index == -1) {
+      _records.add(payroll);
+    } else {
+      _records[index] = payroll;
+    }
   }
 
   static void resetForTesting({bool disablePersistence = true}) {
@@ -131,6 +249,8 @@ class PayrollService {
   static String _newId(String prefix) {
     return '$prefix-${AppClock.now.microsecondsSinceEpoch}-${_idCounter++}';
   }
+
+  static int _minInt(int a, int b) => a < b ? a : b;
 }
 
 class PayrollSnapshot {

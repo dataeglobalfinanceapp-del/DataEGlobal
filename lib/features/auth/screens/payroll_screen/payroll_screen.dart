@@ -30,6 +30,8 @@ typedef _EmployeeChanged =
       String? dateHire,
       String? jobType,
       String? linkW4,
+      PayrollAction? payrollAction,
+      bool? confirmPayroll,
     });
 
 enum _PayrollTab {

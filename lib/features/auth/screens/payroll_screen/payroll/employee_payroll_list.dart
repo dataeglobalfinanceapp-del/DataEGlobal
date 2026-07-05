@@ -1,6 +1,6 @@
 part of '../payroll_screen.dart';
 
-class _EmployeePayrollList extends StatelessWidget {
+class _EmployeePayrollList extends StatefulWidget {
   final PayrollViewState state;
   final VoidCallback onAddEmployee;
   final _EmployeeChanged onEmployeeChanged;
@@ -12,8 +12,90 @@ class _EmployeePayrollList extends StatelessWidget {
   });
 
   @override
+  State<_EmployeePayrollList> createState() => _EmployeePayrollListState();
+}
+
+class _EmployeePayrollListState extends State<_EmployeePayrollList> {
+  final Map<String, GlobalKey> _cardKeys = <String, GlobalKey>{};
+  String? _focusedUnconfirmedEmployeeId;
+
+  @override
+  void didUpdateWidget(covariant _EmployeePayrollList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final bool focusedEmployeeStillNeedsConfirmation = widget
+        .state
+        .payroll
+        .employees
+        .any(
+          (PayrollEmployee employee) =>
+              employee.id == _focusedUnconfirmedEmployeeId &&
+              !employee.isPayrollConfirmed,
+        );
+    if (!focusedEmployeeStillNeedsConfirmation) {
+      _focusedUnconfirmedEmployeeId = null;
+    }
+  }
+
+  Future<void> _handleEmployeeChanged(
+    PayrollEmployee employee, {
+    String? name,
+    double? rate,
+    double? regularHours,
+    double? overtimeHours,
+    double? commission,
+    double? tips,
+    PayrollAction? payrollAction,
+    bool? confirmPayroll,
+  }) async {
+    await widget.onEmployeeChanged(
+      employee.id,
+      name: name,
+      rate: rate,
+      regularHours: regularHours,
+      overtimeHours: overtimeHours,
+      commission: commission,
+      tips: tips,
+      payrollAction: payrollAction,
+      confirmPayroll: confirmPayroll,
+    );
+    if (!mounted || confirmPayroll != true) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((Duration _) {
+      if (mounted) _focusFirstUnconfirmedEmployee();
+    });
+  }
+
+  void _focusFirstUnconfirmedEmployee() {
+    final PayrollEmployee? employee = _firstUnconfirmedEmployee();
+    if (employee == null) {
+      if (_focusedUnconfirmedEmployeeId != null) {
+        setState(() => _focusedUnconfirmedEmployeeId = null);
+      }
+      return;
+    }
+
+    setState(() => _focusedUnconfirmedEmployeeId = employee.id);
+    final BuildContext? cardContext = _cardKeys[employee.id]?.currentContext;
+    if (cardContext == null) return;
+
+    Scrollable.ensureVisible(
+      cardContext,
+      alignment: 0.08,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  PayrollEmployee? _firstUnconfirmedEmployee() {
+    for (final PayrollEmployee employee in widget.state.payroll.employees) {
+      if (!employee.isPayrollConfirmed) return employee;
+    }
+    return null;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final List<PayrollEmployee> employees = state.payroll.employees;
+    final List<PayrollEmployee> employees = widget.state.payroll.employees;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -24,7 +106,7 @@ class _EmployeePayrollList extends StatelessWidget {
               child: Text('Employees', style: _PayrollTokens.sectionTitle),
             ),
             TextButton.icon(
-              onPressed: onAddEmployee,
+              onPressed: widget.onAddEmployee,
               icon: const Icon(Icons.add),
               label: const Text('Add'),
             ),
@@ -38,8 +120,15 @@ class _EmployeePayrollList extends StatelessWidget {
               key: ValueKey<String>(
                 'payroll.employee.card.${employees[index].id}',
               ),
+              cardKey: _cardKeys.putIfAbsent(
+                employees[index].id,
+                () => GlobalKey(),
+              ),
               index: index,
               employee: employees[index],
+              showConfirmationWarning:
+                  _focusedUnconfirmedEmployeeId == employees[index].id &&
+                  !employees[index].isPayrollConfirmed,
               onChanged:
                   ({
                     String? name,
@@ -48,28 +137,34 @@ class _EmployeePayrollList extends StatelessWidget {
                     double? overtimeHours,
                     double? commission,
                     double? tips,
+                    PayrollAction? payrollAction,
+                    bool? confirmPayroll,
                   }) {
-                    return onEmployeeChanged(
-                      employees[index].id,
+                    return _handleEmployeeChanged(
+                      employees[index],
                       name: name,
                       rate: rate,
                       regularHours: regularHours,
                       overtimeHours: overtimeHours,
                       commission: commission,
                       tips: tips,
+                      payrollAction: payrollAction,
+                      confirmPayroll: confirmPayroll,
                     );
                   },
             ),
           ),
-        _PayrollTotalFooter(totalPay: state.payroll.totalPay),
+        _PayrollTotalFooter(totalPay: widget.state.payroll.totalPay),
       ],
     );
   }
 }
 
 class _PayrollEmployeeCard extends StatefulWidget {
+  final GlobalKey cardKey;
   final int index;
   final PayrollEmployee employee;
+  final bool showConfirmationWarning;
   final Future<void> Function({
     String? name,
     double? rate,
@@ -77,13 +172,17 @@ class _PayrollEmployeeCard extends StatefulWidget {
     double? overtimeHours,
     double? commission,
     double? tips,
+    PayrollAction? payrollAction,
+    bool? confirmPayroll,
   })
   onChanged;
 
   const _PayrollEmployeeCard({
     super.key,
+    required this.cardKey,
     required this.index,
     required this.employee,
+    required this.showConfirmationWarning,
     required this.onChanged,
   });
 
@@ -98,6 +197,8 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
   late final TextEditingController _overtimeHoursController;
   late final TextEditingController _commissionController;
   late final TextEditingController _tipsController;
+  PayrollAction _selectedAction = PayrollAction.same;
+  bool _isSyncingControllers = false;
 
   @override
   void initState() {
@@ -108,7 +209,13 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
     _overtimeHoursController = TextEditingController();
     _commissionController = TextEditingController();
     _tipsController = TextEditingController();
+    _selectedAction = widget.employee.payrollAction;
     _syncControllersFromEmployee(widget.employee);
+    _rateController.addListener(_handlePayrollFieldEdited);
+    _regularHoursController.addListener(_handlePayrollFieldEdited);
+    _overtimeHoursController.addListener(_handlePayrollFieldEdited);
+    _commissionController.addListener(_handlePayrollFieldEdited);
+    _tipsController.addListener(_handlePayrollFieldEdited);
   }
 
   @override
@@ -122,10 +229,18 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
     if (_payrollValuesChanged(oldWidget.employee, widget.employee)) {
       _syncControllersFromEmployee(widget.employee);
     }
+    if (oldWidget.employee.payrollAction != widget.employee.payrollAction) {
+      _selectedAction = widget.employee.payrollAction;
+    }
   }
 
   @override
   void dispose() {
+    _rateController.removeListener(_handlePayrollFieldEdited);
+    _regularHoursController.removeListener(_handlePayrollFieldEdited);
+    _overtimeHoursController.removeListener(_handlePayrollFieldEdited);
+    _commissionController.removeListener(_handlePayrollFieldEdited);
+    _tipsController.removeListener(_handlePayrollFieldEdited);
     _nameController.dispose();
     _rateController.dispose();
     _regularHoursController.dispose();
@@ -136,12 +251,32 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
   }
 
   void _syncControllersFromEmployee(PayrollEmployee employee) {
+    _isSyncingControllers = true;
     _nameController.text = employee.name;
     _rateController.text = _amountText(employee.rate);
     _regularHoursController.text = _amountText(employee.regularHours);
     _overtimeHoursController.text = _amountText(employee.overtimeHours);
     _commissionController.text = _amountText(employee.commission);
     _tipsController.text = _amountText(employee.tips);
+    _selectedAction = employee.payrollAction;
+    _isSyncingControllers = false;
+  }
+
+  void _syncPayrollFieldsToZero() {
+    _isSyncingControllers = true;
+    _rateController.clear();
+    _regularHoursController.clear();
+    _overtimeHoursController.clear();
+    _commissionController.clear();
+    _tipsController.clear();
+    _isSyncingControllers = false;
+  }
+
+  void _handlePayrollFieldEdited() {
+    if (_isSyncingControllers || _selectedAction == PayrollAction.change) {
+      return;
+    }
+    setState(() => _selectedAction = PayrollAction.change);
   }
 
   bool _payrollValuesChanged(PayrollEmployee previous, PayrollEmployee next) {
@@ -150,7 +285,9 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
         previous.regularHours != next.regularHours ||
         previous.overtimeHours != next.overtimeHours ||
         previous.commission != next.commission ||
-        previous.tips != next.tips;
+        previous.tips != next.tips ||
+        previous.payrollAction != next.payrollAction ||
+        previous.isPayrollConfirmed != next.isPayrollConfirmed;
   }
 
   Future<void> _confirm() async {
@@ -162,15 +299,38 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
       overtimeHours: parseMoney(_overtimeHoursController.text),
       commission: parseMoney(_commissionController.text),
       tips: parseMoney(_tipsController.text),
+      payrollAction: _selectedAction,
+      confirmPayroll: true,
     );
     if (!mounted) return;
 
     FocusScope.of(context).unfocus();
   }
 
+  Future<void> _selectAction(PayrollAction action) async {
+    if (_selectedAction == action && !action.clearsPayroll) return;
+
+    setState(() => _selectedAction = action);
+    if (action.clearsPayroll) {
+      _syncPayrollFieldsToZero();
+      await widget.onChanged(
+        rate: 0,
+        regularHours: 0,
+        overtimeHours: 0,
+        commission: 0,
+        tips: 0,
+        payrollAction: action,
+      );
+      return;
+    }
+
+    await widget.onChanged(payrollAction: action);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
+      key: widget.cardKey,
       decoration: _PayrollTokens.panelDecoration,
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
       child: Column(
@@ -209,6 +369,13 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
               ),
             ],
           ),
+          if (widget.showConfirmationWarning) ...<Widget>[
+            const SizedBox(height: 8),
+            const Text(
+              'Please confirm payroll for this employee.',
+              style: _PayrollTokens.errorText,
+            ),
+          ],
           const SizedBox(height: 14),
           _EmployeeInputGrid(
             fields: <Widget>[
@@ -249,7 +416,12 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
             ],
           ),
           const SizedBox(height: 18),
-          _PayrollEmployeeActions(index: widget.index, onConfirm: _confirm),
+          _PayrollEmployeeActions(
+            index: widget.index,
+            selectedAction: _selectedAction,
+            onActionSelected: _selectAction,
+            onConfirm: _confirm,
+          ),
         ],
       ),
     );
@@ -290,15 +462,27 @@ class _EmployeeInputGrid extends StatelessWidget {
 
 class _PayrollEmployeeActions extends StatelessWidget {
   final int index;
+  final PayrollAction selectedAction;
+  final ValueChanged<PayrollAction> onActionSelected;
   final VoidCallback onConfirm;
 
-  const _PayrollEmployeeActions({required this.index, required this.onConfirm});
+  const _PayrollEmployeeActions({
+    required this.index,
+    required this.selectedAction,
+    required this.onActionSelected,
+    required this.onConfirm,
+  });
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool narrow = constraints.maxWidth < 330;
+        final bool narrow = constraints.maxWidth < 430;
+        final Widget actionBar = _PayrollStatusOptionHolder(
+          keyPrefix: 'payroll.employee.$index.action',
+          selectedAction: selectedAction,
+          onSelected: onActionSelected,
+        );
         final Widget confirmButton = FilledButton(
           key: ValueKey<String>('payroll.employee.$index.confirm'),
           onPressed: onConfirm,
@@ -314,14 +498,114 @@ class _PayrollEmployeeActions extends StatelessWidget {
         );
 
         if (narrow) {
-          return Row(children: <Widget>[Expanded(child: confirmButton)]);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              actionBar,
+              const SizedBox(height: 12),
+              SizedBox(width: double.infinity, child: confirmButton),
+            ],
+          );
         }
 
         return Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: <Widget>[SizedBox(width: 128, child: confirmButton)],
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: <Widget>[
+            Expanded(child: actionBar),
+            const SizedBox(width: 14),
+            SizedBox(width: 128, child: confirmButton),
+          ],
         );
       },
+    );
+  }
+}
+
+class _PayrollStatusOptionHolder extends StatelessWidget {
+  final String keyPrefix;
+  final PayrollAction selectedAction;
+  final ValueChanged<PayrollAction> onSelected;
+
+  const _PayrollStatusOptionHolder({
+    required this.keyPrefix,
+    required this.selectedAction,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: _PayrollTokens.surface,
+        borderRadius: BorderRadius.circular(_PayrollTokens.cardRadius),
+        border: Border.all(color: _PayrollTokens.border),
+      ),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: <Widget>[
+          for (final PayrollAction action in PayrollAction.values)
+            _PayrollActionButton(
+              key: ValueKey<String>('$keyPrefix.${action.name}'),
+              action: action,
+              isSelected: action == selectedAction,
+              onTap: () => onSelected(action),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PayrollActionButton extends StatelessWidget {
+  final PayrollAction action;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _PayrollActionButton({
+    super.key,
+    required this.action,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color foreground = isSelected
+        ? Colors.white
+        : _PayrollTokens.textMuted;
+    final Color background = isSelected
+        ? _PayrollTokens.tabSelected
+        : _PayrollTokens.surface;
+
+    return Material(
+      color: background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 36, minWidth: 74),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Center(
+              child: Text(
+                action.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
