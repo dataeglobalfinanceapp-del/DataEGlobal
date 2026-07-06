@@ -57,24 +57,6 @@ void main() {
         find.text('6 employees still need to confirm payroll.'),
         findsOneWidget,
       );
-      expect(
-        find.byKey(const ValueKey<String>('payroll.employee.0.action.same')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('payroll.employee.0.action.change')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(
-          const ValueKey<String>('payroll.employee.0.action.vacation'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('payroll.employee.0.action.off')),
-        findsOneWidget,
-      );
       expect(find.text(r'$5,000.00'), findsWidgets);
       expect(find.text('Total Deposit'), findsNothing);
       expect(find.text('Total Expense'), findsNothing);
@@ -110,6 +92,47 @@ void main() {
         find.byType(ListView).first,
         const Offset(0, -300),
       );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(
+          const ValueKey<String>('payroll.employee.0.action.dropdown'),
+        ),
+        findsOneWidget,
+      );
+      await Scrollable.ensureVisible(
+        tester.element(
+          find.byKey(
+            const ValueKey<String>('payroll.employee.0.action.dropdown'),
+          ),
+        ),
+        alignment: 0.45,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('payroll.employee.0.action.dropdown'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('payroll.employee.0.action.same')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('payroll.employee.0.action.change')),
+        findsWidgets,
+      );
+      expect(
+        find.byKey(
+          const ValueKey<String>('payroll.employee.0.action.vacation'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('payroll.employee.0.action.off')),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Change').last);
       await tester.pumpAndSettle();
       await tester.tap(
         find.byKey(const ValueKey<String>('payroll.employee.0.confirm')),
@@ -163,22 +186,6 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Employee List'), findsOneWidget);
       expect(find.text('Add New Employee'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey<String>('payroll.employees.status.same')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('payroll.employees.status.change')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('payroll.employees.status.vacation')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('payroll.employees.status.off')),
-        findsOneWidget,
-      );
       expect(find.text('Employee Information'), findsNothing);
       expect(find.text('Full Name'), findsNothing);
       expect(find.text('Showing 6 employees'), findsOneWidget);

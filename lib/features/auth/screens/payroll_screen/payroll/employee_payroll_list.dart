@@ -478,9 +478,10 @@ class _PayrollEmployeeActions extends StatelessWidget {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final bool narrow = constraints.maxWidth < 430;
-        final Widget actionBar = _PayrollStatusOptionHolder(
+        final Widget statusDropdown = _PayrollStatusDropdown(
           keyPrefix: 'payroll.employee.$index.action',
-          selectedAction: selectedAction,
+          selectedStatus: selectedAction,
+          statusOptions: PayrollAction.values,
           onSelected: onActionSelected,
         );
         final Widget confirmButton = FilledButton(
@@ -501,7 +502,7 @@ class _PayrollEmployeeActions extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              actionBar,
+              statusDropdown,
               const SizedBox(height: 12),
               SizedBox(width: double.infinity, child: confirmButton),
             ],
@@ -511,7 +512,7 @@ class _PayrollEmployeeActions extends StatelessWidget {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: <Widget>[
-            Expanded(child: actionBar),
+            Expanded(child: statusDropdown),
             const SizedBox(width: 14),
             SizedBox(width: 128, child: confirmButton),
           ],
@@ -521,90 +522,123 @@ class _PayrollEmployeeActions extends StatelessWidget {
   }
 }
 
-class _PayrollStatusOptionHolder extends StatelessWidget {
+class _PayrollStatusDropdown extends StatelessWidget {
   final String keyPrefix;
-  final PayrollAction selectedAction;
+  final PayrollAction selectedStatus;
+  final Iterable<PayrollAction> statusOptions;
   final ValueChanged<PayrollAction> onSelected;
 
-  const _PayrollStatusOptionHolder({
+  const _PayrollStatusDropdown({
     required this.keyPrefix,
-    required this.selectedAction,
+    required this.selectedStatus,
+    required this.statusOptions,
     required this.onSelected,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: _PayrollTokens.surface,
-        borderRadius: BorderRadius.circular(_PayrollTokens.cardRadius),
-        border: Border.all(color: _PayrollTokens.border),
-      ),
-      child: Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        children: <Widget>[
-          for (final PayrollAction action in PayrollAction.values)
-            _PayrollActionButton(
-              key: ValueKey<String>('$keyPrefix.${action.name}'),
-              action: action,
-              isSelected: action == selectedAction,
-              onTap: () => onSelected(action),
+    final List<PayrollAction> options = statusOptions.toList(growable: false);
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 362, minHeight: 56),
+      child: Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: _PayrollTokens.surface,
+          borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+          border: Border.all(color: _PayrollTokens.border),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<PayrollAction>(
+            key: ValueKey<String>('$keyPrefix.dropdown'),
+            value: selectedStatus,
+            isExpanded: true,
+            borderRadius: BorderRadius.circular(_PayrollTokens.cardRadius),
+            icon: const Icon(
+              Icons.keyboard_arrow_down,
+              color: _PayrollTokens.tabSelected,
             ),
-        ],
+            selectedItemBuilder: (BuildContext context) {
+              return <Widget>[
+                for (final PayrollAction action in options)
+                  _PayrollStatusValue(status: action),
+              ];
+            },
+            items: options
+                .map(
+                  (PayrollAction action) => DropdownMenuItem<PayrollAction>(
+                    key: ValueKey<String>('$keyPrefix.${action.name}'),
+                    value: action,
+                    child: _PayrollStatusMenuItem(
+                      status: action,
+                      isSelected: action == selectedStatus,
+                    ),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: (PayrollAction? action) {
+              if (action == null) return;
+              onSelected(action);
+            },
+          ),
+        ),
       ),
     );
   }
 }
 
-class _PayrollActionButton extends StatelessWidget {
-  final PayrollAction action;
-  final bool isSelected;
-  final VoidCallback onTap;
+class _PayrollStatusValue extends StatelessWidget {
+  final PayrollAction status;
 
-  const _PayrollActionButton({
-    super.key,
-    required this.action,
+  const _PayrollStatusValue({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: _PayrollTokens.tabSelected,
+        borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+      ),
+      child: Text(
+        status.label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _PayrollStatusMenuItem extends StatelessWidget {
+  final PayrollAction status;
+  final bool isSelected;
+
+  const _PayrollStatusMenuItem({
+    required this.status,
     required this.isSelected,
-    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final Color foreground = isSelected
-        ? Colors.white
-        : _PayrollTokens.textMuted;
-    final Color background = isSelected
+    final Color textColor = isSelected
         ? _PayrollTokens.tabSelected
-        : _PayrollTokens.surface;
+        : _PayrollTokens.textMuted;
 
-    return Material(
-      color: background,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 36, minWidth: 74),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Center(
-              child: Text(
-                action.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: foreground,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        ),
+    return Text(
+      status.label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: textColor,
+        fontSize: 14,
+        fontWeight: FontWeight.w800,
       ),
     );
   }
