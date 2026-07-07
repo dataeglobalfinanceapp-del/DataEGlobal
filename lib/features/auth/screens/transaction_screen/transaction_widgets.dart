@@ -148,7 +148,11 @@ class _TransactionHeader extends StatelessWidget {
           onTap: onCategoryTap,
         ),
         const SizedBox(height: 10),
-        _FilterBar(filter: state.filter, onChanged: onFilterChanged),
+        _TransactionDateRangeSelector(
+          selectedRange: state.filter,
+          ranges: _TransactionFilter.values,
+          onRangeSelected: onFilterChanged,
+        ),
         const SizedBox(height: 12),
         _YearSelector(
           year: state.year,
@@ -314,96 +318,114 @@ class _CategorySelector extends StatelessWidget {
   }
 }
 
-class _FilterBar extends StatelessWidget {
-  final _TransactionFilter filter;
-  final ValueChanged<_TransactionFilter> onChanged;
+class _TransactionDateRangeSelector extends StatelessWidget {
+  final _TransactionFilter selectedRange;
+  final List<_TransactionFilter> ranges;
+  final ValueChanged<_TransactionFilter> onRangeSelected;
 
-  const _FilterBar({required this.filter, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: _TransactionTokens.surface,
-        borderRadius: BorderRadius.circular(_TransactionTokens.controlRadius),
-        boxShadow: _TransactionTokens.softShadow,
-      ),
-      child: Row(
-        children: <Widget>[
-          _FilterOptionButton(
-            label: 'Weekly',
-            value: _TransactionFilter.weekly,
-            activeValue: filter,
-            onChanged: onChanged,
-          ),
-          _FilterOptionButton(
-            label: 'Monthly',
-            value: _TransactionFilter.monthly,
-            activeValue: filter,
-            onChanged: onChanged,
-          ),
-          _FilterOptionButton(
-            label: 'Quarterly',
-            value: _TransactionFilter.quarterly,
-            activeValue: filter,
-            onChanged: onChanged,
-          ),
-          _FilterOptionButton(
-            label: 'Yearly',
-            value: _TransactionFilter.yearly,
-            activeValue: filter,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FilterOptionButton extends StatelessWidget {
-  final String label;
-  final _TransactionFilter value;
-  final _TransactionFilter activeValue;
-  final ValueChanged<_TransactionFilter> onChanged;
-
-  const _FilterOptionButton({
-    required this.label,
-    required this.value,
-    required this.activeValue,
-    required this.onChanged,
+  const _TransactionDateRangeSelector({
+    required this.selectedRange,
+    required this.ranges,
+    required this.onRangeSelected,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bool isActive = activeValue == value;
+    if (ranges.isEmpty) return const SizedBox.shrink();
 
+    return Row(children: _buildRangeButtons());
+  }
+
+  List<Widget> _buildRangeButtons() {
+    final List<Widget> buttons = <Widget>[];
+
+    for (int index = 0; index < ranges.length; index += 1) {
+      if (index > 0) {
+        buttons.add(const SizedBox(width: 8));
+      }
+
+      final _TransactionFilter range = ranges[index];
+      buttons.add(
+        _TransactionDateRangeButton(
+          range: range,
+          isSelected: range == selectedRange,
+          onSelected: onRangeSelected,
+        ),
+      );
+    }
+
+    return buttons;
+  }
+}
+
+class _TransactionDateRangeButton extends StatelessWidget {
+  final _TransactionFilter range;
+  final bool isSelected;
+  final ValueChanged<_TransactionFilter> onSelected;
+
+  const _TransactionDateRangeButton({
+    required this.range,
+    required this.isSelected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Expanded(
-      child: InkWell(
-        onTap: () => onChanged(value),
-        borderRadius: BorderRadius.circular(_TransactionTokens.controlRadius),
-        child: Container(
-          height: 40,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: isActive
-                ? _TransactionTokens.primary
-                : _TransactionTokens.surface,
+      child: Semantics(
+        selected: isSelected,
+        button: true,
+        child: Material(
+          color: _backgroundColor,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(
-              _TransactionTokens.controlRadius,
+              _TransactionTokens.dateRangeRadius,
             ),
+            side: _borderSide,
           ),
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: _TransactionTokens.filterLabel.copyWith(
-              color: isActive ? Colors.white : _TransactionTokens.onSurface,
+          child: InkWell(
+            onTap: () => onSelected(range),
+            child: SizedBox(
+              height: 40,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      range.label,
+                      maxLines: 1,
+                      style: _TransactionTokens.dateRangeLabel.copyWith(
+                        color: _textColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  Color get _backgroundColor {
+    return isSelected
+        ? _TransactionTokens.dateRangeSelected
+        : _TransactionTokens.dateRangeInactive;
+  }
+
+  BorderSide get _borderSide {
+    return BorderSide(
+      color: isSelected
+          ? _TransactionTokens.dateRangeSelected
+          : _TransactionTokens.dateRangeInactiveBorder,
+    );
+  }
+
+  Color get _textColor {
+    return isSelected ? Colors.white : _TransactionTokens.dateRangeInactiveText;
   }
 }
 

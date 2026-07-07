@@ -198,6 +198,39 @@ void main() {
     expect(find.text('Studio Rent'), findsNothing);
   });
 
+  testWidgets('TransactionScreen range selector keeps grouping selectable', (
+    WidgetTester tester,
+  ) async {
+    await LiabilityService.saveExpense(
+      checkNumber: 'E200',
+      totalAmount: 45,
+      transactionDate: DateTime(2026, 6, 12),
+      category: 'Fuel',
+      payee: 'Fuel Stop',
+      isManual: true,
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: TransactionScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Weekly'), findsOneWidget);
+    expect(find.text('Monthly'), findsOneWidget);
+    expect(find.text('Quarterly'), findsOneWidget);
+    expect(find.text('Yearly'), findsOneWidget);
+
+    await tester.tap(find.text('Weekly'));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Week 24'),
+      find.byType(ListView),
+      const Offset(0, -180),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Week 24'), findsOneWidget);
+  });
+
   testWidgets('TransactionScreen filters expense tab by date range', (
     WidgetTester tester,
   ) async {

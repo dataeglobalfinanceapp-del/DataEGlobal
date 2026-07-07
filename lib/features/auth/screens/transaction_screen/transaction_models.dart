@@ -14,6 +14,17 @@ enum _TransactionKind {
 
 enum _TransactionFilter { weekly, monthly, quarterly, yearly }
 
+extension _TransactionFilterLabel on _TransactionFilter {
+  String get label {
+    return switch (this) {
+      _TransactionFilter.weekly => 'Weekly',
+      _TransactionFilter.monthly => 'Monthly',
+      _TransactionFilter.quarterly => 'Quarterly',
+      _TransactionFilter.yearly => 'Yearly',
+    };
+  }
+}
+
 enum _ExportPeriod { week, month, year }
 
 sealed class _TransactionListEntry {
@@ -213,6 +224,10 @@ class _TransactionTokens {
   static const Color textInactive = Color(0xFF9CA3AF);
   static const Color border = Color(0xFFE5E7EB);
   static const Color divider = Color(0xFFF3F4F6);
+  static const Color dateRangeSelected = Color(0xFF006B5F);
+  static const Color dateRangeInactive = Color(0xFFFFFEF7);
+  static const Color dateRangeInactiveBorder = Color(0xFFD7DDCC);
+  static const Color dateRangeInactiveText = Color(0xFF10201B);
   static const Color danger = Color(0xFFEF4444);
   static const Color dangerDark = Color(0xFFDC2626);
   static const Color success = Color(0xFF16A34A);
@@ -222,6 +237,7 @@ class _TransactionTokens {
 
   static const double cardRadius = 4;
   static const double controlRadius = 3;
+  static const double dateRangeRadius = 8;
 
   static const EdgeInsets pagePadding = EdgeInsets.fromLTRB(16, 12, 16, 24);
   static const EdgeInsets tableHeaderPadding = EdgeInsets.fromLTRB(
@@ -255,6 +271,10 @@ class _TransactionTokens {
   static const TextStyle filterLabel = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w600,
+  );
+  static const TextStyle dateRangeLabel = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w700,
   );
   static const TextStyle yearLabel = TextStyle(
     fontSize: 16,
