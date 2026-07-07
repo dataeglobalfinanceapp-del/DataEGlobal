@@ -9,9 +9,9 @@ import 'package:savetep/services/exporter/pdf_exporter.dart';
 import 'package:savetep/services/exporter/pdf_printer.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/money_formatter.dart';
+import 'package:savetep/services/tax_estimate_service.dart';
 import 'package:savetep/services/yearly_pdf_report.dart';
 
-import '../tax_screen/tax_estimator.dart';
 import '../../widgets/app_date_range_selector.dart';
 import '../../widgets/expense_category_link.dart';
 

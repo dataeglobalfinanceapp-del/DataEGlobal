@@ -8,6 +8,11 @@ import 'package:savetep/domain/services/budget_target_service.dart';
 import 'package:savetep/features/auth/models/budget_data.dart';
 import 'package:savetep/services/money_formatter.dart';
 
+const String _totalBalanceLabel = 'TOTAL BALANCE';
+const String _estimatedTaxAtYearEndLabel = 'ESTIMATED TAX AT YEAR END';
+const String _totalExpenseLabel = 'TOTAL EXPENSE';
+const String _totalDepositLabel = 'TOTAL DEPOSIT';
+
 class BudgetSumChart extends StatefulWidget {
   final BudgetData data;
   final String periodKey;
@@ -332,9 +337,6 @@ class BudgetTotalsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final availableColor = data.available >= 0
-        ? const Color(0xFF76C95F)
-        : const Color(0xFFFF5E63);
     final depositColor = data.deposit >= 0
         ? const Color(0xFF76C95F)
         : const Color(0xFFFF5E63);
@@ -365,14 +367,8 @@ class BudgetTotalsCard extends StatelessWidget {
           final double labelFontSize = ((isTablet ? 12.0 : 10.0) * heightScale)
               .clamp(isTablet ? 10.5 : 8.5, isTablet ? 13.0 : 10.0)
               .toDouble();
-          final double amountFontSize = ((isTablet ? 34.0 : 26.0) * heightScale)
+          final double amountFontSize = ((isTablet ? 26.0 : 22.0) * heightScale)
               .clamp(isTablet ? 28.0 : 20.0, isTablet ? 38.0 : 28.0)
-              .toDouble();
-          final double statusFontSize = ((isTablet ? 12.0 : 10.0) * heightScale)
-              .clamp(isTablet ? 10.0 : 8.5, isTablet ? 13.0 : 10.0)
-              .toDouble();
-          final double walletIconSize = ((isTablet ? 42.0 : 34.0) * heightScale)
-              .clamp(isTablet ? 36.0 : 26.0, isTablet ? 46.0 : 34.0)
               .toDouble();
           final double metricDividerHeight =
               ((isTablet ? 44.0 : 30.0) * heightScale)
@@ -413,68 +409,26 @@ class BudgetTotalsCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'TOTAL BALANCE',
-                                style: TextStyle(
-                                  color: const Color(0xFFC6E2CE),
-                                  fontSize: labelFontSize,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0,
-                                ),
-                              ),
-                              SizedBox(height: isTablet ? 6 : 2),
-                              Flexible(
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    _fmtMoney(data.available),
-                                    maxLines: 1,
-                                    style: TextStyle(
-                                      color: const Color(0xFFFFC84D),
-                                      fontSize: amountFontSize,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 0,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: isTablet ? 6 : 2),
-                              Row(
-                                children: [
-                                  Icon(
-                                    data.available >= 0
-                                        ? Icons.arrow_drop_up
-                                        : Icons.arrow_drop_down,
-                                    color: availableColor,
-                                    size: isTablet ? 18 : 16,
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      '${data.surplusPercent}% available from deposit',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: availableColor,
-                                        fontSize: statusFontSize,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                          child: _PrimarySummaryMetric(
+                            label: _totalBalanceLabel,
+                            value: _fmtMoney(data.available),
+                            amountColor: const Color(0xFFFFC84D),
+                            labelFontSize: labelFontSize,
+                            amountFontSize: amountFontSize,
+                            verticalGap: isTablet ? 6 : 2,
                           ),
                         ),
-                        SizedBox(width: isTablet ? 14 : 10),
-                        Icon(
-                          Icons.account_balance_wallet_outlined,
-                          color: const Color(0xFFD9B957),
-                          size: walletIconSize,
+                        SizedBox(width: isTablet ? 18 : 12),
+                        Expanded(
+                          child: _PrimarySummaryMetric(
+                            label: _estimatedTaxAtYearEndLabel,
+                            value: _fmtMoney(data.estimatedTaxAtYearEnd),
+                            amountColor: const Color(0xFFFF5E63),
+                            alignRight: true,
+                            labelFontSize: labelFontSize,
+                            amountFontSize: amountFontSize,
+                            verticalGap: isTablet ? 6 : 2,
+                          ),
                         ),
                       ],
                     ),
@@ -488,7 +442,7 @@ class BudgetTotalsCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: _SummaryMetric(
-                          label: 'TOTAL EXPENSE',
+                          label: _totalExpenseLabel,
                           amount: data.expense,
                           icon: Icons.south_west_rounded,
                           iconColor: const Color(0xFFFF5E63),
@@ -506,7 +460,7 @@ class BudgetTotalsCard extends StatelessWidget {
                       ),
                       Expanded(
                         child: _SummaryMetric(
-                          label: 'TOTAL DEPOSIT',
+                          label: _totalDepositLabel,
                           amount: data.deposit,
                           icon: Icons.account_balance_wallet_outlined,
                           iconColor: depositColor,
@@ -522,6 +476,74 @@ class BudgetTotalsCard extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _PrimarySummaryMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color amountColor;
+  final bool alignRight;
+  final double labelFontSize;
+  final double amountFontSize;
+  final double verticalGap;
+
+  const _PrimarySummaryMetric({
+    required this.label,
+    required this.value,
+    required this.amountColor,
+    required this.labelFontSize,
+    required this.amountFontSize,
+    required this.verticalGap,
+    this.alignRight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final alignment = alignRight ? Alignment.centerRight : Alignment.centerLeft;
+    final crossAxisAlignment = alignRight
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
+    final textAlign = alignRight ? TextAlign.right : TextAlign.left;
+
+    return Column(
+      crossAxisAlignment: crossAxisAlignment,
+      children: [
+        Text(
+          label,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: textAlign,
+          style: TextStyle(
+            color: const Color(0xFFC6E2CE),
+            fontSize: labelFontSize,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0,
+          ),
+        ),
+        SizedBox(height: verticalGap),
+        Flexible(
+          child: Align(
+            alignment: alignment,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: alignment,
+              child: Text(
+                value,
+                maxLines: 1,
+                textAlign: textAlign,
+                style: TextStyle(
+                  color: amountColor,
+                  fontSize: amountFontSize,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

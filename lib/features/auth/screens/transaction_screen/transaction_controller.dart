@@ -208,19 +208,19 @@ class _TransactionController extends ChangeNotifier {
           dateRange: _expenseDateRange,
           category: _category,
         );
-    final int taxProjectionMonth = _TransactionDataMapper.projectionMonth(
-      _year,
-    );
-    final double taxReserve = _TransactionDataMapper.reserveThroughMonth(
-      deposits: _deposits,
-      expenses: _expenses,
-      year: _year,
-      month: taxProjectionMonth,
-    );
-    final TaxEstimate taxEstimate = TaxEstimator.calculate(
-      totalReserve: taxReserve,
-      currentMonth: taxProjectionMonth,
-    );
+    final taxEstimate =
+        TaxEstimateService.calculateYearEndEstimate<
+          DepositRecord,
+          ExpenseRecord
+        >(
+          deposits: _deposits,
+          expenses: _expenses,
+          year: _year,
+          depositDate: (record) => record.transactionDate,
+          depositAmount: (record) => record.totalAmount,
+          expenseDate: (record) => record.transactionDate,
+          expenseAmount: (record) => record.totalAmount,
+        );
     final List<_TransactionGroup> groups = _TransactionDataMapper.groups(
       kind: _kind,
       filter: _filter,
@@ -319,42 +319,6 @@ class _TransactionDataMapper {
           0,
           (double total, ExpenseRecord record) => total + record.totalAmount,
         );
-  }
-
-  static int projectionMonth(int year) {
-    final DateTime now = AppClock.now;
-    return year == now.year ? now.month : 12;
-  }
-
-  static double reserveThroughMonth({
-    required List<DepositRecord> deposits,
-    required List<ExpenseRecord> expenses,
-    required int year,
-    required int month,
-  }) {
-    final int projectionMonth = month.clamp(1, 12).toInt();
-    final double deposit = deposits
-        .where(
-          (DepositRecord record) =>
-              record.transactionDate.year == year &&
-              record.transactionDate.month <= projectionMonth,
-        )
-        .fold<double>(
-          0,
-          (double total, DepositRecord record) => total + record.totalAmount,
-        );
-    final double expense = expenses
-        .where(
-          (ExpenseRecord record) =>
-              record.transactionDate.year == year &&
-              record.transactionDate.month <= projectionMonth,
-        )
-        .fold<double>(
-          0,
-          (double total, ExpenseRecord record) => total + record.totalAmount,
-        );
-
-    return deposit - expense;
   }
 
   static List<String> expenseCategories(

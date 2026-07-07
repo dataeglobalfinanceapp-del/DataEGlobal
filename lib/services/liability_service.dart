@@ -11,6 +11,7 @@ import 'package:savetep/features/auth/models/liability_model.dart';
 
 import 'app_clock.dart';
 import 'recurrence_schedule.dart';
+import 'tax_estimate_service.dart';
 
 part 'save_future_expense.dart';
 
@@ -581,6 +582,19 @@ class LiabilityService {
     final surplus = depositTotal > 0
         ? (available / depositTotal * 100).round()
         : 0;
+    final taxEstimate =
+        TaxEstimateService.calculateYearEndEstimate<
+          DepositRecord,
+          ExpenseRecord
+        >(
+          deposits: state.deposits,
+          expenses: state.expenses,
+          year: AppClock.now.year,
+          depositDate: (record) => record.transactionDate,
+          depositAmount: (record) => record.totalAmount,
+          expenseDate: (record) => record.transactionDate,
+          expenseAmount: (record) => record.totalAmount,
+        );
 
     final categoryTotals = <String, double>{};
     for (final entry in budgetExpenses) {
@@ -609,6 +623,7 @@ class LiabilityService {
       period: period,
       surplusPercent: surplus,
       utilizationPercent: utilization,
+      estimatedTaxAtYearEnd: taxEstimate.taxDue,
       transactionCount: deposits.length + expenses.length,
       categories: categories,
     );

@@ -39,6 +39,44 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('HomeScreen shows estimated tax at year end in balance summary', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await LiabilityService.saveDeposit(
+      orderNumber: 'A100',
+      totalAmount: 125,
+      creditDeposit: 100,
+      cash: 25,
+      giftCard: 0,
+      other: 0,
+      transactionDate: DateTime(2026, 6, 12),
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'E200',
+      totalAmount: 45,
+      transactionDate: DateTime(2026, 6, 13),
+      category: 'Fuel',
+      payee: 'Fuel Stop',
+      isManual: true,
+    );
+
+    await _pumpHomeScreen(tester);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('TOTAL BALANCE'), findsOneWidget);
+    expect(find.text('ESTIMATED TAX AT YEAR END'), findsOneWidget);
+    expect(find.text(r'$80.00'), findsOneWidget);
+    expect(find.text(r'$8.00'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('HomeScreen action grid follows responsive breakpoints', (
     WidgetTester tester,
   ) async {

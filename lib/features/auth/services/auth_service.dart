@@ -24,6 +24,10 @@ class AuthService {
   // Returns true when a confirmation code was sent (expected happy path).
   // ─────────────────────────────────────────────────────────────────────────
 
+  static Future<AuthSession> fetchAuthSession() {
+    return Amplify.Auth.fetchAuthSession();
+  }
+
   static Future<SignUpAttempt> signUp(String email, String password) async {
     try {
       final result = await Amplify.Auth.signUp(

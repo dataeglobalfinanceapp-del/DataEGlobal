@@ -98,6 +98,7 @@ class BudgetData {
   final String period;
   final int surplusPercent;
   final int utilizationPercent;
+  final double estimatedTaxAtYearEnd;
   final int transactionCount;
   final List<BudgetCategory> categories;
 
@@ -108,6 +109,7 @@ class BudgetData {
     this.period = '',
     this.surplusPercent = 0,
     this.utilizationPercent = 0,
+    this.estimatedTaxAtYearEnd = 0,
     this.transactionCount = 0,
     this.categories = const [],
   });
