@@ -245,7 +245,6 @@ class _TransactionController extends ChangeNotifier {
       category: _category,
       totalDeposits: totalDeposits,
       totalExpenses: totalExpenses,
-      estimatedTaxRate: taxEstimate.bracket.rate,
       estimatedTaxToPay: taxEstimate.taxDue,
       selectedCategoryExpenseTotal: selectedCategoryExpenseTotal,
       expenseCategories: expenseCategories,

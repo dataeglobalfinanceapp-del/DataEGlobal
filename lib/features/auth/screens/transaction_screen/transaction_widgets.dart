@@ -27,7 +27,7 @@ class _TransactionList extends StatelessWidget {
   final ValueChanged<int> onYearChanged;
   final ValueChanged<String> onToggleGroup;
   final ValueChanged<_TransactionItem> onDelete;
-  final VoidCallback onEstimatedTaxRateTap;
+  final VoidCallback onEstimatedTaxTap;
   final VoidCallback onExportPdf;
   final VoidCallback onPrintPdf;
   final VoidCallback onExportExcel;
@@ -42,7 +42,7 @@ class _TransactionList extends StatelessWidget {
     required this.onYearChanged,
     required this.onToggleGroup,
     required this.onDelete,
-    required this.onEstimatedTaxRateTap,
+    required this.onEstimatedTaxTap,
     required this.onExportPdf,
     required this.onPrintPdf,
     required this.onExportExcel,
@@ -65,7 +65,7 @@ class _TransactionList extends StatelessWidget {
             onCategoryTap: onCategoryTap,
             onExpenseDateRangeChanged: onExpenseDateRangeChanged,
             onYearChanged: onYearChanged,
-            onEstimatedTaxRateTap: onEstimatedTaxRateTap,
+            onEstimatedTaxTap: onEstimatedTaxTap,
           );
         }
 
@@ -114,7 +114,7 @@ class _TransactionHeader extends StatelessWidget {
   final VoidCallback onCategoryTap;
   final ValueChanged<DateTimeRange> onExpenseDateRangeChanged;
   final ValueChanged<int> onYearChanged;
-  final VoidCallback onEstimatedTaxRateTap;
+  final VoidCallback onEstimatedTaxTap;
 
   const _TransactionHeader({
     required this.state,
@@ -123,20 +123,21 @@ class _TransactionHeader extends StatelessWidget {
     required this.onCategoryTap,
     required this.onExpenseDateRangeChanged,
     required this.onYearChanged,
-    required this.onEstimatedTaxRateTap,
+    required this.onEstimatedTaxTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
-        _SummaryPanel(
-          totalDeposits: state.totalDeposits,
-          totalExpenses: state.totalExpenses,
-          totalAvailableDeposit: state.totalAvailableDeposit,
-          estimatedTaxRate: state.estimatedTaxRate,
-          estimatedTaxToPay: state.estimatedTaxToPay,
-          onEstimatedTaxRateTap: onEstimatedTaxRateTap,
+        BalanceSummaryCard(
+          data: BalanceSummaryData(
+            totalBalance: state.totalAvailableDeposit,
+            estimatedTaxAtYearEnd: state.estimatedTaxToPay,
+            totalExpense: state.totalExpenses,
+            totalDeposit: state.totalDeposits,
+          ),
+          onEstimatedTaxTap: onEstimatedTaxTap,
         ),
         const SizedBox(height: 10),
         _KindToggle(kind: state.kind, onChanged: onKindChanged),
@@ -178,152 +179,6 @@ class _TransactionHeader extends StatelessWidget {
         ],
         const SizedBox(height: 12),
       ],
-    );
-  }
-}
-
-class _SummaryPanel extends StatelessWidget {
-  final double totalDeposits;
-  final double totalExpenses;
-  final double totalAvailableDeposit;
-  final double estimatedTaxRate;
-  final double estimatedTaxToPay;
-  final VoidCallback onEstimatedTaxRateTap;
-
-  const _SummaryPanel({
-    required this.totalDeposits,
-    required this.totalExpenses,
-    required this.totalAvailableDeposit,
-    required this.estimatedTaxRate,
-    required this.estimatedTaxToPay,
-    required this.onEstimatedTaxRateTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final Color depositColor = totalAvailableDeposit > 0
-        ? _TransactionTokens.success
-        : _TransactionTokens.expenseHot;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _TransactionTokens.primary,
-        borderRadius: BorderRadius.circular(_TransactionTokens.cardRadius),
-      ),
-      child: Column(
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              const Expanded(child: _SummaryLabel(label: 'AVAILABLE FUNDS')),
-              Text(
-                formatMoney(totalAvailableDeposit),
-                style: _TransactionTokens.reserveValue.copyWith(
-                  color: depositColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: _SummaryValue(
-                  label: 'TOTAL EXPENSE',
-                  value: formatMoney(totalExpenses),
-                  color: _TransactionTokens.expenseHot,
-                ),
-              ),
-              Expanded(
-                child: _SummaryValue(
-                  label: 'TOTAL DEPOSIT',
-                  value: formatMoney(totalDeposits),
-                  color: _TransactionTokens.primaryBlue,
-                  alignRight: true,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: _SummaryValue(
-                  label: 'ESTIMATED TAX RATE',
-                  value: '${estimatedTaxRate.toStringAsFixed(0)}%',
-                  color: _TransactionTokens.warning,
-                  onTap: onEstimatedTaxRateTap,
-                ),
-              ),
-              Expanded(
-                child: _SummaryValue(
-                  label: 'ESTIMATED TAX AT YEAR END',
-                  value: formatMoney(estimatedTaxToPay),
-                  color: _TransactionTokens.danger,
-                  alignRight: true,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryLabel extends StatelessWidget {
-  final String label;
-
-  const _SummaryLabel({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(label, style: _TransactionTokens.summaryLabel);
-  }
-}
-
-class _SummaryValue extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final bool alignRight;
-  final VoidCallback? onTap;
-
-  const _SummaryValue({
-    required this.label,
-    required this.value,
-    required this.color,
-    this.alignRight = false,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final Widget content = Column(
-      crossAxisAlignment: alignRight
-          ? CrossAxisAlignment.end
-          : CrossAxisAlignment.start,
-      children: <Widget>[
-        _SummaryLabel(label: label),
-        const SizedBox(height: 5),
-        Text(
-          value,
-          textAlign: alignRight ? TextAlign.right : TextAlign.left,
-          style: _TransactionTokens.summaryValue.copyWith(color: color),
-        ),
-      ],
-    );
-
-    if (onTap == null) return content;
-
-    return Semantics(
-      button: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: content,
-      ),
     );
   }
 }

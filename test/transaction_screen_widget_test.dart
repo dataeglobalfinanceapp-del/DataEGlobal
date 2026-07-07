@@ -42,12 +42,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Transaction'), findsOneWidget);
-    expect(find.text('AVAILABLE FUNDS'), findsOneWidget);
+    expect(find.text('TOTAL BALANCE'), findsOneWidget);
+    expect(find.text('AVAILABLE FUNDS'), findsNothing);
     expect(find.text(r'$80.00'), findsOneWidget);
     expect(find.text(r'$125.00'), findsOneWidget);
     expect(find.text('TOTAL DEPOSIT'), findsOneWidget);
-    expect(find.text('ESTIMATED TAX RATE'), findsOneWidget);
-    expect(find.text('10%'), findsOneWidget);
+    expect(find.text('ESTIMATED TAX RATE'), findsNothing);
+    expect(find.text('10%'), findsNothing);
     expect(find.text(r'ESTIMATED TAX AT YEAR END'), findsOneWidget);
     expect(find.text(r'$8.00'), findsOneWidget);
     expect(find.text(r'$45.00'), findsWidgets);
@@ -64,23 +65,23 @@ void main() {
     expect(find.text('Excel'), findsOneWidget);
   });
 
-  testWidgets('Estimated tax rate label opens profit and loss', (
+  testWidgets('Estimated tax at year end label opens profit and loss', (
     WidgetTester tester,
   ) async {
     await _pumpTransactionScreenWithProfitAndLossRoute(tester);
 
-    await tester.tap(find.text('ESTIMATED TAX RATE'));
+    await tester.tap(find.text('ESTIMATED TAX AT YEAR END'));
     await tester.pumpAndSettle();
 
     expect(find.text('Profit and Loss'), findsOneWidget);
   });
 
-  testWidgets('Estimated tax rate value opens profit and loss', (
+  testWidgets('Estimated tax at year end value opens profit and loss', (
     WidgetTester tester,
   ) async {
     await _pumpTransactionScreenWithProfitAndLossRoute(tester);
 
-    await tester.tap(find.text('10%'));
+    await tester.tap(find.text(r'$12.50'));
     await tester.pumpAndSettle();
 
     expect(find.text('Profit and Loss'), findsOneWidget);

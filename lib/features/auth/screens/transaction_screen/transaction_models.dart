@@ -54,7 +54,6 @@ class _TransactionViewState {
   final String? category;
   final double totalDeposits;
   final double totalExpenses;
-  final double estimatedTaxRate;
   final double estimatedTaxToPay;
   final double selectedCategoryExpenseTotal;
   final List<String> expenseCategories;
@@ -70,7 +69,6 @@ class _TransactionViewState {
     required this.category,
     required this.totalDeposits,
     required this.totalExpenses,
-    required this.estimatedTaxRate,
     required this.estimatedTaxToPay,
     required this.selectedCategoryExpenseTotal,
     required this.expenseCategories,
@@ -92,7 +90,6 @@ class _TransactionViewState {
       category: category,
       totalDeposits: 0,
       totalExpenses: 0,
-      estimatedTaxRate: 0,
       estimatedTaxToPay: 0,
       selectedCategoryExpenseTotal: 0,
       expenseCategories: const <String>[],
@@ -218,7 +215,6 @@ class _TransactionTokens {
   static const Color divider = Color(0xFFF3F4F6);
   static const Color danger = Color(0xFFEF4444);
   static const Color dangerDark = Color(0xFFDC2626);
-  static const Color expenseHot = Color(0xFFFF1744);
   static const Color success = Color(0xFF16A34A);
   static const Color giftBlue = Color(0xFF0EA5E9);
   static const Color warning = Color(0xFFF59E0B);
@@ -247,20 +243,6 @@ class _TransactionTokens {
     color: Colors.black87,
     fontSize: 17,
     fontWeight: FontWeight.w500,
-  );
-  static const TextStyle summaryLabel = TextStyle(
-    color: Colors.white70,
-    fontSize: 14,
-    fontWeight: FontWeight.w700,
-    letterSpacing: 1,
-  );
-  static const TextStyle reserveValue = TextStyle(
-    fontSize: 25,
-    fontWeight: FontWeight.w800,
-  );
-  static const TextStyle summaryValue = TextStyle(
-    fontSize: 20,
-    fontWeight: FontWeight.w800,
   );
   static const TextStyle toggleLabel = TextStyle(
     fontSize: 13,

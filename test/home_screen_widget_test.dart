@@ -70,10 +70,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('TOTAL BALANCE'), findsOneWidget);
-    expect(find.text('ESTIMATED TAX AT YEAR END'), findsOneWidget);
-    expect(find.text(r'$80.00'), findsOneWidget);
-    expect(find.text(r'$8.00'), findsOneWidget);
+    final summaryCard = find.byKey(const ValueKey('home.totalBalanceCard'));
+    expect(
+      find.descendant(of: summaryCard, matching: find.text('TOTAL BALANCE')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: summaryCard,
+        matching: find.text('ESTIMATED TAX AT YEAR END'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summaryCard, matching: find.text(r'$80.00')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summaryCard, matching: find.text(r'$8.00')),
+      findsOneWidget,
+    );
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

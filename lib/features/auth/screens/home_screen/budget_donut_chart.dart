@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../models/budget_data.dart';
+import '../../models/balance_summary_data.dart';
+import '../../widgets/balance_summary_card.dart';
 import 'budget_sum_chart.dart';
 
 class BudgetDonutChart extends StatelessWidget {
@@ -22,7 +24,15 @@ class BudgetDonutChart extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        BudgetTotalsCard(data: data),
+        BalanceSummaryCard(
+          cardKey: const ValueKey('home.totalBalanceCard'),
+          data: BalanceSummaryData(
+            totalBalance: data.available,
+            estimatedTaxAtYearEnd: data.estimatedTaxAtYearEnd,
+            totalExpense: data.expense,
+            totalDeposit: data.deposit,
+          ),
+        ),
         SizedBox(height: cardGap),
         BudgetSumChart(data: data, periodKey: periodKey),
       ],

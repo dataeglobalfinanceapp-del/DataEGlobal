@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import 'package:savetep/features/auth/models/balance_summary_data.dart';
+import 'package:savetep/features/auth/widgets/balance_summary_card.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/excel_transaction_report.dart';
 import 'package:savetep/services/exporter/file_exporter.dart';
@@ -381,7 +383,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     onYearChanged: _controller.changeYear,
                     onToggleGroup: _controller.toggleGroup,
                     onDelete: _confirmDeleteItem,
-                    onEstimatedTaxRateTap: _openProfitAndLoss,
+                    onEstimatedTaxTap: _openProfitAndLoss,
                     onExportPdf: _exportPdf,
                     onPrintPdf: _printPdf,
                     onExportExcel: _exportExcel,
