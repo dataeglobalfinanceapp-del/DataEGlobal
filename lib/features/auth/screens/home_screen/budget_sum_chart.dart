@@ -406,7 +406,7 @@ class BudgetTotalsCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
                           child: _PrimarySummaryMetric(
@@ -418,13 +418,15 @@ class BudgetTotalsCard extends StatelessWidget {
                             verticalGap: isTablet ? 6 : 2,
                           ),
                         ),
-                        SizedBox(width: isTablet ? 18 : 12),
+                        _SummaryColumnDivider(
+                          height: metricDividerHeight,
+                          horizontalMargin: metricDividerMargin,
+                        ),
                         Expanded(
                           child: _PrimarySummaryMetric(
                             label: _estimatedTaxAtYearEndLabel,
                             value: _fmtMoney(data.estimatedTaxAtYearEnd),
                             amountColor: const Color(0xFFFF5E63),
-                            alignRight: true,
                             labelFontSize: labelFontSize,
                             amountFontSize: amountFontSize,
                             verticalGap: isTablet ? 6 : 2,
@@ -450,13 +452,9 @@ class BudgetTotalsCard extends StatelessWidget {
                           isTablet: isTablet,
                         ),
                       ),
-                      Container(
-                        width: 1,
+                      _SummaryColumnDivider(
                         height: metricDividerHeight,
-                        margin: EdgeInsets.symmetric(
-                          horizontal: metricDividerMargin,
-                        ),
-                        color: const Color(0xFFBCA052).withValues(alpha: 0.28),
+                        horizontalMargin: metricDividerMargin,
                       ),
                       Expanded(
                         child: _SummaryMetric(
@@ -484,7 +482,6 @@ class _PrimarySummaryMetric extends StatelessWidget {
   final String label;
   final String value;
   final Color amountColor;
-  final bool alignRight;
   final double labelFontSize;
   final double amountFontSize;
   final double verticalGap;
@@ -496,25 +493,17 @@ class _PrimarySummaryMetric extends StatelessWidget {
     required this.labelFontSize,
     required this.amountFontSize,
     required this.verticalGap,
-    this.alignRight = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final alignment = alignRight ? Alignment.centerRight : Alignment.centerLeft;
-    final crossAxisAlignment = alignRight
-        ? CrossAxisAlignment.end
-        : CrossAxisAlignment.start;
-    final textAlign = alignRight ? TextAlign.right : TextAlign.left;
-
     return Column(
-      crossAxisAlignment: crossAxisAlignment,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          textAlign: textAlign,
           style: TextStyle(
             color: const Color(0xFFC6E2CE),
             fontSize: labelFontSize,
@@ -525,14 +514,13 @@ class _PrimarySummaryMetric extends StatelessWidget {
         SizedBox(height: verticalGap),
         Flexible(
           child: Align(
-            alignment: alignment,
+            alignment: Alignment.centerLeft,
             child: FittedBox(
               fit: BoxFit.scaleDown,
-              alignment: alignment,
+              alignment: Alignment.centerLeft,
               child: Text(
                 value,
                 maxLines: 1,
-                textAlign: textAlign,
                 style: TextStyle(
                   color: amountColor,
                   fontSize: amountFontSize,
@@ -544,6 +532,26 @@ class _PrimarySummaryMetric extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SummaryColumnDivider extends StatelessWidget {
+  final double height;
+  final double horizontalMargin;
+
+  const _SummaryColumnDivider({
+    required this.height,
+    required this.horizontalMargin,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: height,
+      margin: EdgeInsets.symmetric(horizontal: horizontalMargin),
+      color: const Color(0xFFBCA052).withValues(alpha: 0.28),
     );
   }
 }
