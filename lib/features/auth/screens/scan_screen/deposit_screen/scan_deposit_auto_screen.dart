@@ -19,7 +19,7 @@ class ScanDepositAutoScreen extends StatefulWidget {
 class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
   Uint8List? _scannedImageBytes;
   bool _isScanning = false;
-  bool _dataExtracted = false;
+  bool _hasExtractedData = false;
   bool _duplicateWarning = false;
   bool _isSaving = false;
 
@@ -72,7 +72,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
     setState(() {
       _scannedImageBytes = null;
       _isScanning = false;
-      _dataExtracted = false;
+      _hasExtractedData = false;
       _duplicateWarning = false;
       _data = emptyData;
     });
@@ -109,7 +109,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
       setState(() {
         _scannedImageBytes = bytes;
         _isScanning = false;
-        _dataExtracted = true;
+        _hasExtractedData = true;
         _duplicateWarning = true;
         _data = extractedData;
       });
@@ -182,7 +182,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
       setState(() {
         _scannedImageBytes = null;
         _isScanning = false;
-        _dataExtracted = false;
+        _hasExtractedData = false;
         _duplicateWarning = false;
         _data = emptyData;
       });
@@ -213,6 +213,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
   // ── Confirm & Save ────────────────────────────────────────────────────────
 
   Future<void> _confirm() async {
+    final bool isManualEntry = !_hasExtractedData;
     final updatedData = _data.copyWith(
       orderNumber: _orderNumberController.text.trim(),
       totalAmount: _paymentTotal,
@@ -225,7 +226,8 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
     final shouldSave = await showDialog<bool>(
       context: context,
       barrierColor: Colors.black54,
-      builder: (_) => DepositReviewDialog(data: updatedData, isManual: false),
+      builder: (_) =>
+          DepositReviewDialog(data: updatedData, isManual: isManualEntry),
     );
     if (shouldSave != true || !mounted) return;
 
@@ -239,7 +241,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
         giftCard: updatedData.giftCard,
         other: updatedData.other,
         transactionDate: updatedData.transactionDate,
-        isManual: false,
+        isManual: isManualEntry,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -295,125 +297,142 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
               onTap: _showCameraPermissionDialog,
             ),
             const SizedBox(height: 16),
-            if (_dataExtracted)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    // Header
-                    Row(
-                      children: [
-                        const Text(
-                          'EXTRACTED DATA',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.8,
-                            color: Color(0xFF555555),
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1A2340),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: Colors.white,
-                                size: 14,
-                              ),
-                              SizedBox(width: 5),
-                              Text(
-                                'AUTO EXTRACT',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (_duplicateWarning) ...[
-                      const SizedBox(height: 10),
-                      const DepositDuplicateWarning(),
-                    ],
-                    const SizedBox(height: 16),
-                    DepositDataCard(
-                      orderNumberController: _orderNumberController,
-                      totalAmountController: _totalAmountController,
-                      creditDepositController: _creditDepositController,
-                      cashController: _cashController,
-                      giftCardController: _giftCardController,
-                      otherController: _otherController,
-                      transactionDate: _data.transactionDate,
-                      receiptImageBytes: _scannedImageBytes,
-                      onDeleteTap: _confirmDelete,
-                      onDateTap: _pickDate,
-                    ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  _AutoEntryHeader(hasExtractedData: _hasExtractedData),
+                  if (_duplicateWarning) ...[
+                    const SizedBox(height: 10),
+                    const DepositDuplicateWarning(),
                   ],
-                ),
+                  const SizedBox(height: 16),
+                  DepositDataCard(
+                    orderNumberController: _orderNumberController,
+                    totalAmountController: _totalAmountController,
+                    creditDepositController: _creditDepositController,
+                    cashController: _cashController,
+                    giftCardController: _giftCardController,
+                    otherController: _otherController,
+                    transactionDate: _data.transactionDate,
+                    receiptImageBytes: _scannedImageBytes,
+                    onDeleteTap: _confirmDelete,
+                    onDateTap: _pickDate,
+                  ),
+                ],
               ),
+            ),
             const SizedBox(height: 100),
           ],
         ),
       ),
-      bottomNavigationBar: _dataExtracted
-          ? SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _confirm,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1A2340),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Confirm',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                  ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _isSaving ? null : _confirm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A2340),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                elevation: 0,
               ),
-            )
-          : null,
+              child: _isSaving
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Confirm',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scanner Area (auto-mode only)
+// Auto-mode widgets
 // ─────────────────────────────────────────────────────────────────────────────
+
+class _AutoEntryHeader extends StatelessWidget {
+  final bool hasExtractedData;
+
+  const _AutoEntryHeader({required this.hasExtractedData});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          hasExtractedData ? 'EXTRACTED DATA' : 'MANUAL ENTRY',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+            color: Color(0xFF555555),
+          ),
+        ),
+        const Spacer(),
+        _AutoEntryStatusBadge(hasExtractedData: hasExtractedData),
+      ],
+    );
+  }
+}
+
+class _AutoEntryStatusBadge extends StatelessWidget {
+  final bool hasExtractedData;
+
+  const _AutoEntryStatusBadge({required this.hasExtractedData});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: hasExtractedData
+            ? const Color(0xFF1A2340)
+            : const Color(0xFF059669),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            hasExtractedData ? Icons.check_circle : Icons.edit_outlined,
+            color: Colors.white,
+            size: 14,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            hasExtractedData ? 'AUTO EXTRACT' : 'EDITABLE',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _ScannerArea extends StatelessWidget {
   final Uint8List? imageBytes;
