@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:savetep/features/auth/widgets/summary_card_shell.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/money_formatter.dart';
@@ -349,133 +350,207 @@ class _SavingSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF171638),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'TOTAL DEPOSIT',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    formatMoney(totalDeposits),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Text(
-                      'Saving rate ${_formatRate(savingRate)}%',
-                      style: const TextStyle(
-                        color: Color(0xFFFACC15),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                    IconButton(
-                      tooltip: 'Edit saving rate',
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
-                      ),
-                      icon: const Icon(
-                        Icons.edit_outlined,
-                        color: Color(0xFFFACC15),
-                        size: 18,
-                      ),
-                      onPressed: onEditRate,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _SavingSummaryMini(
-                        label: 'TOTAL TARGET',
-                        amount: totalSavingTarget,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _SavingSummaryMini(
-                        label: 'PER ${periodLabel.toUpperCase()}',
-                        amount: periodTarget,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+    return SummaryCardShell(
+      builder: (BuildContext context, SummaryCardMetrics metrics) {
+        final totalSavingWidth = (metrics.width * 0.34)
+            .clamp(104.0, metrics.isTablet ? 170.0 : 136.0)
+            .toDouble();
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: _SavingSummaryDetails(
+                totalDeposits: totalDeposits,
+                savingRate: savingRate,
+                totalSavingTarget: totalSavingTarget,
+                periodLabel: periodLabel,
+                periodTarget: periodTarget,
+                onEditRate: onEditRate,
+                metrics: metrics,
+              ),
+            ),
+            SummaryCardColumnDivider(
+              height: metrics.tallColumnDividerHeight,
+              horizontalMargin: metrics.columnDividerMargin,
+            ),
+            SizedBox(
+              width: totalSavingWidth,
+              child: _SavingTotalMetric(
+                totalSaving: totalSaving,
+                metrics: metrics,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SavingSummaryDetails extends StatelessWidget {
+  final double totalDeposits;
+  final double savingRate;
+  final double totalSavingTarget;
+  final String periodLabel;
+  final double periodTarget;
+  final VoidCallback onEditRate;
+  final SummaryCardMetrics metrics;
+
+  const _SavingSummaryDetails({
+    required this.totalDeposits,
+    required this.savingRate,
+    required this.totalSavingTarget,
+    required this.periodLabel,
+    required this.periodTarget,
+    required this.onEditRate,
+    required this.metrics,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final rateFontSize =
+        ((metrics.isTablet ? 14.0 : 13.0) * metrics.heightScale)
+            .clamp(11.0, metrics.isTablet ? 15.0 : 13.0)
+            .toDouble();
+    final totalDepositFontSize =
+        ((metrics.isTablet ? 30.0 : 28.0) * metrics.heightScale)
+            .clamp(22.0, metrics.isTablet ? 34.0 : 28.0)
+            .toDouble();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'TOTAL DEPOSIT',
+          style: TextStyle(
+            color: SummaryCardTokens.label,
+            fontSize: metrics.primaryLabelFontSize,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0,
+          ),
+        ),
+        SizedBox(height: metrics.primaryVerticalGap + 4),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            formatMoney(totalDeposits),
+            maxLines: 1,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: totalDepositFontSize,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
             ),
           ),
-          Container(
-            width: 120,
-            margin: const EdgeInsets.only(left: 14),
-            padding: const EdgeInsets.only(left: 16),
-            decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  width: 1,
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                'Saving rate ${_formatRate(savingRate)}%',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: SummaryCardTokens.balanceAmount,
+                  fontSize: rateFontSize,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
                 ),
               ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Total Saving',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    formatMoney(totalSaving),
-                    style: const TextStyle(
-                      color: Color(0xFFFACC15),
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(width: 2),
+            IconButton(
+              tooltip: 'Edit saving rate',
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              padding: EdgeInsets.zero,
+              icon: Icon(
+                Icons.edit_outlined,
+                color: SummaryCardTokens.balanceAmount,
+                size: metrics.isTablet ? 19 : 18,
+              ),
+              onPressed: onEditRate,
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: _SavingSummaryMini(
+                label: 'TOTAL TARGET',
+                amount: totalSavingTarget,
+                metrics: metrics,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _SavingSummaryMini(
+                label: 'PER ${periodLabel.toUpperCase()}',
+                amount: periodTarget,
+                metrics: metrics,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SavingTotalMetric extends StatelessWidget {
+  final double totalSaving;
+  final SummaryCardMetrics metrics;
+
+  const _SavingTotalMetric({required this.totalSaving, required this.metrics});
+
+  @override
+  Widget build(BuildContext context) {
+    final labelFontSize =
+        ((metrics.isTablet ? 14.0 : 13.0) * metrics.heightScale)
+            .clamp(11.0, metrics.isTablet ? 15.0 : 13.0)
+            .toDouble();
+    final amountFontSize =
+        ((metrics.isTablet ? 26.0 : 24.0) * metrics.heightScale)
+            .clamp(20.0, metrics.isTablet ? 30.0 : 24.0)
+            .toDouble();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Total Saving',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: SummaryCardTokens.secondaryLabel,
+            fontSize: labelFontSize,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0,
+          ),
+        ),
+        const SizedBox(height: 8),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            formatMoney(totalSaving),
+            maxLines: 1,
+            style: TextStyle(
+              color: SummaryCardTokens.balanceAmount,
+              fontSize: amountFontSize,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -544,11 +619,25 @@ class _SavingRateDialogState extends State<_SavingRateDialog> {
 class _SavingSummaryMini extends StatelessWidget {
   final String label;
   final double amount;
+  final SummaryCardMetrics metrics;
 
-  const _SavingSummaryMini({required this.label, required this.amount});
+  const _SavingSummaryMini({
+    required this.label,
+    required this.amount,
+    required this.metrics,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final labelFontSize =
+        ((metrics.isTablet ? 11.0 : 10.0) * metrics.heightScale)
+            .clamp(8.5, metrics.isTablet ? 12.0 : 10.0)
+            .toDouble();
+    final amountFontSize =
+        ((metrics.isTablet ? 15.0 : 14.0) * metrics.heightScale)
+            .clamp(12.0, metrics.isTablet ? 17.0 : 14.0)
+            .toDouble();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -556,11 +645,11 @@ class _SavingSummaryMini extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 10,
+          style: TextStyle(
+            color: SummaryCardTokens.label,
+            fontSize: labelFontSize,
             fontWeight: FontWeight.w800,
-            letterSpacing: 1,
+            letterSpacing: 0,
           ),
         ),
         const SizedBox(height: 3),
@@ -569,10 +658,11 @@ class _SavingSummaryMini extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: Text(
             formatMoney(amount),
-            style: const TextStyle(
-              color: Color(0xFF93C5FD),
-              fontSize: 14,
+            style: TextStyle(
+              color: SummaryCardTokens.supportingAmount,
+              fontSize: amountFontSize,
               fontWeight: FontWeight.w900,
+              letterSpacing: 0,
             ),
           ),
         ),

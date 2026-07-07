@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:savetep/features/auth/models/balance_summary_data.dart';
 import 'package:savetep/services/money_formatter.dart';
+import 'summary_card_shell.dart';
 
 const String _totalBalanceLabel = 'TOTAL BALANCE';
 const String _estimatedTaxAtYearEndLabel = 'ESTIMATED TAX AT YEAR END';
@@ -23,141 +24,81 @@ class BalanceSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final depositColor = data.totalDeposit >= 0
-        ? const Color(0xFF76C95F)
-        : const Color(0xFFFF5E63);
+        ? SummaryCardTokens.successAmount
+        : SummaryCardTokens.dangerAmount;
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(),
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final mediaSize = MediaQuery.sizeOf(context);
-          final heightScale = (mediaSize.height / 844)
-              .clamp(0.78, 1.15)
-              .toDouble();
-          final width = constraints.maxWidth.isFinite
-              ? constraints.maxWidth
-              : mediaSize.width;
-          final isTablet = width >= 600;
-          final baseHeight = width >= 600
-              ? 170.0
-              : width >= 380
-              ? 145.0
-              : 150.0;
-          final height = (baseHeight * heightScale)
-              .clamp(isTablet ? 150.0 : 112.0, isTablet ? 190.0 : 160.0)
-              .toDouble();
-          final padding = ((isTablet ? 18.0 : 14.0) * heightScale)
-              .clamp(isTablet ? 14.0 : 10.0, isTablet ? 20.0 : 14.0)
-              .toDouble();
-          final labelFontSize = ((isTablet ? 12.0 : 10.0) * heightScale)
-              .clamp(isTablet ? 10.5 : 8.5, isTablet ? 13.0 : 10.0)
-              .toDouble();
-          final amountFontSize = ((isTablet ? 26.0 : 22.0) * heightScale)
-              .clamp(isTablet ? 28.0 : 20.0, isTablet ? 38.0 : 28.0)
-              .toDouble();
-          final metricDividerHeight = ((isTablet ? 44.0 : 30.0) * heightScale)
-              .clamp(isTablet ? 36.0 : 22.0, isTablet ? 48.0 : 30.0)
-              .toDouble();
-          final metricDividerMargin = ((isTablet ? 14.0 : 10.0) * heightScale)
-              .clamp(isTablet ? 10.0 : 7.0, isTablet ? 16.0 : 10.0)
-              .toDouble();
-
-          return SizedBox(
-            height: height,
-            child: Container(
-              key: cardKey,
-              width: double.infinity,
-              padding: EdgeInsets.all(padding),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF064A42), Color(0xFF052D2E)],
-                ),
-                borderRadius: BorderRadius.circular(isTablet ? 22 : 18),
-                border: Border.all(color: const Color(0xFFBCA052), width: 1.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF052D2E).withValues(alpha: 0.22),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return SummaryCardShell(
+      cardKey: cardKey,
+      heightBuilder: (metrics) => metrics.balanceCardHeight,
+      builder: (BuildContext context, SummaryCardMetrics metrics) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: _PrimarySummaryMetric(
-                            label: _totalBalanceLabel,
-                            value: formatMoney(data.totalBalance),
-                            amountColor: const Color(0xFFFFC84D),
-                            labelFontSize: labelFontSize,
-                            amountFontSize: amountFontSize,
-                            verticalGap: isTablet ? 6 : 2,
-                          ),
-                        ),
-                        _SummaryColumnDivider(
-                          height: metricDividerHeight,
-                          horizontalMargin: metricDividerMargin,
-                        ),
-                        Expanded(
-                          child: _PrimarySummaryMetric(
-                            label: _estimatedTaxAtYearEndLabel,
-                            value: formatMoney(data.estimatedTaxAtYearEnd),
-                            amountColor: const Color(0xFFFF5E63),
-                            labelFontSize: labelFontSize,
-                            amountFontSize: amountFontSize,
-                            verticalGap: isTablet ? 6 : 2,
-                            onTap: onEstimatedTaxTap,
-                          ),
-                        ),
-                      ],
+                    child: _PrimarySummaryMetric(
+                      label: _totalBalanceLabel,
+                      value: formatMoney(data.totalBalance),
+                      amountColor: SummaryCardTokens.balanceAmount,
+                      labelFontSize: metrics.primaryLabelFontSize,
+                      amountFontSize: metrics.primaryAmountFontSize,
+                      verticalGap: metrics.primaryVerticalGap,
                     ),
                   ),
-                  Divider(
-                    height: 1,
-                    color: const Color(0xFFBCA052).withValues(alpha: 0.44),
+                  SummaryCardColumnDivider(
+                    height: metrics.columnDividerHeight,
+                    horizontalMargin: metrics.columnDividerMargin,
                   ),
-                  SizedBox(height: isTablet ? 10 : 6),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _SecondarySummaryMetric(
-                          label: _totalExpenseLabel,
-                          amount: data.totalExpense,
-                          icon: Icons.south_west_rounded,
-                          iconColor: const Color(0xFFFF5E63),
-                          amountColor: const Color(0xFFFF5E63),
-                          isTablet: isTablet,
-                        ),
-                      ),
-                      _SummaryColumnDivider(
-                        height: metricDividerHeight,
-                        horizontalMargin: metricDividerMargin,
-                      ),
-                      Expanded(
-                        child: _SecondarySummaryMetric(
-                          label: _totalDepositLabel,
-                          amount: data.totalDeposit,
-                          icon: Icons.account_balance_wallet_outlined,
-                          iconColor: depositColor,
-                          amountColor: depositColor,
-                          isTablet: isTablet,
-                        ),
-                      ),
-                    ],
+                  Expanded(
+                    child: _PrimarySummaryMetric(
+                      label: _estimatedTaxAtYearEndLabel,
+                      value: formatMoney(data.estimatedTaxAtYearEnd),
+                      amountColor: SummaryCardTokens.dangerAmount,
+                      labelFontSize: metrics.primaryLabelFontSize,
+                      amountFontSize: metrics.primaryAmountFontSize,
+                      verticalGap: metrics.primaryVerticalGap,
+                      onTap: onEstimatedTaxTap,
+                    ),
                   ),
                 ],
               ),
             ),
-          );
-        },
-      ),
+            const SummaryCardSectionDivider(),
+            SizedBox(height: metrics.sectionGap),
+            Row(
+              children: [
+                Expanded(
+                  child: _SecondarySummaryMetric(
+                    label: _totalExpenseLabel,
+                    amount: data.totalExpense,
+                    icon: Icons.south_west_rounded,
+                    iconColor: SummaryCardTokens.dangerAmount,
+                    amountColor: SummaryCardTokens.dangerAmount,
+                    isTablet: metrics.isTablet,
+                  ),
+                ),
+                SummaryCardColumnDivider(
+                  height: metrics.columnDividerHeight,
+                  horizontalMargin: metrics.columnDividerMargin,
+                ),
+                Expanded(
+                  child: _SecondarySummaryMetric(
+                    label: _totalDepositLabel,
+                    amount: data.totalDeposit,
+                    icon: Icons.account_balance_wallet_outlined,
+                    iconColor: depositColor,
+                    amountColor: depositColor,
+                    isTablet: metrics.isTablet,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -191,7 +132,7 @@ class _PrimarySummaryMetric extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: const Color(0xFFC6E2CE),
+            color: SummaryCardTokens.label,
             fontSize: labelFontSize,
             fontWeight: FontWeight.w800,
             letterSpacing: 0,
@@ -229,26 +170,6 @@ class _PrimarySummaryMetric extends StatelessWidget {
         onTap: onTap,
         child: content,
       ),
-    );
-  }
-}
-
-class _SummaryColumnDivider extends StatelessWidget {
-  final double height;
-  final double horizontalMargin;
-
-  const _SummaryColumnDivider({
-    required this.height,
-    required this.horizontalMargin,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: height,
-      margin: EdgeInsets.symmetric(horizontal: horizontalMargin),
-      color: const Color(0xFFBCA052).withValues(alpha: 0.28),
     );
   }
 }
@@ -314,7 +235,7 @@ class _SecondarySummaryMetric extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: const Color(0xFFE8F4DC),
+                  color: SummaryCardTokens.secondaryLabel,
                   fontSize: labelFontSize,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0,
