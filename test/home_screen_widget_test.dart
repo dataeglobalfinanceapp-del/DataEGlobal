@@ -93,6 +93,167 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('HomeScreen month selector filters a selected month', (
+    WidgetTester tester,
+  ) async {
+    AppClock.set(DateTime(2026, 7, 15));
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await LiabilityService.saveDeposit(
+      orderNumber: 'MAY-1',
+      totalAmount: 300,
+      creditDeposit: 300,
+      cash: 0,
+      giftCard: 0,
+      other: 0,
+      transactionDate: DateTime(2026, 5, 7, 14),
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'MAY-E',
+      totalAmount: 70,
+      transactionDate: DateTime(2026, 5, 8, 9),
+      category: 'Fuel',
+      payee: 'Fuel Stop',
+      isManual: true,
+    );
+    await LiabilityService.saveDeposit(
+      orderNumber: 'JUL-1',
+      totalAmount: 900,
+      creditDeposit: 900,
+      cash: 0,
+      giftCard: 0,
+      other: 0,
+      transactionDate: DateTime(2026, 7, 5),
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'JUL-E',
+      totalAmount: 400,
+      transactionDate: DateTime(2026, 7, 6),
+      category: 'Equipment',
+      payee: 'Equipment',
+      isManual: true,
+    );
+
+    await _pumpHomeScreen(tester);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Month'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('January'), findsOneWidget);
+    expect(find.text('July'), findsWidgets);
+    expect(find.text('August'), findsNothing);
+
+    await tester.tap(find.text('May'));
+    await tester.pumpAndSettle();
+
+    final dateRangeCard = find.byKey(const ValueKey('home.dateRangeCard'));
+    final summaryCard = find.byKey(const ValueKey('home.totalBalanceCard'));
+    expect(
+      find.descendant(of: dateRangeCard, matching: find.text('05/01 - 05/31')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summaryCard, matching: find.text(r'$230.00')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summaryCard, matching: find.text(r'$300.00')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summaryCard, matching: find.text(r'$70.00')),
+      findsOneWidget,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('HomeScreen quarter selector filters a selected quarter', (
+    WidgetTester tester,
+  ) async {
+    AppClock.set(DateTime(2026, 7, 15));
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await LiabilityService.saveDeposit(
+      orderNumber: 'Q2-1',
+      totalAmount: 500,
+      creditDeposit: 500,
+      cash: 0,
+      giftCard: 0,
+      other: 0,
+      transactionDate: DateTime(2026, 4, 10),
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'Q2-E',
+      totalAmount: 120,
+      transactionDate: DateTime(2026, 6, 20, 18),
+      category: 'Rent',
+      payee: 'Studio Rent',
+      isManual: true,
+    );
+    await LiabilityService.saveDeposit(
+      orderNumber: 'Q3-1',
+      totalAmount: 900,
+      creditDeposit: 900,
+      cash: 0,
+      giftCard: 0,
+      other: 0,
+      transactionDate: DateTime(2026, 7, 10),
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'Q3-E',
+      totalAmount: 300,
+      transactionDate: DateTime(2026, 7, 11),
+      category: 'Utilities',
+      payee: 'Power Co',
+      isManual: true,
+    );
+
+    await _pumpHomeScreen(tester);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('3 Months'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Q1'), findsOneWidget);
+    expect(find.text('Q2'), findsOneWidget);
+    expect(find.text('Q3'), findsWidgets);
+    expect(find.text('Q4'), findsNothing);
+
+    await tester.tap(find.text('Q2'));
+    await tester.pumpAndSettle();
+
+    final dateRangeCard = find.byKey(const ValueKey('home.dateRangeCard'));
+    final summaryCard = find.byKey(const ValueKey('home.totalBalanceCard'));
+    expect(
+      find.descendant(of: dateRangeCard, matching: find.text('04/01 - 06/30')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summaryCard, matching: find.text(r'$380.00')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summaryCard, matching: find.text(r'$500.00')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summaryCard, matching: find.text(r'$120.00')),
+      findsOneWidget,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('HomeScreen action grid follows responsive breakpoints', (
     WidgetTester tester,
   ) async {

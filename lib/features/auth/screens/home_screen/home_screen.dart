@@ -327,6 +327,145 @@ const List<_HomeFeatureAction> _homeFeatureActions = <_HomeFeatureAction>[
   ),
 ];
 
+enum _HomePeriodType {
+  day('Day'),
+  week('Week'),
+  month('Month'),
+  quarter('3 Months');
+
+  const _HomePeriodType(this.label);
+
+  final String label;
+}
+
+class _HomeDateRange {
+  final DateTime start;
+  final DateTime end;
+
+  const _HomeDateRange({required this.start, required this.end});
+}
+
+class _MonthOption {
+  final int month;
+  final String label;
+
+  const _MonthOption({required this.month, required this.label});
+}
+
+class _QuarterOption {
+  final int quarter;
+  final String label;
+
+  const _QuarterOption({required this.quarter, required this.label});
+}
+
+class _HomeDateRangeService {
+  const _HomeDateRangeService._();
+
+  static const int firstMonth = 1;
+  static const int monthsInQuarter = 3;
+  static const int weekLookbackDays = 6;
+
+  static _HomeDateRange rangeFor({
+    required _HomePeriodType period,
+    required int selectedMonth,
+    required int selectedQuarter,
+    required DateTime today,
+  }) {
+    final DateTime currentDay = dateOnly(today);
+
+    return switch (period) {
+      _HomePeriodType.day => _HomeDateRange(start: currentDay, end: currentDay),
+      _HomePeriodType.week => _HomeDateRange(
+        start: currentDay.subtract(const Duration(days: weekLookbackDays)),
+        end: currentDay,
+      ),
+      _HomePeriodType.month => _monthRange(
+        month: clampMonth(selectedMonth, currentDay),
+        today: currentDay,
+      ),
+      _HomePeriodType.quarter => _quarterRange(
+        quarter: clampQuarter(selectedQuarter, currentDay),
+        today: currentDay,
+      ),
+    };
+  }
+
+  static List<_MonthOption> availableMonthOptions(DateTime today) {
+    final DateTime currentDay = dateOnly(today);
+    return List<_MonthOption>.generate(currentDay.month, (int index) {
+      final int month = index + 1;
+      return _MonthOption(month: month, label: _monthNames[month]);
+    }, growable: false);
+  }
+
+  static List<_QuarterOption> availableQuarterOptions(DateTime today) {
+    final int current = currentQuarter(today);
+    return List<_QuarterOption>.generate(current, (int index) {
+      final int quarter = index + 1;
+      return _QuarterOption(quarter: quarter, label: 'Q$quarter');
+    }, growable: false);
+  }
+
+  static int currentQuarter(DateTime date) {
+    return ((dateOnly(date).month - 1) ~/ monthsInQuarter) + 1;
+  }
+
+  static int clampMonth(int month, DateTime today) {
+    return month.clamp(firstMonth, dateOnly(today).month).toInt();
+  }
+
+  static int clampQuarter(int quarter, DateTime today) {
+    return quarter.clamp(1, currentQuarter(today)).toInt();
+  }
+
+  static DateTime dateOnly(DateTime value) {
+    return DateTime(value.year, value.month, value.day);
+  }
+
+  static _HomeDateRange _monthRange({
+    required int month,
+    required DateTime today,
+  }) {
+    final DateTime start = DateTime(today.year, month);
+    final bool isCurrentMonth = month == today.month;
+    return _HomeDateRange(
+      start: start,
+      end: isCurrentMonth ? today : DateTime(today.year, month + 1, 0),
+    );
+  }
+
+  static _HomeDateRange _quarterRange({
+    required int quarter,
+    required DateTime today,
+  }) {
+    final int startMonth = ((quarter - 1) * monthsInQuarter) + firstMonth;
+    final int endMonth = startMonth + monthsInQuarter - 1;
+    final DateTime start = DateTime(today.year, startMonth);
+    final bool isCurrentQuarter = quarter == currentQuarter(today);
+    return _HomeDateRange(
+      start: start,
+      end: isCurrentQuarter ? today : DateTime(today.year, endMonth + 1, 0),
+    );
+  }
+}
+
+const List<String> _monthNames = <String>[
+  '',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -335,7 +474,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _selectedPeriod = 'Week';
+  _HomePeriodType _selectedPeriod = _HomePeriodType.week;
+  late int _selectedMonth;
+  late int _selectedQuarter;
   late DateTime _startDate;
   late DateTime _endDate;
   BudgetData _budgetData = const BudgetData();
@@ -345,6 +486,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    final DateTime today = AppClock.now;
+    _selectedMonth = today.month;
+    _selectedQuarter = _HomeDateRangeService.currentQuarter(today);
     LiabilityService.dataVersion.addListener(_handleBudgetDataChanged);
     _updateDateRange();
     unawaited(_loadBudgetData());
@@ -362,23 +506,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _updateDateRange() {
-    final now = AppClock.now;
-    _endDate = now;
+    final DateTime today = AppClock.now;
+    _selectedMonth = _HomeDateRangeService.clampMonth(_selectedMonth, today);
+    _selectedQuarter = _HomeDateRangeService.clampQuarter(
+      _selectedQuarter,
+      today,
+    );
 
-    switch (_selectedPeriod) {
-      case 'Day':
-        _startDate = DateTime(now.year, now.month, now.day);
-        break;
-      case 'Month':
-        _startDate = DateTime(now.year, now.month);
-        break;
-      case '3 Months':
-        _startDate = DateTime(now.year, now.month - 2);
-        break;
-      case 'Week':
-      default:
-        _startDate = now.subtract(const Duration(days: 6));
-    }
+    final _HomeDateRange range = _HomeDateRangeService.rangeFor(
+      period: _selectedPeriod,
+      selectedMonth: _selectedMonth,
+      selectedQuarter: _selectedQuarter,
+      today: today,
+    );
+    _startDate = range.start;
+    _endDate = range.end;
   }
 
   Future<void> _loadBudgetData() async {
@@ -409,12 +551,50 @@ class _HomeScreenState extends State<HomeScreen> {
     await _loadBudgetData();
   }
 
-  Future<void> _selectPeriod(String label) async {
+  void _selectPeriod(_HomePeriodType period) {
+    if (_selectedPeriod == period) return;
+
     setState(() {
-      _selectedPeriod = label;
+      _selectedPeriod = period;
       _updateDateRange();
     });
-    await _loadBudgetData();
+    unawaited(_loadBudgetData());
+  }
+
+  void _selectMonth(int month) {
+    final int availableMonth = _HomeDateRangeService.clampMonth(
+      month,
+      AppClock.now,
+    );
+    if (_selectedPeriod == _HomePeriodType.month &&
+        _selectedMonth == availableMonth) {
+      return;
+    }
+
+    setState(() {
+      _selectedPeriod = _HomePeriodType.month;
+      _selectedMonth = availableMonth;
+      _updateDateRange();
+    });
+    unawaited(_loadBudgetData());
+  }
+
+  void _selectQuarter(int quarter) {
+    final int availableQuarter = _HomeDateRangeService.clampQuarter(
+      quarter,
+      AppClock.now,
+    );
+    if (_selectedPeriod == _HomePeriodType.quarter &&
+        _selectedQuarter == availableQuarter) {
+      return;
+    }
+
+    setState(() {
+      _selectedPeriod = _HomePeriodType.quarter;
+      _selectedQuarter = availableQuarter;
+      _updateDateRange();
+    });
+    unawaited(_loadBudgetData());
   }
 
   @override
@@ -494,32 +674,23 @@ class _HomeScreenState extends State<HomeScreen> {
                           SizedBox(height: metrics.topPadding),
                           _buildDateRangePill(metrics, darkContrastEnabled),
                           SizedBox(height: metrics.compactSectionGap),
-                          Row(
-                            children: [
-                              _buildPeriodButton(
-                                'Day',
-                                metrics,
-                                darkContrastEnabled,
-                              ),
-                              SizedBox(width: metrics.tabGap),
-                              _buildPeriodButton(
-                                'Week',
-                                metrics,
-                                darkContrastEnabled,
-                              ),
-                              SizedBox(width: metrics.tabGap),
-                              _buildPeriodButton(
-                                'Month',
-                                metrics,
-                                darkContrastEnabled,
-                              ),
-                              SizedBox(width: metrics.tabGap),
-                              _buildPeriodButton(
-                                '3 Months',
-                                metrics,
-                                darkContrastEnabled,
-                              ),
-                            ],
+                          _HomeDateRangeSelector(
+                            metrics: metrics,
+                            darkContrastEnabled: darkContrastEnabled,
+                            selectedPeriod: _selectedPeriod,
+                            selectedMonth: _selectedMonth,
+                            selectedQuarter: _selectedQuarter,
+                            availableMonths:
+                                _HomeDateRangeService.availableMonthOptions(
+                                  AppClock.now,
+                                ),
+                            availableQuarters:
+                                _HomeDateRangeService.availableQuarterOptions(
+                                  AppClock.now,
+                                ),
+                            onPeriodSelected: _selectPeriod,
+                            onMonthSelected: _selectMonth,
+                            onQuarterSelected: _selectQuarter,
                           ),
                           SizedBox(height: metrics.sectionGap),
                           _buildBudgetSection(metrics, featureCount),
@@ -601,7 +772,7 @@ class _HomeScreenState extends State<HomeScreen> {
           width: metrics.contentWidth,
           child: BudgetDonutChart(
             data: _budgetData,
-            periodKey: _selectedPeriod,
+            periodKey: _selectedPeriod.label,
           ),
         ),
       ),
@@ -676,66 +847,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPeriodButton(
-    String label,
-    _HomeLayoutMetrics metrics,
-    bool darkContrastEnabled,
-  ) {
-    final isSelected = _selectedPeriod == label;
-    final bool isTablet = metrics.isTablet;
-    final scale = metrics.scaleFactor;
-    final radius = ((isTablet ? 12 : 9) * scale)
-        .clamp(isTablet ? 10.0 : 7.0, isTablet ? 14.0 : 10.0)
-        .toDouble();
-    final fontSize = ((isTablet ? 14 : 13) * scale)
-        .clamp(isTablet ? 12.0 : 10.5, isTablet ? 15.0 : 13.0)
-        .toDouble();
-
-    return Expanded(
-      child: SizedBox(
-        height: metrics.tabHeight,
-        child: ElevatedButton(
-          onPressed: () => _selectPeriod(label),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isSelected
-                ? (darkContrastEnabled
-                      ? DarkContrastPalette.primary
-                      : const Color(0xFF075E54))
-                : (darkContrastEnabled
-                      ? DarkContrastPalette.elevatedSurface
-                      : Colors.white),
-            foregroundColor: isSelected
-                ? (darkContrastEnabled ? Colors.black : Colors.white)
-                : (darkContrastEnabled
-                      ? DarkContrastPalette.text
-                      : const Color(0xFF173E37)),
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            side: isSelected
-                ? BorderSide.none
-                : BorderSide(
-                    color: darkContrastEnabled
-                        ? DarkContrastPalette.border
-                        : const Color(0xFFD7DEC9),
-                    width: 1,
-                  ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(radius),
-            ),
-          ),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              label,
-              maxLines: 1,
-              style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w800),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -832,5 +943,268 @@ class _HomeScreenState extends State<HomeScreen> {
   String _formatDate(DateTime date) {
     return '${date.month.toString().padLeft(2, '0')}/'
         '${date.day.toString().padLeft(2, '0')}';
+  }
+}
+
+class _HomeDateRangeSelector extends StatelessWidget {
+  final _HomeLayoutMetrics metrics;
+  final bool darkContrastEnabled;
+  final _HomePeriodType selectedPeriod;
+  final int selectedMonth;
+  final int selectedQuarter;
+  final List<_MonthOption> availableMonths;
+  final List<_QuarterOption> availableQuarters;
+  final ValueChanged<_HomePeriodType> onPeriodSelected;
+  final ValueChanged<int> onMonthSelected;
+  final ValueChanged<int> onQuarterSelected;
+
+  const _HomeDateRangeSelector({
+    required this.metrics,
+    required this.darkContrastEnabled,
+    required this.selectedPeriod,
+    required this.selectedMonth,
+    required this.selectedQuarter,
+    required this.availableMonths,
+    required this.availableQuarters,
+    required this.onPeriodSelected,
+    required this.onMonthSelected,
+    required this.onQuarterSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final List<_HomePeriodType> periods = _HomePeriodType.values;
+    return Row(
+      children: <Widget>[
+        for (int index = 0; index < periods.length; index += 1) ...<Widget>[
+          Expanded(child: _buildPeriodSegment(periods[index])),
+          if (index < periods.length - 1) SizedBox(width: metrics.tabGap),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPeriodSegment(_HomePeriodType period) {
+    return switch (period) {
+      _HomePeriodType.month => _PeriodMenuAnchor<_MonthOption>(
+        period: period,
+        options: availableMonths,
+        optionLabel: (_MonthOption option) => option.label,
+        isOptionSelected: (_MonthOption option) =>
+            option.month == selectedMonth,
+        onOptionSelected: (_MonthOption option) =>
+            onMonthSelected(option.month),
+        onPeriodSelected: onPeriodSelected,
+        buttonBuilder: (VoidCallback onPressed) {
+          return _HomePeriodButton(
+            label: period.label,
+            detail: selectedPeriod == period
+                ? _monthNames[selectedMonth]
+                : null,
+            isSelected: selectedPeriod == period,
+            metrics: metrics,
+            darkContrastEnabled: darkContrastEnabled,
+            onPressed: onPressed,
+          );
+        },
+      ),
+      _HomePeriodType.quarter => _PeriodMenuAnchor<_QuarterOption>(
+        period: period,
+        options: availableQuarters,
+        optionLabel: (_QuarterOption option) => option.label,
+        isOptionSelected: (_QuarterOption option) =>
+            option.quarter == selectedQuarter,
+        onOptionSelected: (_QuarterOption option) =>
+            onQuarterSelected(option.quarter),
+        onPeriodSelected: onPeriodSelected,
+        buttonBuilder: (VoidCallback onPressed) {
+          return _HomePeriodButton(
+            label: period.label,
+            detail: selectedPeriod == period ? 'Q$selectedQuarter' : null,
+            isSelected: selectedPeriod == period,
+            metrics: metrics,
+            darkContrastEnabled: darkContrastEnabled,
+            onPressed: onPressed,
+          );
+        },
+      ),
+      _ => _HomePeriodButton(
+        label: period.label,
+        isSelected: selectedPeriod == period,
+        metrics: metrics,
+        darkContrastEnabled: darkContrastEnabled,
+        onPressed: () => onPeriodSelected(period),
+      ),
+    };
+  }
+}
+
+class _PeriodMenuAnchor<T> extends StatelessWidget {
+  final _HomePeriodType period;
+  final List<T> options;
+  final String Function(T option) optionLabel;
+  final bool Function(T option) isOptionSelected;
+  final ValueChanged<T> onOptionSelected;
+  final ValueChanged<_HomePeriodType> onPeriodSelected;
+  final Widget Function(VoidCallback onPressed) buttonBuilder;
+
+  const _PeriodMenuAnchor({
+    required this.period,
+    required this.options,
+    required this.optionLabel,
+    required this.isOptionSelected,
+    required this.onOptionSelected,
+    required this.onPeriodSelected,
+    required this.buttonBuilder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MenuAnchor(
+      alignmentOffset: const Offset(0, 4),
+      menuChildren: options
+          .map<Widget>(
+            (T option) => MenuItemButton(
+              leadingIcon: isOptionSelected(option)
+                  ? const Icon(Icons.check, size: 18)
+                  : const SizedBox(width: 18),
+              onPressed: () => onOptionSelected(option),
+              child: Text(optionLabel(option)),
+            ),
+          )
+          .toList(growable: false),
+      builder:
+          (BuildContext context, MenuController controller, Widget? child) {
+            return buttonBuilder(() {
+              onPeriodSelected(period);
+              controller.isOpen ? controller.close() : controller.open();
+            });
+          },
+    );
+  }
+}
+
+class _HomePeriodButton extends StatelessWidget {
+  final String label;
+  final String? detail;
+  final bool isSelected;
+  final _HomeLayoutMetrics metrics;
+  final bool darkContrastEnabled;
+  final VoidCallback? onPressed;
+
+  const _HomePeriodButton({
+    required this.label,
+    this.detail,
+    required this.isSelected,
+    required this.metrics,
+    required this.darkContrastEnabled,
+    this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isTablet = metrics.isTablet;
+    final scale = metrics.scaleFactor;
+    final radius = ((isTablet ? 12 : 9) * scale)
+        .clamp(isTablet ? 10.0 : 7.0, isTablet ? 14.0 : 10.0)
+        .toDouble();
+    final fontSize = ((isTablet ? 14 : 13) * scale)
+        .clamp(isTablet ? 12.0 : 10.5, isTablet ? 15.0 : 13.0)
+        .toDouble();
+    final detailFontSize = (fontSize * 0.78).clamp(9.0, 11.0).toDouble();
+
+    return SizedBox(
+      height: metrics.tabHeight,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isSelected
+              ? (darkContrastEnabled
+                    ? DarkContrastPalette.primary
+                    : const Color(0xFF075E54))
+              : (darkContrastEnabled
+                    ? DarkContrastPalette.elevatedSurface
+                    : Colors.white),
+          foregroundColor: isSelected
+              ? (darkContrastEnabled ? Colors.black : Colors.white)
+              : (darkContrastEnabled
+                    ? DarkContrastPalette.text
+                    : const Color(0xFF173E37)),
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          side: isSelected
+              ? BorderSide.none
+              : BorderSide(
+                  color: darkContrastEnabled
+                      ? DarkContrastPalette.border
+                      : const Color(0xFFD7DEC9),
+                  width: 1,
+                ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius),
+          ),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: _PeriodButtonLabel(
+            label: label,
+            detail: detail,
+            fontSize: fontSize,
+            detailFontSize: detailFontSize,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PeriodButtonLabel extends StatelessWidget {
+  final String label;
+  final String? detail;
+  final double fontSize;
+  final double detailFontSize;
+
+  const _PeriodButtonLabel({
+    required this.label,
+    required this.detail,
+    required this.fontSize,
+    required this.detailFontSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final String? selectedDetail = detail;
+    if (selectedDetail == null || selectedDetail.trim().isEmpty) {
+      return Text(
+        label,
+        maxLines: 1,
+        style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w800),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          label,
+          maxLines: 1,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: FontWeight.w800,
+            height: 1,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          selectedDetail,
+          maxLines: 1,
+          style: TextStyle(
+            fontSize: detailFontSize,
+            fontWeight: FontWeight.w800,
+            height: 1,
+          ),
+        ),
+      ],
+    );
   }
 }
