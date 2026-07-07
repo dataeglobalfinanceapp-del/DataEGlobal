@@ -7,6 +7,8 @@ import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/recurrence_schedule.dart';
 
 import 'payroll_models.dart';
+import 'payroll_pay_date_validator.dart';
+import 'payroll_schedule_calculator.dart';
 import 'payroll_service.dart';
 
 class PayrollViewState {
@@ -67,7 +69,9 @@ class PayrollController extends ChangeNotifier {
   }
 
   void setPayDate(DateTime payDate) {
-    final DateTime nextPayDate = RecurrenceSchedule.dateOnly(payDate);
+    final DateTime nextPayDate = PayrollPayDateValidator.normalizePayDate(
+      payDate,
+    );
     if (RecurrenceSchedule.isSameDate(_payroll.payDate, nextPayDate)) return;
 
     _payroll = _payroll.copyWith(payDate: nextPayDate);
@@ -79,6 +83,21 @@ class PayrollController extends ChangeNotifier {
     if (_payroll.schedule == schedule) return;
 
     _payroll = _payroll.copyWith(schedule: schedule);
+    _rebuildState();
+    _notify();
+  }
+
+  void setBiweeklyPeriodBeginDate(DateTime beginDate) {
+    final DateTime nextBeginDate =
+        PayrollScheduleCalculator.normalizeBiweeklyPeriodBeginDate(beginDate);
+    if (RecurrenceSchedule.isSameDate(
+      _payroll.biweeklyPeriodBeginDate,
+      nextBeginDate,
+    )) {
+      return;
+    }
+
+    _payroll = _payroll.copyWith(biweeklyPeriodBeginDate: nextBeginDate);
     _rebuildState();
     _notify();
   }

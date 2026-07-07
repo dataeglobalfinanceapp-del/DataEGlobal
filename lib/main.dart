@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:flutter/material.dart';
@@ -26,14 +27,15 @@ import 'theme/dark_contrast.dart';
 import 'widgets/test_clock_overlay.dart';
 
 final GlobalKey<NavigatorState> _appNavigatorKey = GlobalKey<NavigatorState>();
-
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
     await _configureAmplify();
-    runApp(const SaveTepApp());
+    runApp(const ProviderScope(child: SaveTepApp()));
   } on AmplifyException catch (e) {
-    runApp(_AmplifyConfigurationErrorApp(message: e.message));
+    runApp(
+      ProviderScope(child: _AmplifyConfigurationErrorApp(message: e.message)),
+    ); // ← remove const
   }
 }
 

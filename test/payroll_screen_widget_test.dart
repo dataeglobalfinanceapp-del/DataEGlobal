@@ -61,6 +61,37 @@ void main() {
       expect(find.text('Total Deposit'), findsNothing);
       expect(find.text('Total Expense'), findsNothing);
       expect(find.byType(SingleChildScrollView), findsNothing);
+      expect(find.text('06/16/2026'), findsOneWidget);
+
+      await tester.tap(find.text('06/16/2026'));
+      await tester.pumpAndSettle();
+      expect(find.text('Choose pay date'), findsOneWidget);
+      await tester.tap(find.text('15').last, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      expect(find.text('06/16/2026'), findsOneWidget);
+      expect(find.text('Period begin date'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('payroll.biweeklyPeriodBeginDate')),
+        findsOneWidget,
+      );
+      expect(find.text('06/01/2026'), findsOneWidget);
+      expect(find.text('06/01/2026 - 06/14/2026'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.biweeklyPeriodBeginDate')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Choose period begin date'), findsOneWidget);
+      await tester.tap(find.text('2').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('06/02/2026'), findsOneWidget);
+      expect(find.text('06/02/2026 - 06/15/2026'), findsOneWidget);
+      expect(find.text('06/16/2026'), findsOneWidget);
 
       await tester.enterText(
         find.byKey(const ValueKey<String>('payroll.employee.0.rate')),

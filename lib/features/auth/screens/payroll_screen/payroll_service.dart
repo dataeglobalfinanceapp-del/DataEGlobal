@@ -7,6 +7,8 @@ import 'package:savetep/services/recurrence_schedule.dart';
 import 'package:savetep/services/reminder_service.dart';
 
 import 'payroll_models.dart';
+import 'payroll_pay_date_validator.dart';
+import 'payroll_schedule_calculator.dart';
 
 class PayrollService {
   static const String _storageKey = 'savetep_payroll_data_v1';
@@ -78,6 +80,7 @@ class PayrollService {
     PayrollRecord saved = payroll.id.trim().isEmpty
         ? payroll.copyWith(id: _newId('payroll'))
         : payroll;
+    saved = _withValidPayDate(saved);
 
     final String? syncedExpenseId = await LiabilityService.syncPayrollExpense(
       payrollId: saved.id,
@@ -118,6 +121,7 @@ class PayrollService {
     PayrollRecord saved = payroll.id.trim().isEmpty
         ? payroll.copyWith(id: _newId('payroll'))
         : payroll;
+    saved = _withValidPayDate(saved);
 
     if (clearPayrollExpense && saved.syncedExpenseId.trim().isNotEmpty) {
       await LiabilityService.syncPayrollExpense(
@@ -170,6 +174,7 @@ class PayrollService {
     return PayrollRecord(
       id: _newId('payroll'),
       payDate: _nextPayDate(payroll),
+      biweeklyPeriodBeginDate: _nextBiweeklyPeriodBeginDate(payroll),
       schedule: payroll.schedule,
       processDaysBefore: payroll.processDaysBefore,
       employees: employees,
@@ -184,6 +189,16 @@ class PayrollService {
     };
   }
 
+  static DateTime _nextBiweeklyPeriodBeginDate(PayrollRecord payroll) {
+    if (payroll.schedule != PayrollSchedule.biWeekly) {
+      return payroll.biweeklyPeriodBeginDate;
+    }
+
+    return payroll.biweeklyPeriodBeginDate.add(
+      const Duration(days: PayrollScheduleCalculator.biweeklyPeriodDays),
+    );
+  }
+
   static DateTime _addMonthsClamped(DateTime date, int months) {
     final totalMonths = date.year * 12 + date.month - 1 + months;
     final year = totalMonths ~/ 12;
@@ -193,14 +208,26 @@ class PayrollService {
   }
 
   static void _upsertPayroll(PayrollRecord payroll) {
+    final PayrollRecord validPayroll = _withValidPayDate(payroll);
     final int index = _records.indexWhere(
-      (PayrollRecord record) => record.id == payroll.id,
+      (PayrollRecord record) => record.id == validPayroll.id,
     );
     if (index == -1) {
-      _records.add(payroll);
+      _records.add(validPayroll);
     } else {
-      _records[index] = payroll;
+      _records[index] = validPayroll;
     }
+  }
+
+  static PayrollRecord _withValidPayDate(PayrollRecord payroll) {
+    final DateTime validPayDate = PayrollPayDateValidator.normalizePayDate(
+      payroll.payDate,
+    );
+    if (RecurrenceSchedule.isSameDate(payroll.payDate, validPayDate)) {
+      return payroll;
+    }
+
+    return payroll.copyWith(payDate: validPayDate);
   }
 
   static void resetForTesting({bool disablePersistence = true}) {

@@ -3,12 +3,14 @@ part of '../payroll_screen.dart';
 class _PayrollSetupCard extends StatelessWidget {
   final PayrollViewState state;
   final VoidCallback onPickPayDate;
+  final VoidCallback onPickBiweeklyPeriodBeginDate;
   final VoidCallback onChooseProcessDays;
   final ValueChanged<PayrollSchedule> onScheduleChanged;
 
   const _PayrollSetupCard({
     required this.state,
     required this.onPickPayDate,
+    required this.onPickBiweeklyPeriodBeginDate,
     required this.onChooseProcessDays,
     required this.onScheduleChanged,
   });
@@ -83,14 +85,9 @@ class _PayrollSetupCard extends StatelessWidget {
               const SizedBox(height: 18),
               const Divider(height: 1, color: _PayrollTokens.divider),
               const SizedBox(height: 18),
-              _ReadOnlyField(
-                label: 'PAY PERIOD',
-                value:
-                    '${_formatDate(payroll.payPeriodStart)} - ${_formatDate(payroll.payPeriodEnd)}',
-                trailing: const Icon(
-                  Icons.keyboard_arrow_down,
-                  color: _PayrollTokens.textMuted,
-                ),
+              _PayPeriodSection(
+                payroll: payroll,
+                onPickBiweeklyPeriodBeginDate: onPickBiweeklyPeriodBeginDate,
               ),
               if (payroll.unconfirmedEmployeeCount > 0) ...<Widget>[
                 const SizedBox(height: 10),
@@ -291,11 +288,13 @@ class _DateInputTile extends StatelessWidget {
   final String label;
   final String value;
   final VoidCallback onTap;
+  final Key? fieldKey;
 
   const _DateInputTile({
     required this.label,
     required this.value,
     required this.onTap,
+    this.fieldKey,
   });
 
   @override
@@ -306,11 +305,49 @@ class _DateInputTile extends StatelessWidget {
         Text(label, style: _PayrollTokens.fieldLabel),
         const SizedBox(height: 14),
         _TappableField(
+          key: fieldKey,
           value: value,
           icon: Icons.calendar_month_outlined,
           onTap: onTap,
         ),
       ],
+    );
+  }
+}
+
+class _PayPeriodSection extends StatelessWidget {
+  final PayrollRecord payroll;
+  final VoidCallback onPickBiweeklyPeriodBeginDate;
+
+  const _PayPeriodSection({
+    required this.payroll,
+    required this.onPickBiweeklyPeriodBeginDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget payPeriodField = _ReadOnlyField(
+      label: 'PAY PERIOD',
+      value:
+          '${_formatDate(payroll.payPeriodStart)} - ${_formatDate(payroll.payPeriodEnd)}',
+      trailing: const Icon(
+        Icons.keyboard_arrow_down,
+        color: _PayrollTokens.textMuted,
+      ),
+    );
+
+    if (payroll.schedule != PayrollSchedule.biWeekly) {
+      return payPeriodField;
+    }
+
+    return _ResponsiveFieldPair(
+      first: _DateInputTile(
+        label: 'Period begin date',
+        value: _formatDate(payroll.biweeklyPeriodBeginDate),
+        fieldKey: const ValueKey<String>('payroll.biweeklyPeriodBeginDate'),
+        onTap: onPickBiweeklyPeriodBeginDate,
+      ),
+      second: payPeriodField,
     );
   }
 }
@@ -398,6 +435,7 @@ class _TappableField extends StatelessWidget {
   final VoidCallback onTap;
 
   const _TappableField({
+    super.key,
     required this.value,
     required this.icon,
     required this.onTap,

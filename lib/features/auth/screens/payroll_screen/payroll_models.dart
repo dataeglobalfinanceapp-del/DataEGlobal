@@ -1,6 +1,9 @@
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/recurrence_schedule.dart';
 
+import 'payroll_pay_date_validator.dart';
+import 'payroll_schedule_calculator.dart';
+
 enum PayrollSchedule {
   biWeekly,
   monthly;
@@ -201,26 +204,35 @@ class PayrollEmployee {
 class PayrollRecord {
   final String id;
   final DateTime payDate;
+  final DateTime biweeklyPeriodBeginDate;
   final PayrollSchedule schedule;
   final int processDaysBefore;
   final List<PayrollEmployee> employees;
   final String syncedExpenseId;
   final String reminderSeriesId;
 
-  const PayrollRecord({
+  PayrollRecord({
     required this.id,
     required this.payDate,
+    DateTime? biweeklyPeriodBeginDate,
     required this.schedule,
     required this.processDaysBefore,
     required this.employees,
     this.syncedExpenseId = '',
     this.reminderSeriesId = '',
-  });
+  }) : biweeklyPeriodBeginDate =
+           PayrollScheduleCalculator.normalizeBiweeklyPeriodBeginDate(
+             biweeklyPeriodBeginDate,
+           );
 
   factory PayrollRecord.draft({required String id, DateTime? payDate}) {
     return PayrollRecord(
       id: id,
-      payDate: _dateOnly(payDate ?? AppClock.now),
+      payDate: PayrollPayDateValidator.normalizePayDate(
+        payDate ?? AppClock.now,
+      ),
+      biweeklyPeriodBeginDate:
+          PayrollScheduleCalculator.defaultBiweeklyPeriodBeginDate(),
       schedule: PayrollSchedule.biWeekly,
       processDaysBefore: 7,
       employees: defaultEmployees,
@@ -238,7 +250,13 @@ class PayrollRecord {
 
     return PayrollRecord(
       id: _asString(json['id'], fallback: _fallbackId('payroll')),
-      payDate: _dateOnly(_asDate(json['payDate'])),
+      payDate: PayrollPayDateValidator.normalizePayDate(
+        _asDate(json['payDate']),
+      ),
+      biweeklyPeriodBeginDate:
+          PayrollScheduleCalculator.normalizeBiweeklyPeriodBeginDate(
+            _asOptionalDate(json['biweeklyPeriodBeginDate']),
+          ),
       schedule: PayrollSchedule.fromLabel(_asString(json['schedule'])),
       processDaysBefore: _asInt(
         json['processDaysBefore'],
@@ -322,19 +340,26 @@ class PayrollRecord {
 
   DateTime get payPeriodStart {
     if (schedule == PayrollSchedule.monthly) {
-      final previousMonth = DateTime(payDate.year, payDate.month - 1);
-      return DateTime(previousMonth.year, previousMonth.month);
+      return PayrollScheduleCalculator.calculateMonthlyPayPeriod(
+        payDate: payDate,
+      ).start;
     }
 
-    return payPeriodEnd.subtract(const Duration(days: 13));
+    return PayrollScheduleCalculator.calculateBiweeklyPayPeriod(
+      beginDate: biweeklyPeriodBeginDate,
+    ).start;
   }
 
   DateTime get payPeriodEnd {
     if (schedule == PayrollSchedule.monthly) {
-      return DateTime(payDate.year, payDate.month, 0);
+      return PayrollScheduleCalculator.calculateMonthlyPayPeriod(
+        payDate: payDate,
+      ).end;
     }
 
-    return _dateOnly(payDate).subtract(const Duration(days: 6));
+    return PayrollScheduleCalculator.calculateBiweeklyPayPeriod(
+      beginDate: biweeklyPeriodBeginDate,
+    ).end;
   }
 
   String get processInstruction =>
@@ -343,6 +368,7 @@ class PayrollRecord {
   PayrollRecord copyWith({
     String? id,
     DateTime? payDate,
+    DateTime? biweeklyPeriodBeginDate,
     PayrollSchedule? schedule,
     int? processDaysBefore,
     List<PayrollEmployee>? employees,
@@ -351,7 +377,13 @@ class PayrollRecord {
   }) {
     return PayrollRecord(
       id: id ?? this.id,
-      payDate: _dateOnly(payDate ?? this.payDate),
+      payDate: PayrollPayDateValidator.normalizePayDate(
+        payDate ?? this.payDate,
+      ),
+      biweeklyPeriodBeginDate:
+          PayrollScheduleCalculator.normalizeBiweeklyPeriodBeginDate(
+            biweeklyPeriodBeginDate ?? this.biweeklyPeriodBeginDate,
+          ),
       schedule: schedule ?? this.schedule,
       processDaysBefore: (processDaysBefore ?? this.processDaysBefore)
           .clamp(1, 31)
@@ -367,6 +399,7 @@ class PayrollRecord {
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
     'payDate': payDate.toIso8601String(),
+    'biweeklyPeriodBeginDate': biweeklyPeriodBeginDate.toIso8601String(),
     'schedule': schedule.label,
     'processDaysBefore': processDaysBefore,
     'employees': employees
@@ -406,4 +439,9 @@ int _asInt(Object? value, {int fallback = 0}) {
 
 DateTime _asDate(Object? value) {
   return DateTime.tryParse(value?.toString() ?? '') ?? AppClock.now;
+}
+
+DateTime? _asOptionalDate(Object? value) {
+  final DateTime? date = DateTime.tryParse(value?.toString() ?? '');
+  return date == null ? null : _dateOnly(date);
 }

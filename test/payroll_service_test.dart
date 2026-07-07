@@ -185,6 +185,7 @@ void main() {
       final currentPayroll = await PayrollService.loadCurrentPayroll();
 
       expect(currentPayroll.payDate, DateTime(2026, 7, 4));
+      expect(currentPayroll.biweeklyPeriodBeginDate, DateTime(2026, 6, 1));
       expect(
         currentPayroll.employees.single.payrollAction,
         PayrollAction.vacation,
@@ -193,6 +194,25 @@ void main() {
       expect(currentPayroll.employees.single.totalPay, 0);
     },
   );
+
+  test('saving a draft normalizes invalid pay dates before storage', () async {
+    final saved = await PayrollService.savePayrollDraft(
+      PayrollRecord(
+        id: 'payroll-invalid-date',
+        payDate: DateTime(2026, 6, 15),
+        biweeklyPeriodBeginDate: DateTime(2026, 4, 30),
+        schedule: PayrollSchedule.biWeekly,
+        processDaysBefore: 7,
+        employees: const <PayrollEmployee>[],
+      ),
+    );
+    final payrolls = await PayrollService.loadPayrolls();
+
+    expect(saved.payDate, DateTime(2026, 6, 16));
+    expect(saved.biweeklyPeriodBeginDate, DateTime(2026, 6, 1));
+    expect(payrolls.single.payDate, DateTime(2026, 6, 16));
+    expect(payrolls.single.biweeklyPeriodBeginDate, DateTime(2026, 6, 1));
+  });
 }
 
 String _dateKey(DateTime date) {

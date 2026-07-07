@@ -6,6 +6,8 @@ import 'package:savetep/services/money_formatter.dart';
 
 import 'payroll_controller.dart';
 import 'payroll_models.dart';
+import 'payroll_pay_date_validator.dart';
+import 'payroll_schedule_calculator.dart';
 
 part 'payroll/tabs.dart';
 part 'payroll/employees_tab.dart';
@@ -71,16 +73,44 @@ class _PayrollScreenState extends State<PayrollScreen> {
 
   Future<void> _pickPayDate() async {
     final PayrollRecord payroll = _controller.state.payroll;
+    final DateTime firstSelectableDate =
+        PayrollPayDateValidator.firstSelectablePayDate();
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: payroll.payDate,
-      firstDate: DateTime(2020),
+      initialDate: PayrollPayDateValidator.normalizePayDate(payroll.payDate),
+      firstDate: firstSelectableDate,
       lastDate: DateTime(2100, 12, 31),
+      currentDate: AppClock.now,
       helpText: 'Choose pay date',
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
+      selectableDayPredicate: (DateTime date) {
+        return PayrollPayDateValidator.isSelectablePayDate(date);
+      },
     );
     if (picked == null || !mounted) return;
 
     _controller.setPayDate(picked);
+  }
+
+  Future<void> _pickBiweeklyPeriodBeginDate() async {
+    final PayrollRecord payroll = _controller.state.payroll;
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: payroll.biweeklyPeriodBeginDate,
+      firstDate: PayrollScheduleCalculator.earliestBiweeklyPeriodBeginDate(),
+      lastDate: PayrollScheduleCalculator.latestBiweeklyPeriodBeginDate(),
+      currentDate: AppClock.now,
+      helpText: 'Choose period begin date',
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
+      selectableDayPredicate: (DateTime date) {
+        return PayrollScheduleCalculator.isSelectableBiweeklyPeriodBeginDate(
+          date,
+        );
+      },
+    );
+    if (picked == null || !mounted) return;
+
+    _controller.setBiweeklyPeriodBeginDate(picked);
   }
 
   Future<void> _chooseProcessDays() async {
@@ -181,6 +211,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
                 _PayrollTabContentConsumer(
                   controller: _controller,
                   onPickPayDate: _pickPayDate,
+                  onPickBiweeklyPeriodBeginDate: _pickBiweeklyPeriodBeginDate,
                   onChooseProcessDays: _chooseProcessDays,
                   onScheduleChanged: _controller.setSchedule,
                   onAddEmployee: _controller.addEmployee,

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/domain/services/employee_service.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_controller.dart';
+import 'package:savetep/features/auth/screens/payroll_screen/payroll_models.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_service.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
@@ -24,32 +25,78 @@ void main() {
     ReminderService.resetForTesting(disablePersistence: false);
   });
 
-  test('pay period total pay follows the selected payroll date', () async {
-    await LiabilityService.saveExpense(
-      checkNumber: 'PAY-1',
-      totalAmount: 100,
-      transactionDate: DateTime(2026, 6, 15),
-      category: 'Payroll',
-      payee: 'Payroll',
-      isManual: true,
-    );
-    await LiabilityService.saveExpense(
-      checkNumber: 'PAY-2',
-      totalAmount: 200,
-      transactionDate: DateTime(2026, 6, 29),
-      category: 'Payroll',
-      payee: 'Payroll',
-      isManual: true,
-    );
+  test(
+    'monthly pay period total pay follows the selected payroll date',
+    () async {
+      await LiabilityService.saveExpense(
+        checkNumber: 'PAY-1',
+        totalAmount: 100,
+        transactionDate: DateTime(2026, 6, 16),
+        category: 'Payroll',
+        payee: 'Payroll',
+        isManual: true,
+      );
+      await LiabilityService.saveExpense(
+        checkNumber: 'PAY-2',
+        totalAmount: 200,
+        transactionDate: DateTime(2026, 7, 16),
+        category: 'Payroll',
+        payee: 'Payroll',
+        isManual: true,
+      );
 
+      final PayrollController controller = PayrollController();
+      addTearDown(controller.dispose);
+
+      await controller.load();
+      controller.setSchedule(PayrollSchedule.monthly);
+      expect(controller.state.payPeriodTotalPay, 100);
+
+      controller.setPayDate(DateTime(2026, 7, 16));
+      expect(controller.state.payPeriodTotalPay, 200);
+    },
+  );
+
+  test('biweekly pay period follows the selected period begin date', () async {
     final PayrollController controller = PayrollController();
     addTearDown(controller.dispose);
 
     await controller.load();
-    expect(controller.state.payPeriodTotalPay, 100);
 
-    controller.setPayDate(DateTime(2026, 6, 29));
-    expect(controller.state.payPeriodTotalPay, 200);
+    expect(
+      controller.state.payroll.biweeklyPeriodBeginDate,
+      DateTime(2026, 6, 1),
+    );
+    expect(controller.state.payroll.payPeriodStart, DateTime(2026, 6, 1));
+    expect(controller.state.payroll.payPeriodEnd, DateTime(2026, 6, 14));
+    expect(controller.state.payroll.payDate, DateTime(2026, 6, 16));
+
+    controller.setBiweeklyPeriodBeginDate(DateTime(2026, 6, 2));
+
+    expect(
+      controller.state.payroll.biweeklyPeriodBeginDate,
+      DateTime(2026, 6, 2),
+    );
+    expect(controller.state.payroll.payPeriodStart, DateTime(2026, 6, 2));
+    expect(controller.state.payroll.payPeriodEnd, DateTime(2026, 6, 15));
+    expect(controller.state.payroll.payDate, DateTime(2026, 6, 16));
+  });
+
+  test('pay date updates normalize today and past dates to tomorrow', () async {
+    final PayrollController controller = PayrollController();
+    addTearDown(controller.dispose);
+
+    await controller.load();
+    expect(controller.state.payroll.payDate, DateTime(2026, 6, 16));
+
+    controller.setPayDate(DateTime(2026, 6, 15));
+    expect(controller.state.payroll.payDate, DateTime(2026, 6, 16));
+
+    controller.setPayDate(DateTime(2026, 6, 1));
+    expect(controller.state.payroll.payDate, DateTime(2026, 6, 16));
+
+    controller.setPayDate(DateTime(2026, 6, 17));
+    expect(controller.state.payroll.payDate, DateTime(2026, 6, 17));
   });
 
   test(
