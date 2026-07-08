@@ -33,7 +33,7 @@ class _EmployeeInformationDialogState
   late final TextEditingController _addressController;
   late final TextEditingController _dateHireController;
   late final TextEditingController _linkW4Controller;
-  late String _jobType;
+  late String? _jobType;
   bool _isEditing = false;
 
   @override
@@ -46,9 +46,7 @@ class _EmployeeInformationDialogState
     _addressController = TextEditingController(text: _employee.address);
     _dateHireController = TextEditingController(text: _employee.dateHire);
     _linkW4Controller = TextEditingController(text: _employee.linkW4);
-    _jobType = _jobTypes.contains(_employee.jobType)
-        ? _employee.jobType
-        : _jobTypes.first;
+    _jobType = _jobTypes.contains(_employee.jobType) ? _employee.jobType : null;
   }
 
   @override
@@ -75,7 +73,7 @@ class _EmployeeInformationDialogState
       phone: _phoneController.text.trim(),
       address: _addressController.text.trim(),
       dateHire: _dateHireController.text.trim(),
-      jobType: _jobType,
+      jobType: _jobType ?? '',
       linkW4: _linkW4Controller.text.trim(),
     );
     await widget.onEmployeeChanged(
@@ -283,7 +281,7 @@ class _EmployeeInformationEditFields extends StatelessWidget {
   final TextEditingController addressController;
   final TextEditingController dateHireController;
   final TextEditingController linkW4Controller;
-  final String jobType;
+  final String? jobType;
   final List<String> jobTypes;
   final bool showW4;
   final ValueChanged<String?> onJobTypeChanged;
@@ -430,7 +428,7 @@ class _EmployeeInformationTextField extends StatelessWidget {
 }
 
 class _EmployeeInformationJobTypeField extends StatelessWidget {
-  final String value;
+  final String? value;
   final List<String> jobTypes;
   final ValueChanged<String?> onChanged;
 
@@ -453,6 +451,7 @@ class _EmployeeInformationJobTypeField extends StatelessWidget {
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down),
           decoration: _PayrollTokens.inputDecoration,
+          hint: Text('Select job type', style: _PayrollTokens.inputHint),
           items: <DropdownMenuItem<String>>[
             for (final String jobType in jobTypes)
               DropdownMenuItem<String>(value: jobType, child: Text(jobType)),
@@ -533,7 +532,9 @@ class _EmployeeDetailData {
 }
 
 class _AddEmployeeDialog extends StatefulWidget {
-  const _AddEmployeeDialog();
+  final EmployeeDocumentEmailService emailService;
+
+  const _AddEmployeeDialog({required this.emailService});
 
   @override
   State<_AddEmployeeDialog> createState() => _AddEmployeeDialogState();
@@ -618,40 +619,55 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
     setState(() => controller.text = _formatDate(picked));
   }
 
+  Future<void> _sendW4Email() async {
+    final String? recipientEmail = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) => const _W4EmailRecipientDialog(),
+    );
+    if (recipientEmail == null || !mounted) return;
+
+    try {
+      await widget.emailService.sendW4Email(
+        W4EmailRequest(
+          recipientEmail: recipientEmail,
+          employeeName: _fullNameController.text,
+          linkW4: _linkW4Controller.text,
+        ),
+      );
+      if (!mounted) return;
+
+      _showMessage('Email draft opened');
+    } on EmployeeDocumentEmailException catch (error) {
+      if (!mounted) return;
+      _showMessage(error.message);
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('Unable to send W4 email');
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   void _save() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    Navigator.pop(
-      context,
-      PayrollEmployee(
-        id: '',
-        name: _fullNameController.text.trim(),
-        rate: parseMoney(_rateController.text),
-        birthday: _birthdayController.text.trim(),
-        phone: _phoneController.text.trim(),
-        address: _addressController.text.trim(),
-        dateHire: _dateHireController.text.trim(),
-        jobType: _jobType ?? '',
-        payMethod: _payMethod ?? '',
-        linkW4: _linkW4Controller.text.trim(),
-      ),
+    final EmployeeFormData formData = EmployeeFormData.fromInput(
+      fullName: _fullNameController.text,
+      birthday: _birthdayController.text,
+      phone: _phoneController.text,
+      address: _addressController.text,
+      dateHire: _dateHireController.text,
+      jobType: _jobType ?? '',
+      rateText: _rateController.text,
+      payMethod: _payMethod ?? '',
+      linkW4: _linkW4Controller.text,
     );
-  }
 
-  String? _requiredText(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Required';
-    return null;
-  }
-
-  String? _requiredDropdown(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Required';
-    return null;
-  }
-
-  String? _requiredRate(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Required';
-    if (parseMoney(value) <= 0) return 'Enter a valid rate';
-    return null;
+    Navigator.pop(context, formData.toPayrollEmployee());
   }
 
   @override
@@ -715,7 +731,8 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
                               requiredField: true,
                               controller: _fullNameController,
                               hintText: 'Enter full name',
-                              validator: _requiredText,
+                              validator:
+                                  EmployeeFormValidators.validateRequiredName,
                               textInputAction: TextInputAction.next,
                             ),
                             _AddEmployeeDropdownField(
@@ -723,11 +740,10 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
                                 'payroll.addEmployee.jobType',
                               ),
                               label: 'Job Type',
-                              requiredField: true,
+                              optional: true,
                               value: _jobType,
-                              hintText: 'Select job type',
+                              hintText: 'Select job type (optional)',
                               items: _jobTypes,
-                              validator: _requiredDropdown,
                               onChanged: (String? value) =>
                                   setState(() => _jobType = value),
                             ),
@@ -738,9 +754,9 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
                                 'payroll.addEmployee.birthday',
                               ),
                               label: 'Birthday',
+                              optional: true,
                               controller: _birthdayController,
                               onTap: _pickBirthday,
-                              validator: _requiredText,
                             ),
                             _AddEmployeeTextField(
                               fieldKey: const ValueKey<String>(
@@ -760,7 +776,8 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
                                   RegExp(r'^\d*\.?\d{0,2}'),
                                 ),
                               ],
-                              validator: _requiredRate,
+                              validator:
+                                  EmployeeFormValidators.validateRequiredRate,
                               textInputAction: TextInputAction.next,
                             ),
                           ],
@@ -770,11 +787,12 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
                                 'payroll.addEmployee.phone',
                               ),
                               label: 'Phone',
-                              requiredField: true,
+                              optional: true,
                               controller: _phoneController,
                               hintText: 'Enter phone number',
                               keyboardType: TextInputType.phone,
-                              validator: _requiredText,
+                              validator:
+                                  EmployeeFormValidators.validateOptionalPhone,
                               textInputAction: TextInputAction.next,
                             ),
                             _AddEmployeeDropdownField(
@@ -801,19 +819,13 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
                               hintText: 'Enter address',
                               minLines: 3,
                               maxLines: 3,
-                              validator: _requiredText,
+                              validator:
+                                  EmployeeFormValidators.validateRequiredText,
                               textInputAction: TextInputAction.newline,
                             ),
-                            _AddEmployeeTextField(
-                              fieldKey: const ValueKey<String>(
-                                'payroll.addEmployee.linkW4',
-                              ),
-                              label: 'Link W4',
-                              optional: true,
+                            _AddEmployeeW4Field(
                               controller: _linkW4Controller,
-                              hintText: 'Enter link to W4 (optional)',
-                              keyboardType: TextInputType.url,
-                              textInputAction: TextInputAction.next,
+                              onSendEmail: _sendW4Email,
                             ),
                           ],
                           <Widget>[
@@ -822,9 +834,9 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
                                 'payroll.addEmployee.dateHire',
                               ),
                               label: 'Date Hire',
+                              optional: true,
                               controller: _dateHireController,
                               onTap: _pickDateHire,
-                              validator: _requiredText,
                             ),
                           ],
                         ],
@@ -967,32 +979,73 @@ class _AddEmployeeTextField extends StatelessWidget {
   }
 }
 
+class _AddEmployeeW4Field extends StatelessWidget {
+  final TextEditingController controller;
+  final VoidCallback onSendEmail;
+
+  const _AddEmployeeW4Field({
+    required this.controller,
+    required this.onSendEmail,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _AddEmployeeTextField(
+          fieldKey: const ValueKey<String>('payroll.addEmployee.linkW4'),
+          label: 'Link W4',
+          optional: true,
+          controller: controller,
+          hintText: 'Enter link to W4 (optional)',
+          keyboardType: TextInputType.url,
+          textInputAction: TextInputAction.next,
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          key: const ValueKey<String>('payroll.addEmployee.linkW4.sendEmail'),
+          onPressed: onSendEmail,
+          icon: const Icon(Icons.mail_outline, size: 18),
+          label: const Text('Send Email'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _PayrollTokens.tabSelected,
+            side: const BorderSide(color: _PayrollTokens.border),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _AddEmployeeDateField extends StatelessWidget {
   final Key fieldKey;
   final String label;
+  final bool optional;
   final TextEditingController controller;
   final VoidCallback onTap;
-  final FormFieldValidator<String>? validator;
 
   const _AddEmployeeDateField({
     required this.fieldKey,
     required this.label,
     required this.controller,
     required this.onTap,
-    this.validator,
+    this.optional = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return _AddEmployeeFieldFrame(
       label: label,
-      requiredField: true,
+      optional: optional,
       child: TextFormField(
         key: fieldKey,
         controller: controller,
         readOnly: true,
         onTap: onTap,
-        validator: validator,
         style: _PayrollTokens.inputText,
         decoration: _PayrollTokens.inputDecoration.copyWith(
           hintText: 'MM/DD/YYYY',
@@ -1009,15 +1062,79 @@ class _AddEmployeeDateField extends StatelessWidget {
   }
 }
 
+class _W4EmailRecipientDialog extends StatefulWidget {
+  const _W4EmailRecipientDialog();
+
+  @override
+  State<_W4EmailRecipientDialog> createState() =>
+      _W4EmailRecipientDialogState();
+}
+
+class _W4EmailRecipientDialogState extends State<_W4EmailRecipientDialog> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  void _confirm() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    Navigator.pop(context, _emailController.text.trim());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: _PayrollTokens.surface,
+      title: const Text('Send W4 Email'),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          key: const ValueKey<String>('payroll.w4Email.recipient'),
+          controller: _emailController,
+          autofocus: true,
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.done,
+          validator: EmployeeFormValidators.validateEmailAddress,
+          onFieldSubmitted: (_) => _confirm(),
+          decoration: _PayrollTokens.inputDecoration.copyWith(
+            labelText: 'Email address',
+            hintText: 'name@example.com',
+            hintStyle: _PayrollTokens.inputHint,
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          key: const ValueKey<String>('payroll.w4Email.cancel'),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const ValueKey<String>('payroll.w4Email.send'),
+          onPressed: _confirm,
+          style: FilledButton.styleFrom(
+            backgroundColor: _PayrollTokens.tabSelected,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Send'),
+        ),
+      ],
+    );
+  }
+}
+
 class _AddEmployeeDropdownField extends StatelessWidget {
   final Key fieldKey;
   final String label;
-  final bool requiredField;
   final bool optional;
   final String? value;
   final String hintText;
   final List<String> items;
-  final FormFieldValidator<String>? validator;
   final ValueChanged<String?> onChanged;
 
   const _AddEmployeeDropdownField({
@@ -1027,16 +1144,13 @@ class _AddEmployeeDropdownField extends StatelessWidget {
     required this.hintText,
     required this.items,
     required this.onChanged,
-    this.requiredField = false,
     this.optional = false,
-    this.validator,
   });
 
   @override
   Widget build(BuildContext context) {
     return _AddEmployeeFieldFrame(
       label: label,
-      requiredField: requiredField,
       optional: optional,
       child: DropdownButtonFormField<String>(
         key: fieldKey,
@@ -1045,7 +1159,6 @@ class _AddEmployeeDropdownField extends StatelessWidget {
         icon: const Icon(Icons.keyboard_arrow_down),
         decoration: _PayrollTokens.inputDecoration,
         hint: Text(hintText, style: _PayrollTokens.inputHint),
-        validator: validator,
         items: <DropdownMenuItem<String>>[
           for (final String item in items)
             DropdownMenuItem<String>(value: item, child: Text(item)),

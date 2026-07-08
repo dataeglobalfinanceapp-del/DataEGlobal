@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:savetep/domain/services/employee_document_email_service.dart';
+import 'package:savetep/domain/services/employee_document_email_service_factory.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/money_formatter.dart';
 
+import 'employee_form_data.dart';
 import 'payroll_controller.dart';
 import 'payroll_models.dart';
 import 'payroll_pay_date_validator.dart';
@@ -47,7 +50,9 @@ enum _PayrollTab {
 }
 
 class PayrollScreen extends StatefulWidget {
-  const PayrollScreen({super.key});
+  final EmployeeDocumentEmailService? employeeDocumentEmailService;
+
+  const PayrollScreen({super.key, this.employeeDocumentEmailService});
 
   @override
   State<PayrollScreen> createState() => _PayrollScreenState();
@@ -57,12 +62,16 @@ class _PayrollScreenState extends State<PayrollScreen> {
   static const List<int> _processDayOptions = <int>[1, 2, 3, 5, 7, 10, 14];
 
   late final PayrollController _controller;
+  late final EmployeeDocumentEmailService _employeeDocumentEmailService;
   _PayrollTab _selectedTab = _PayrollTab.payroll;
 
   @override
   void initState() {
     super.initState();
     _controller = PayrollController()..load();
+    _employeeDocumentEmailService =
+        widget.employeeDocumentEmailService ??
+        createEmployeeDocumentEmailService();
   }
 
   @override
@@ -162,7 +171,8 @@ class _PayrollScreenState extends State<PayrollScreen> {
   Future<void> _openAddEmployeeDialog() async {
     final PayrollEmployee? employee = await showDialog<PayrollEmployee>(
       context: context,
-      builder: (BuildContext context) => const _AddEmployeeDialog(),
+      builder: (BuildContext context) =>
+          _AddEmployeeDialog(emailService: _employeeDocumentEmailService),
     );
     if (employee == null || !mounted) return;
 

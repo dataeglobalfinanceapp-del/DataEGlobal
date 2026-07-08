@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:savetep/domain/services/employee_document_email_service.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_screen.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_service.dart';
 import 'package:savetep/domain/services/employee_service.dart';
@@ -409,4 +410,164 @@ void main() {
       expect(payrollExpenses, isEmpty);
     },
   );
+
+  testWidgets(
+    'Add employee saves when job type birthday phone and date hire are empty',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: PayrollScreen()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.tab.employees')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add New Employee'));
+      await tester.pumpAndSettle();
+
+      expect(_richTextWithPlainText('Job Type *'), findsNothing);
+      expect(_richTextWithPlainText('Birthday *'), findsNothing);
+      expect(_richTextWithPlainText('Phone *'), findsNothing);
+      expect(_richTextWithPlainText('Date Hire *'), findsNothing);
+      expect(_richTextWithPlainText('Job Type (optional)'), findsOneWidget);
+      expect(_richTextWithPlainText('Birthday (optional)'), findsOneWidget);
+      expect(_richTextWithPlainText('Phone (optional)'), findsOneWidget);
+      expect(_richTextWithPlainText('Date Hire (optional)'), findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('payroll.addEmployee.fullName')),
+        'Minimal Fields',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('payroll.addEmployee.rate')),
+        '18',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('payroll.addEmployee.address')),
+        '100 Pine Street',
+      );
+      await tester.ensureVisible(
+        find.byKey(const ValueKey<String>('payroll.addEmployee.done')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.addEmployee.done')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Minimal Fields'), findsOneWidget);
+      expect(find.text('Showing 7 employees'), findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('payroll.employees.search')),
+        'Minimal',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Minimal Fields'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Employee Information'), findsOneWidget);
+      expect(find.text('100 Pine Street'), findsOneWidget);
+      expect(find.text('-'), findsNWidgets(4));
+    },
+  );
+
+  testWidgets(
+    'W4 email flow validates recipient and sends only after confirmation',
+    (WidgetTester tester) async {
+      final service = _RecordingEmployeeDocumentEmailService();
+
+      await tester.pumpWidget(
+        MaterialApp(home: PayrollScreen(employeeDocumentEmailService: service)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.tab.employees')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add New Employee'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('payroll.addEmployee.fullName')),
+        'Taylor Reed',
+      );
+      await tester.ensureVisible(
+        find.byKey(const ValueKey<String>('payroll.addEmployee.linkW4')),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('payroll.addEmployee.linkW4')),
+        'https://example.com/taylor-w4.pdf',
+      );
+
+      final Finder sendEmailButton = find.byKey(
+        const ValueKey<String>('payroll.addEmployee.linkW4.sendEmail'),
+      );
+
+      await tester.ensureVisible(sendEmailButton);
+      await tester.pumpAndSettle();
+      await tester.tap(sendEmailButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Send W4 Email'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.w4Email.cancel')),
+      );
+      await tester.pumpAndSettle();
+      expect(service.requests, isEmpty);
+      expect(find.text('Add New Employee'), findsWidgets);
+
+      await tester.ensureVisible(sendEmailButton);
+      await tester.pumpAndSettle();
+      await tester.tap(sendEmailButton);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('payroll.w4Email.recipient')),
+        'not-an-email',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.w4Email.send')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enter a valid email address'), findsOneWidget);
+      expect(service.requests, isEmpty);
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('payroll.w4Email.recipient')),
+        'manager@example.com',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.w4Email.send')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(service.requests, hasLength(1));
+      expect(service.requests.single.recipientEmail, 'manager@example.com');
+      expect(service.requests.single.employeeName, 'Taylor Reed');
+      expect(
+        service.requests.single.linkW4,
+        'https://example.com/taylor-w4.pdf',
+      );
+      expect(find.text('Email draft opened'), findsOneWidget);
+      expect(find.text('Add New Employee'), findsWidgets);
+    },
+  );
+}
+
+Finder _richTextWithPlainText(String text) {
+  return find.byWidgetPredicate(
+    (Widget widget) => widget is RichText && widget.text.toPlainText() == text,
+  );
+}
+
+class _RecordingEmployeeDocumentEmailService
+    implements EmployeeDocumentEmailService {
+  final List<W4EmailRequest> requests = <W4EmailRequest>[];
+
+  @override
+  Future<void> sendW4Email(W4EmailRequest request) async {
+    requests.add(request);
+  }
 }
