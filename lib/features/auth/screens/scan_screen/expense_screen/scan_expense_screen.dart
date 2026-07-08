@@ -57,12 +57,6 @@ class ScannedExpenseData {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Entry mode
-// ─────────────────────────────────────────────────────────────────────────────
-
-enum ScanExpenseEntryMode { automatic, manual }
-
 enum ExpenseScheduleFrequency {
   weekly('Weekly'),
   biweekly('Biweekly'),

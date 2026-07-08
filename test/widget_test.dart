@@ -105,6 +105,23 @@ void main() {
     },
   );
 
+  testWidgets('scan expense route opens editable auto form directly', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const SaveTepApp(initialRoute: '/scan-expense'));
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Don't allow"));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    expect(find.text('EXPENSE DATA'), findsOneWidget);
+    expect(find.text('CHECK NUMBER:'), findsOneWidget);
+    expect(find.text('Enter Manually'), findsNothing);
+    expect(find.text('Extract Automatically'), findsNothing);
+  });
+
   testWidgets('App loads saved dark contrast preference', (
     WidgetTester tester,
   ) async {

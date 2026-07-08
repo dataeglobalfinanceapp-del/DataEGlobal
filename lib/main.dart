@@ -14,7 +14,7 @@ import 'features/auth/screens/home_screen/home_screen.dart';
 import 'features/auth/screens/login_screen/splash_screen.dart';
 import 'features/auth/screens/scan_screen/scan.dart';
 import 'features/auth/screens/scan_screen/deposit_screen/scan_deposit_choice.dart';
-import 'features/auth/screens/scan_screen/expense_screen/scan_expense_choice.dart';
+import 'features/auth/screens/scan_screen/expense_screen/scan_expense_auto_screen.dart';
 import 'features/auth/screens/transaction_screen/transaction_screen.dart';
 import 'features/auth/screens/liabilities_screen/liabilities_screen.dart';
 import 'features/auth/screens/saving_screen/saving_screen.dart';
@@ -155,7 +155,7 @@ class _SaveTepAppState extends State<SaveTepApp> {
                 '/home': (context) => const HomeScreen(),
                 '/scan': (context) => const ScanScreen(),
                 '/scan-deposit': (context) => const ScanDepositScreen(),
-                '/scan-expense': (context) => const ScanExpenseScreen(),
+                '/scan-expense': (context) => const ScanExpenseAutoScreen(),
                 '/transactions': (context) {
                   final arguments = ModalRoute.of(context)?.settings.arguments;
                   if (arguments is TransactionScreenArguments) {
