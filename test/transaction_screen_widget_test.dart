@@ -23,6 +23,7 @@ void main() {
       orderNumber: 'A100',
       totalAmount: 125,
       creditDeposit: 100,
+      cardLastFour: '1234',
       cash: 25,
       giftCard: 0,
       other: 0,
@@ -94,6 +95,7 @@ void main() {
       orderNumber: 'A100',
       totalAmount: 125,
       creditDeposit: 100,
+      cardLastFour: '1234',
       cash: 25,
       giftCard: 0,
       other: 0,
@@ -125,6 +127,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Credit/Debit'), findsOneWidget);
+    expect(find.text('LAST 4'), findsOneWidget);
+    expect(find.text('1234'), findsOneWidget);
     expect(find.text('Cash'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Delete').first);
@@ -135,6 +139,48 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No deposit history for this view.'), findsOneWidget);
+  });
+
+  testWidgets('TransactionScreen hides invalid deposit card last four', (
+    WidgetTester tester,
+  ) async {
+    await LiabilityService.saveDeposit(
+      orderNumber: 'A101',
+      totalAmount: 100,
+      creditDeposit: 100,
+      cardLastFour: '987',
+      cash: 0,
+      giftCard: 0,
+      other: 0,
+      transactionDate: DateTime(2026, 6, 12),
+      isManual: true,
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: TransactionScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Deposit'));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('June'),
+      find.byType(ListView),
+      const Offset(0, -180),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('June'));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Credit/Debit'),
+      find.byType(ListView),
+      const Offset(0, -120),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('LAST 4'), findsOneWidget);
+    expect(find.text('987'), findsNothing);
   });
 
   testWidgets('TransactionScreen filters expenses from a category tap', (

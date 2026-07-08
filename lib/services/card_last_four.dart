@@ -7,3 +7,8 @@ String normalizeCardLastFour(String value) {
 bool isValidCardLastFour(String value) {
   return normalizeCardLastFour(value).length == 4;
 }
+
+String formatCardLastFourForDisplay(String value) {
+  final normalized = normalizeCardLastFour(value);
+  return normalized.length == 4 ? normalized : '';
+}

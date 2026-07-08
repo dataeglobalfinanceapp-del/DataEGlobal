@@ -478,6 +478,8 @@ class _TransactionDataMapper {
       required double amount,
       required IconData icon,
       required Color color,
+      String cardLastFour = '',
+      bool showsCardLastFour = false,
     }) {
       if (amount <= 0) return;
       items.add(
@@ -493,6 +495,8 @@ class _TransactionDataMapper {
           date: record.transactionDate,
           amount: amount,
           detail: record.isManual ? 'Manual entry' : 'Scanned receipt',
+          cardLastFour: cardLastFour,
+          showsCardLastFour: showsCardLastFour,
           icon: icon,
           iconColor: color,
         ),
@@ -504,6 +508,8 @@ class _TransactionDataMapper {
       amount: record.creditDeposit,
       icon: Icons.credit_card,
       color: _TransactionTokens.depositBlue,
+      cardLastFour: record.cardLastFour,
+      showsCardLastFour: true,
     );
     addMethod(
       label: 'Cash',

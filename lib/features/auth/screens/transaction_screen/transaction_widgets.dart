@@ -88,7 +88,9 @@ class _TransactionList extends StatelessWidget {
               isExpanded: isExpanded,
               onToggle: () => onToggleGroup(group.key),
             ),
-          _TransactionTableHeaderEntry() => const _TransactionTableHeaderCard(),
+          _TransactionTableHeaderEntry() => _TransactionTableHeaderCard(
+            showsLastFour: state.kind == _TransactionKind.deposit,
+          ),
           _TransactionItemEntry(
             :final _TransactionItem item,
             :final bool isLastInGroup,
@@ -567,16 +569,18 @@ class _TransactionGroupHeaderCard extends StatelessWidget {
 }
 
 class _TransactionTableHeaderCard extends StatelessWidget {
-  const _TransactionTableHeaderCard();
+  final bool showsLastFour;
+
+  const _TransactionTableHeaderCard({required this.showsLastFour});
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(color: _TransactionTokens.surface),
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: _TransactionTokens.surface),
       child: Column(
         children: <Widget>[
-          Divider(height: 1, color: _TransactionTokens.border),
-          _TransactionTableHeader(),
+          const Divider(height: 1, color: _TransactionTokens.border),
+          _TransactionTableHeader(showsLastFour: showsLastFour),
         ],
       ),
     );
@@ -627,30 +631,42 @@ class _TransactionItemCard extends StatelessWidget {
 }
 
 class _TransactionTableHeader extends StatelessWidget {
-  const _TransactionTableHeader();
+  final bool showsLastFour;
+
+  const _TransactionTableHeader({required this.showsLastFour});
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
+    return Padding(
       padding: _TransactionTokens.tableHeaderPadding,
       child: Row(
         children: <Widget>[
-          SizedBox(width: 42, child: _TableHeaderText('DATE')),
-          SizedBox(width: 8),
-          Expanded(child: _TableHeaderText('DESCRIPTION')),
-          SizedBox(width: 8),
-          SizedBox(
-            width: 70,
+          const SizedBox(
+            width: _TransactionTokens.tableDateWidth,
+            child: _TableHeaderText('DATE'),
+          ),
+          const SizedBox(width: 8),
+          const Expanded(child: _TableHeaderText('DESCRIPTION')),
+          if (showsLastFour) ...<Widget>[
+            const SizedBox(width: 8),
+            const SizedBox(
+              width: _TransactionTokens.tableLastFourWidth,
+              child: _TableHeaderText('LAST 4', textAlign: TextAlign.center),
+            ),
+          ],
+          const SizedBox(width: 8),
+          const SizedBox(
+            width: _TransactionTokens.tableAmountWidth,
             child: _TableHeaderText('AMOUNT', textAlign: TextAlign.right),
           ),
-          SizedBox(width: 8),
-          SizedBox(
-            width: 34,
+          const SizedBox(width: 8),
+          const SizedBox(
+            width: _TransactionTokens.tableMethodWidth,
             child: _TableHeaderText('METHOD', textAlign: TextAlign.center),
           ),
-          SizedBox(width: 4),
-          SizedBox(
-            width: 30,
+          const SizedBox(width: 4),
+          const SizedBox(
+            width: _TransactionTokens.tableDeleteWidth,
             child: Icon(
               Icons.delete_outline,
               size: 14,
@@ -702,7 +718,7 @@ class _TransactionItemRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           SizedBox(
-            width: 42,
+            width: _TransactionTokens.tableDateWidth,
             child: Text(
               _shortDate(item.date),
               maxLines: 1,
@@ -718,9 +734,16 @@ class _TransactionItemRow extends StatelessWidget {
               onCategorySelected: onCategorySelected,
             ),
           ),
+          if (!isExpense) ...<Widget>[
+            const SizedBox(width: 8),
+            SizedBox(
+              width: _TransactionTokens.tableLastFourWidth,
+              child: _TransactionLastFourCell(item: item),
+            ),
+          ],
           const SizedBox(width: 8),
           SizedBox(
-            width: 70,
+            width: _TransactionTokens.tableAmountWidth,
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerRight,
@@ -737,14 +760,14 @@ class _TransactionItemRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           SizedBox.square(
-            dimension: 34,
+            dimension: _TransactionTokens.tableMethodWidth,
             child: Center(
               child: Icon(item.icon, size: 18, color: item.iconColor),
             ),
           ),
           const SizedBox(width: 4),
           SizedBox.square(
-            dimension: 30,
+            dimension: _TransactionTokens.tableDeleteWidth,
             child: IconButton(
               padding: EdgeInsets.zero,
               tooltip: 'Delete',
@@ -764,6 +787,36 @@ class _TransactionItemRow extends StatelessWidget {
   static String _shortDate(DateTime date) {
     return '${date.month.toString().padLeft(2, '0')}/'
         '${date.day.toString().padLeft(2, '0')}';
+  }
+}
+
+class _TransactionLastFourCell extends StatelessWidget {
+  final _TransactionItem item;
+
+  const _TransactionLastFourCell({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      _TransactionCardLastFour.displayValue(item),
+      maxLines: 1,
+      overflow: TextOverflow.clip,
+      textAlign: TextAlign.center,
+      style: _TransactionTokens.tableLastFour,
+    );
+  }
+}
+
+class _TransactionCardLastFour {
+  const _TransactionCardLastFour._();
+
+  static bool shouldShowCardLastFour(_TransactionItem item) {
+    return item.showsCardLastFour;
+  }
+
+  static String displayValue(_TransactionItem item) {
+    if (!shouldShowCardLastFour(item)) return '';
+    return formatCardLastFourForDisplay(item.cardLastFour);
   }
 }
 

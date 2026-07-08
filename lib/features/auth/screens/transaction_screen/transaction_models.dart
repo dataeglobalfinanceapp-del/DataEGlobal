@@ -143,6 +143,8 @@ class _TransactionItem {
   final DateTime date;
   final double amount;
   final String detail;
+  final String cardLastFour;
+  final bool showsCardLastFour;
   final IconData icon;
   final Color iconColor;
   final bool isRecurring;
@@ -155,6 +157,8 @@ class _TransactionItem {
     required this.date,
     required this.amount,
     required this.detail,
+    this.cardLastFour = '',
+    this.showsCardLastFour = false,
     required this.icon,
     required this.iconColor,
     this.isRecurring = false,
@@ -248,6 +252,12 @@ class _TransactionTokens {
   );
   static const EdgeInsets tableRowPadding = EdgeInsets.fromLTRB(12, 8, 10, 8);
 
+  static const double tableDateWidth = 42;
+  static const double tableLastFourWidth = 38;
+  static const double tableAmountWidth = 70;
+  static const double tableMethodWidth = 34;
+  static const double tableDeleteWidth = 30;
+
   static const List<BoxShadow> softShadow = <BoxShadow>[
     BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, 2)),
   ];
@@ -302,6 +312,11 @@ class _TransactionTokens {
   static const TextStyle tableAmount = TextStyle(
     fontSize: 10,
     fontWeight: FontWeight.w800,
+  );
+  static const TextStyle tableLastFour = TextStyle(
+    color: textMuted,
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
   );
   static const TextStyle tableCategory = TextStyle(
     color: primaryBlue,
