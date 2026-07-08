@@ -9,7 +9,6 @@ import 'package:savetep/features/auth/screens/user_setting/widgets/user_logo_men
 import 'package:savetep/features/auth/services/auth_service.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
-import 'package:savetep/theme/dark_contrast.dart';
 
 import 'budget_donut_chart.dart';
 
@@ -599,21 +598,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final darkContrast = DarkContrastScope.of(context);
-    final darkContrastEnabled = darkContrast.enabled;
-
     return Scaffold(
-      backgroundColor: darkContrastEnabled
-          ? DarkContrastPalette.background
-          : const Color(0xFFF2F5ED),
+      backgroundColor: const Color(0xFFF2F5ED),
       appBar: AppBar(
         toolbarHeight: _HomeLayoutTokens.appBarHeight,
-        backgroundColor: darkContrastEnabled
-            ? DarkContrastPalette.surface
-            : Colors.white,
-        foregroundColor: darkContrastEnabled
-            ? DarkContrastPalette.text
-            : Colors.black87,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
         leadingWidth: 56,
         leading: UserLogoMenuButton(
           size: 36,
@@ -625,16 +615,6 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
         actions: [
-          IconButton(
-            tooltip: darkContrastEnabled
-                ? 'Disable Dark Contrast'
-                : 'Enable Dark Contrast',
-            icon: Icon(
-              darkContrastEnabled ? Icons.dark_mode : Icons.dark_mode_outlined,
-              size: 24,
-            ),
-            onPressed: () => unawaited(darkContrast.toggle()),
-          ),
           IconButton(
             icon: const Icon(Icons.logout, size: 24),
             onPressed: () async {
@@ -672,11 +652,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SizedBox(height: metrics.topPadding),
-                          _buildDateRangePill(metrics, darkContrastEnabled),
+                          _buildDateRangePill(metrics),
                           SizedBox(height: metrics.compactSectionGap),
                           _HomeDateRangeSelector(
                             metrics: metrics,
-                            darkContrastEnabled: darkContrastEnabled,
                             selectedPeriod: _selectedPeriod,
                             selectedMonth: _selectedMonth,
                             selectedQuarter: _selectedQuarter,
@@ -779,10 +758,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildDateRangePill(
-    _HomeLayoutMetrics metrics,
-    bool darkContrastEnabled,
-  ) {
+  Widget _buildDateRangePill(_HomeLayoutMetrics metrics) {
     final periodLabel = _budgetData.period.isEmpty
         ? '${_formatDate(_startDate)} - ${_formatDate(_endDate)}'
         : _budgetData.period;
@@ -811,24 +787,16 @@ class _HomeScreenState extends State<HomeScreen> {
       height: metrics.datePickerHeight,
       padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       decoration: BoxDecoration(
-        color: darkContrastEnabled
-            ? DarkContrastPalette.elevatedSurface
-            : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(
-          color: darkContrastEnabled
-              ? DarkContrastPalette.border
-              : const Color(0xFFD7DEC9),
-        ),
+        border: Border.all(color: const Color(0xFFD7DEC9)),
       ),
       child: Row(
         children: [
           Icon(
             Icons.calendar_today,
             size: iconSize,
-            color: darkContrastEnabled
-                ? DarkContrastPalette.primary
-                : const Color(0xFF0E5E54),
+            color: const Color(0xFF0E5E54),
           ),
           SizedBox(width: iconGap),
           Expanded(
@@ -837,9 +805,7 @@ class _HomeScreenState extends State<HomeScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: darkContrastEnabled
-                    ? DarkContrastPalette.text
-                    : const Color(0xFF173E37),
+                color: const Color(0xFF173E37),
                 fontSize: fontSize,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0,
@@ -948,7 +914,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _HomeDateRangeSelector extends StatelessWidget {
   final _HomeLayoutMetrics metrics;
-  final bool darkContrastEnabled;
   final _HomePeriodType selectedPeriod;
   final int selectedMonth;
   final int selectedQuarter;
@@ -960,7 +925,6 @@ class _HomeDateRangeSelector extends StatelessWidget {
 
   const _HomeDateRangeSelector({
     required this.metrics,
-    required this.darkContrastEnabled,
     required this.selectedPeriod,
     required this.selectedMonth,
     required this.selectedQuarter,
@@ -1003,7 +967,6 @@ class _HomeDateRangeSelector extends StatelessWidget {
                 : null,
             isSelected: selectedPeriod == period,
             metrics: metrics,
-            darkContrastEnabled: darkContrastEnabled,
             onPressed: onPressed,
           );
         },
@@ -1023,7 +986,6 @@ class _HomeDateRangeSelector extends StatelessWidget {
             detail: selectedPeriod == period ? 'Q$selectedQuarter' : null,
             isSelected: selectedPeriod == period,
             metrics: metrics,
-            darkContrastEnabled: darkContrastEnabled,
             onPressed: onPressed,
           );
         },
@@ -1032,7 +994,6 @@ class _HomeDateRangeSelector extends StatelessWidget {
         label: period.label,
         isSelected: selectedPeriod == period,
         metrics: metrics,
-        darkContrastEnabled: darkContrastEnabled,
         onPressed: () => onPeriodSelected(period),
       ),
     };
@@ -1089,7 +1050,6 @@ class _HomePeriodButton extends StatelessWidget {
   final String? detail;
   final bool isSelected;
   final _HomeLayoutMetrics metrics;
-  final bool darkContrastEnabled;
   final VoidCallback? onPressed;
 
   const _HomePeriodButton({
@@ -1097,7 +1057,6 @@ class _HomePeriodButton extends StatelessWidget {
     this.detail,
     required this.isSelected,
     required this.metrics,
-    required this.darkContrastEnabled,
     this.onPressed,
   });
 
@@ -1118,28 +1077,13 @@ class _HomePeriodButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: isSelected
-              ? (darkContrastEnabled
-                    ? DarkContrastPalette.primary
-                    : const Color(0xFF075E54))
-              : (darkContrastEnabled
-                    ? DarkContrastPalette.elevatedSurface
-                    : Colors.white),
-          foregroundColor: isSelected
-              ? (darkContrastEnabled ? Colors.black : Colors.white)
-              : (darkContrastEnabled
-                    ? DarkContrastPalette.text
-                    : const Color(0xFF173E37)),
+          backgroundColor: isSelected ? const Color(0xFF075E54) : Colors.white,
+          foregroundColor: isSelected ? Colors.white : const Color(0xFF173E37),
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           side: isSelected
               ? BorderSide.none
-              : BorderSide(
-                  color: darkContrastEnabled
-                      ? DarkContrastPalette.border
-                      : const Color(0xFFD7DEC9),
-                  width: 1,
-                ),
+              : const BorderSide(color: Color(0xFFD7DEC9), width: 1),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radius),
           ),

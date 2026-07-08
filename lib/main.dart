@@ -23,7 +23,7 @@ import 'features/auth/screens/reminder_screen/reminder_screen.dart';
 import 'features/auth/screens/tax_screen/tax_screen.dart';
 import 'features/auth/screens/user_setting/user_setting_screens.dart';
 import 'features/auth/widgets/bottom_nav_bar.dart';
-import 'theme/dark_contrast.dart';
+import 'theme/app_theme.dart';
 import 'widgets/test_clock_overlay.dart';
 
 final GlobalKey<NavigatorState> _appNavigatorKey = GlobalKey<NavigatorState>();
@@ -84,111 +84,89 @@ class SaveTepApp extends StatefulWidget {
 class _SaveTepAppState extends State<SaveTepApp> {
   final ValueNotifier<AppBottomNavItem?> _currentBottomNavItem =
       ValueNotifier<AppBottomNavItem?>(null);
-  final DarkContrastController _darkContrastController =
-      DarkContrastController();
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_darkContrastController.load());
-  }
 
   @override
   void dispose() {
     _currentBottomNavItem.dispose();
-    _darkContrastController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return DarkContrastScope(
-      controller: _darkContrastController,
-      child: AnimatedBuilder(
-        animation: _darkContrastController,
+    return _StartupFocusGate(
+      child: MaterialApp(
+        navigatorKey: _appNavigatorKey,
+        navigatorObservers: [
+          _BottomNavRouteObserver(currentItem: _currentBottomNavItem),
+        ],
+        initialRoute: widget.initialRoute,
+        title: 'Save Tep',
+        debugShowCheckedModeBanner: false,
+        theme: buildSaveTepTheme(),
         builder: (context, child) {
-          return _StartupFocusGate(
-            child: MaterialApp(
+          return FocusTraversalGroup(
+            policy: WidgetOrderTraversalPolicy(),
+            child: TestClockOverlay(
               navigatorKey: _appNavigatorKey,
-              navigatorObservers: [
-                _BottomNavRouteObserver(currentItem: _currentBottomNavItem),
-              ],
-              initialRoute: widget.initialRoute,
-              title: 'Save Tep',
-              debugShowCheckedModeBanner: false,
-              theme: buildSaveTepTheme(
-                darkContrastEnabled: _darkContrastController.enabled,
+              child: _AppBottomNavShell(
+                navigatorKey: _appNavigatorKey,
+                currentItemListenable: _currentBottomNavItem,
+                child: child ?? const SizedBox.shrink(),
               ),
-              builder: (context, child) {
-                return FocusTraversalGroup(
-                  policy: WidgetOrderTraversalPolicy(),
-                  child: TestClockOverlay(
-                    navigatorKey: _appNavigatorKey,
-                    child: _AppBottomNavShell(
-                      navigatorKey: _appNavigatorKey,
-                      currentItemListenable: _currentBottomNavItem,
-                      child: child ?? const SizedBox.shrink(),
-                    ),
-                  ),
-                );
-              },
-              home: widget.initialRoute == null ? const SplashScreen() : null,
-              routes: {
-                '/login': (context) => const LoginScreen(),
-                '/signup': (context) => const SignUpScreen(),
-                '/confirm-signup': (context) {
-                  final arguments = ModalRoute.of(context)!.settings.arguments;
-                  if (arguments is ConfirmSignUpArguments) {
-                    return ConfirmSignUpScreen(
-                      email: arguments.email,
-                      codeDelivery: arguments.codeDelivery,
-                    );
-                  }
-                  return ConfirmSignUpScreen(email: arguments as String);
-                },
-                '/forgot-password': (context) => const ForgotPasswordScreen(),
-                '/confirm-reset': (context) {
-                  final email =
-                      ModalRoute.of(context)!.settings.arguments as String;
-                  return ConfirmResetScreen(email: email);
-                },
-                '/home': (context) => const HomeScreen(),
-                '/scan': (context) => const ScanScreen(),
-                '/scan-deposit': (context) => const ScanDepositScreen(),
-                '/scan-expense': (context) => const ScanExpenseAutoScreen(),
-                '/transactions': (context) {
-                  final arguments = ModalRoute.of(context)?.settings.arguments;
-                  if (arguments is TransactionScreenArguments) {
-                    return TransactionScreen(
-                      initialExpenseDateRange:
-                          arguments.initialExpenseDateRange,
-                      initialExpenseCategory: arguments.initialExpenseCategory,
-                    );
-                  }
-                  return const TransactionScreen();
-                },
-                '/liabilities': (context) => const LiabilitiesScreen(),
-                '/saving': (context) => const SavingScreen(),
-                '/payroll': (context) => const PayrollScreen(),
-                '/reminders': (context) => const ReminderScreen(),
-                '/tax': (context) => const TaxScreen(),
-                UserSettingsRoutes.settings: (context) =>
-                    const UserSettingsScreen(),
-                UserSettingsRoutes.businessManagement: (context) =>
-                    const BusinessManagementScreen(),
-                UserSettingsRoutes.enterpriseCodeId: (context) =>
-                    const EnterpriseCodeIdScreen(),
-                UserSettingsRoutes.changePassword: (context) =>
-                    const ChangePasswordScreen(),
-                UserSettingsRoutes.institutionSupport: (context) =>
-                    const InstitutionSupportScreen(),
-                UserSettingsRoutes.managePartner: (context) =>
-                    const ManagePartnerScreen(),
-                UserSettingsRoutes.deactivateAccess: (context) =>
-                    const DeactivateAccessScreen(),
-              },
             ),
           );
+        },
+        home: widget.initialRoute == null ? const SplashScreen() : null,
+        routes: {
+          '/login': (context) => const LoginScreen(),
+          '/signup': (context) => const SignUpScreen(),
+          '/confirm-signup': (context) {
+            final arguments = ModalRoute.of(context)!.settings.arguments;
+            if (arguments is ConfirmSignUpArguments) {
+              return ConfirmSignUpScreen(
+                email: arguments.email,
+                codeDelivery: arguments.codeDelivery,
+              );
+            }
+            return ConfirmSignUpScreen(email: arguments as String);
+          },
+          '/forgot-password': (context) => const ForgotPasswordScreen(),
+          '/confirm-reset': (context) {
+            final email = ModalRoute.of(context)!.settings.arguments as String;
+            return ConfirmResetScreen(email: email);
+          },
+          '/home': (context) => const HomeScreen(),
+          '/scan': (context) => const ScanScreen(),
+          '/scan-deposit': (context) => const ScanDepositScreen(),
+          '/scan-expense': (context) => const ScanExpenseAutoScreen(),
+          '/transactions': (context) {
+            final arguments = ModalRoute.of(context)?.settings.arguments;
+            if (arguments is TransactionScreenArguments) {
+              return TransactionScreen(
+                initialExpenseDateRange: arguments.initialExpenseDateRange,
+                initialExpenseCategory: arguments.initialExpenseCategory,
+              );
+            }
+            return const TransactionScreen();
+          },
+          '/liabilities': (context) => const LiabilitiesScreen(),
+          '/saving': (context) => const SavingScreen(),
+          '/payroll': (context) => const PayrollScreen(),
+          '/reminders': (context) => const ReminderScreen(),
+          '/tax': (context) => const TaxScreen(),
+          UserSettingsRoutes.settings: (context) => const UserSettingsScreen(),
+          UserSettingsRoutes.businessManagement: (context) =>
+              const BusinessManagementScreen(),
+          UserSettingsRoutes.enterpriseCodeId: (context) =>
+              const EnterpriseCodeIdScreen(),
+          UserSettingsRoutes.changePassword: (context) =>
+              const ChangePasswordScreen(),
+          UserSettingsRoutes.institutionSupport: (context) =>
+              const InstitutionSupportScreen(),
+          UserSettingsRoutes.managePartner: (context) =>
+              const ManagePartnerScreen(),
+          UserSettingsRoutes.deactivateAccess: (context) =>
+              const DeactivateAccessScreen(),
         },
       ),
     );

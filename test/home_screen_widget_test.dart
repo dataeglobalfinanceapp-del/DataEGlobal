@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:savetep/features/auth/screens/home_screen/home_screen.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
-import 'package:savetep/theme/dark_contrast.dart';
 
 void main() {
   setUp(() {
@@ -280,15 +279,7 @@ void main() {
 }
 
 Future<void> _pumpHomeScreen(WidgetTester tester) async {
-  final controller = DarkContrastController();
-  addTearDown(controller.dispose);
-
-  await tester.pumpWidget(
-    DarkContrastScope(
-      controller: controller,
-      child: const MaterialApp(home: HomeScreen()),
-    ),
-  );
+  await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 }
 
 class _GridBreakpointCase {
