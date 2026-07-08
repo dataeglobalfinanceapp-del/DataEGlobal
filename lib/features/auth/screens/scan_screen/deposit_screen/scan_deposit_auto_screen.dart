@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
+import 'package:savetep/services/card_last_four.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/money_formatter.dart';
+import 'deposit_form_validator.dart';
 import 'scan_deposit_screen.dart';
 
 class ScanDepositAutoScreen extends StatefulWidget {
@@ -17,6 +19,8 @@ class ScanDepositAutoScreen extends StatefulWidget {
 }
 
 class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
+  static const DepositFormValidator _validator = DepositFormValidator();
+
   Uint8List? _scannedImageBytes;
   bool _isScanning = false;
   bool _hasExtractedData = false;
@@ -27,6 +31,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
   late TextEditingController _orderNumberController;
   late TextEditingController _totalAmountController;
   late TextEditingController _creditDepositController;
+  late TextEditingController _cardLastFourController;
   late TextEditingController _cashController;
   late TextEditingController _giftCardController;
   late TextEditingController _otherController;
@@ -38,6 +43,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
     _orderNumberController = TextEditingController(text: _data.orderNumber);
     _totalAmountController = TextEditingController();
     _creditDepositController = TextEditingController();
+    _cardLastFourController = TextEditingController();
     _cashController = TextEditingController();
     _giftCardController = TextEditingController();
     _otherController = TextEditingController();
@@ -59,6 +65,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
     _orderNumberController.dispose();
     _totalAmountController.dispose();
     _creditDepositController.dispose();
+    _cardLastFourController.dispose();
     _cashController.dispose();
     _giftCardController.dispose();
     _otherController.dispose();
@@ -130,6 +137,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
       orderNumber: '01',
       totalAmount: 1072.00,
       creditDeposit: 558.00,
+      cardLastFour: '1234',
       cash: 514.00,
       giftCard: 0,
       other: 0,
@@ -143,6 +151,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
     _creditDepositController.text = data.creditDeposit > 0
         ? data.creditDeposit.toStringAsFixed(2)
         : '';
+    _cardLastFourController.text = data.cardLastFour;
     _cashController.text = data.cash > 0 ? data.cash.toStringAsFixed(2) : '';
     _giftCardController.text = data.giftCard > 0
         ? data.giftCard.toStringAsFixed(2)
@@ -214,10 +223,27 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
 
   Future<void> _confirm() async {
     final bool isManualEntry = !_hasExtractedData;
+    final double creditDebitAmount = parseMoney(_creditDepositController.text);
+    final String cardLastFour = creditDebitAmount > 0
+        ? normalizeCardLastFour(_cardLastFourController.text)
+        : '';
+    final validationMessage = _validator.validateCardLastFour(
+      creditDebitAmount: creditDebitAmount,
+      cardLastFour: cardLastFour,
+    );
+    if (validationMessage != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(validationMessage)));
+      return;
+    }
+    _cardLastFourController.text = cardLastFour;
+
     final updatedData = _data.copyWith(
       orderNumber: _orderNumberController.text.trim(),
       totalAmount: _paymentTotal,
-      creditDeposit: parseMoney(_creditDepositController.text),
+      creditDeposit: creditDebitAmount,
+      cardLastFour: cardLastFour,
       cash: parseMoney(_cashController.text),
       giftCard: parseMoney(_giftCardController.text),
       other: parseMoney(_otherController.text),
@@ -237,6 +263,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
         orderNumber: updatedData.orderNumber,
         totalAmount: updatedData.totalAmount,
         creditDeposit: updatedData.creditDeposit,
+        cardLastFour: updatedData.cardLastFour,
         cash: updatedData.cash,
         giftCard: updatedData.giftCard,
         other: updatedData.other,
@@ -311,6 +338,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
                     orderNumberController: _orderNumberController,
                     totalAmountController: _totalAmountController,
                     creditDepositController: _creditDepositController,
+                    cardLastFourController: _cardLastFourController,
                     cashController: _cashController,
                     giftCardController: _giftCardController,
                     otherController: _otherController,
@@ -380,7 +408,7 @@ class _AutoEntryHeader extends StatelessWidget {
     return Row(
       children: [
         Text(
-          hasExtractedData ? 'EXTRACTED DATA' : 'MANUAL ENTRY',
+          hasExtractedData ? 'EXTRACTED DATA' : 'DEPOSIT DATA',
           style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,

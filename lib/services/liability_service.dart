@@ -10,6 +10,7 @@ import 'package:savetep/features/auth/models/budget_data.dart';
 import 'package:savetep/features/auth/models/liability_model.dart';
 
 import 'app_clock.dart';
+import 'card_last_four.dart';
 import 'recurrence_schedule.dart';
 import 'tax_estimate_service.dart';
 
@@ -34,6 +35,7 @@ class LiabilityService {
     required String orderNumber,
     required double totalAmount,
     required double creditDeposit,
+    String cardLastFour = '',
     required double cash,
     required double giftCard,
     required double other,
@@ -46,6 +48,7 @@ class LiabilityService {
         orderNumber: orderNumber,
         totalAmount: totalAmount,
         creditDeposit: creditDeposit,
+        cardLastFour: cardLastFour,
         cash: cash,
         giftCard: giftCard,
         other: other,
@@ -1250,23 +1253,25 @@ class DepositRecord {
   final String orderNumber;
   final double totalAmount;
   final double creditDeposit;
+  final String cardLastFour;
   final double cash;
   final double giftCard;
   final double other;
   final DateTime transactionDate;
   final bool isManual;
 
-  const DepositRecord({
+  DepositRecord({
     required this.id,
     required this.orderNumber,
     required this.totalAmount,
     required this.creditDeposit,
+    String cardLastFour = '',
     required this.cash,
     required this.giftCard,
     required this.other,
     required this.transactionDate,
     required this.isManual,
-  });
+  }) : cardLastFour = normalizeCardLastFour(cardLastFour);
 
   factory DepositRecord.fromJson(Map<String, dynamic> json) {
     return DepositRecord(
@@ -1274,6 +1279,7 @@ class DepositRecord {
       orderNumber: _asString(json['orderNumber']),
       totalAmount: _asDouble(json['totalAmount']),
       creditDeposit: _asDouble(json['creditDeposit']),
+      cardLastFour: _asString(json['cardLastFour']),
       cash: _asDouble(json['cash']),
       giftCard: _asDouble(json['giftCard']),
       other: _asDouble(json['other']),
@@ -1287,6 +1293,7 @@ class DepositRecord {
     'orderNumber': orderNumber,
     'totalAmount': totalAmount,
     'creditDeposit': creditDeposit,
+    'cardLastFour': cardLastFour,
     'cash': cash,
     'giftCard': giftCard,
     'other': other,

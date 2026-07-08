@@ -20,7 +20,7 @@ class ScanExpenseAutoScreen extends StatefulWidget {
 class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   Uint8List? _scannedImageBytes;
   bool _isScanning = false;
-  bool _dataExtracted = false;
+  bool _hasExtractedData = false;
   bool _isSaving = false;
   bool _isRecurringExpense = false;
   ExpenseScheduleFrequency _recurringFrequency =
@@ -60,7 +60,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
     setState(() {
       _scannedImageBytes = null;
       _isScanning = false;
-      _dataExtracted = false;
+      _hasExtractedData = false;
       _isRecurringExpense = false;
       _recurringStartDate = emptyData.transactionDate;
       _recurringFrequency = ExpenseScheduleFrequency.monthly;
@@ -99,7 +99,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
       setState(() {
         _scannedImageBytes = bytes;
         _isScanning = false;
-        _dataExtracted = true;
+        _hasExtractedData = true;
         _data = extractedData;
         _recurringStartDate = extractedData.transactionDate;
       });
@@ -147,7 +147,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
       setState(() {
         _scannedImageBytes = null;
         _isScanning = false;
-        _dataExtracted = false;
+        _hasExtractedData = false;
         _data = emptyData;
         _isRecurringExpense = false;
         _recurringStartDate = emptyData.transactionDate;
@@ -291,7 +291,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_dataExtracted)
+            if (_hasExtractedData)
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.symmetric(
@@ -312,366 +312,318 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
               onTap: _showCameraPermissionDialog,
             ),
             const SizedBox(height: 16),
-            if (_dataExtracted)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header
-                    Row(
-                      children: [
-                        const Text(
-                          'EXTRACTED DATA',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.8,
-                            color: Color(0xFF555555),
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1A2340),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: Colors.white,
-                                size: 14,
-                              ),
-                              SizedBox(width: 5),
-                              Text(
-                                'AUTO EXTRACT',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _AutoEntryHeader(hasExtractedData: _hasExtractedData),
+                  const SizedBox(height: 16),
+                  // Data card
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE8E8E8)),
                     ),
-                    const SizedBox(height: 16),
-                    // Data card
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE8E8E8)),
-                      ),
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          // CHECK NUMBER
-                          Row(
-                            children: [
-                              const Text(
-                                'CHECK NUMBER:',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
-                                  color: Color(0xFF555555),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        // CHECK NUMBER
+                        Row(
+                          children: [
+                            const Text(
+                              'CHECK NUMBER:',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                                color: Color(0xFF555555),
+                              ),
+                            ),
+                            const Spacer(),
+                            const Icon(
+                              Icons.receipt_long_outlined,
+                              size: 20,
+                              color: Color(0xFF888888),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 60,
+                              child: TextField(
+                                controller: _checkNumberController,
+                                textAlign: TextAlign.center,
+                                keyboardType: TextInputType.number,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 6,
+                                  ),
+                                  border: InputBorder.none,
                                 ),
                               ),
-                              const Spacer(),
-                              const Icon(
-                                Icons.receipt_long_outlined,
-                                size: 20,
-                                color: Color(0xFF888888),
-                              ),
-                              const SizedBox(width: 8),
-                              SizedBox(
-                                width: 60,
-                                child: TextField(
-                                  controller: _checkNumberController,
-                                  textAlign: TextAlign.center,
-                                  keyboardType: TextInputType.number,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  decoration: const InputDecoration(
-                                    isDense: true,
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                      vertical: 6,
-                                    ),
-                                    border: InputBorder.none,
-                                  ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: _confirmDelete,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.delete_outline,
+                                  size: 18,
+                                  color: Color(0xFFEF4444),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: _confirmDelete,
-                                child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFEF2F2),
-                                    borderRadius: BorderRadius.circular(8),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                        const SizedBox(height: 14),
+                        // TOTAL AMOUNT
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: const Color(0xFFD0D0D0),
                                   ),
-                                  child: const Icon(
-                                    Icons.delete_outline,
-                                    size: 18,
-                                    color: Color(0xFFEF4444),
-                                  ),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                          const SizedBox(height: 14),
-                          // TOTAL AMOUNT
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: const Color(0xFFD0D0D0),
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  padding: const EdgeInsets.fromLTRB(
-                                    12,
-                                    6,
-                                    12,
-                                    8,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'TOTAL AMOUNT',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.5,
-                                          color: Color(0xFF888888),
-                                        ),
+                                padding: const EdgeInsets.fromLTRB(
+                                  12,
+                                  6,
+                                  12,
+                                  8,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'TOTAL AMOUNT',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.5,
+                                        color: Color(0xFF888888),
                                       ),
-                                      const SizedBox(height: 2),
-                                      TextField(
-                                        controller: _totalAmountController,
-                                        keyboardType:
-                                            const TextInputType.numberWithOptions(
-                                              decimal: true,
-                                            ),
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter.allow(
-                                            RegExp(r'^\d*\.?\d{0,2}'),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    TextField(
+                                      controller: _totalAmountController,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
                                           ),
-                                        ],
-                                        style: const TextStyle(
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.allow(
+                                          RegExp(r'^\d*\.?\d{0,2}'),
+                                        ),
+                                      ],
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF1A2340),
+                                      ),
+                                      decoration: const InputDecoration(
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                        border: InputBorder.none,
+                                        prefixText: r'$',
+                                        prefixStyle: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.w600,
                                           color: Color(0xFF1A2340),
                                         ),
-                                        decoration: const InputDecoration(
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.zero,
-                                          border: InputBorder.none,
-                                          prefixText: r'$',
-                                          prefixStyle: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF1A2340),
-                                          ),
-                                        ),
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              if (_scannedImageBytes != null) ...[
-                                const SizedBox(width: 10),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Image.memory(
-                                    _scannedImageBytes!,
-                                    width: 48,
-                                    height: 48,
-                                    fit: BoxFit.cover,
-                                  ),
+                            ),
+                            if (_scannedImageBytes != null) ...[
+                              const SizedBox(width: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Image.memory(
+                                  _scannedImageBytes!,
+                                  width: 48,
+                                  height: 48,
+                                  fit: BoxFit.cover,
                                 ),
-                              ],
+                              ),
                             ],
-                          ),
-                          const SizedBox(height: 12),
-                          // TRANSACTION DATE
-                          InfoRow(
-                            label: 'TRANSACTION:',
-                            child: GestureDetector(
-                              onTap: _pickDate,
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.calendar_month_outlined,
-                                    size: 20,
-                                    color: Color(0xFF4A90D9),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    formatExpenseDate(_data.transactionDate),
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      color: Color(0xFF1A2340),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                          const SizedBox(height: 12),
-                          // CATEGORY
-                          InfoRow(
-                            label: 'CATEGORY:',
-                            child: GestureDetector(
-                              onTap: _showCategoryPicker,
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    _data.category.icon,
-                                    size: 20,
-                                    color: const Color(0xFF4A90D9),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    _data.category.label,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      color: Color(0xFF1A2340),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const Icon(
-                                    Icons.keyboard_arrow_down,
-                                    size: 18,
-                                    color: Color(0xFF888888),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                          const SizedBox(height: 12),
-                          // PAYEE
-                          InfoRow(
-                            label: 'PAYEE:',
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // TRANSACTION DATE
+                        InfoRow(
+                          label: 'TRANSACTION:',
+                          child: GestureDetector(
+                            onTap: _pickDate,
                             child: Row(
                               children: [
                                 const Icon(
-                                  Icons.storefront_outlined,
+                                  Icons.calendar_month_outlined,
                                   size: 20,
                                   color: Color(0xFF4A90D9),
                                 ),
                                 const SizedBox(width: 6),
-                                SizedBox(
-                                  width: 200,
-                                  child: TextField(
-                                    controller: _payeeController,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      color: Color(0xFF1A2340),
-                                    ),
-                                    decoration: const InputDecoration(
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                      border: InputBorder.none,
-                                    ),
+                                Text(
+                                  formatExpenseDate(_data.transactionDate),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF1A2340),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                          const SizedBox(height: 12),
-                          RecurringExpenseOption(
-                            value: _isRecurringExpense,
-                            startDate: _recurringStartDate,
-                            frequency: _recurringFrequency,
-                            onChanged: (value) {
-                              setState(() {
-                                _isRecurringExpense = value;
-                                if (value) {
-                                  _recurringStartDate = _data.transactionDate;
-                                }
-                              });
-                            },
-                            onPickStartDate: _pickRecurringStartDate,
-                            onFrequencyChanged: (value) {
-                              setState(() => _recurringFrequency = value);
-                            },
+                        ),
+                        const SizedBox(height: 12),
+                        const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                        const SizedBox(height: 12),
+                        // CATEGORY
+                        InfoRow(
+                          label: 'CATEGORY:',
+                          child: GestureDetector(
+                            onTap: _showCategoryPicker,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _data.category.icon,
+                                  size: 20,
+                                  color: const Color(0xFF4A90D9),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _data.category.label,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF1A2340),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.keyboard_arrow_down,
+                                  size: 18,
+                                  color: Color(0xFF888888),
+                                ),
+                              ],
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                        const SizedBox(height: 12),
+                        // PAYEE
+                        InfoRow(
+                          label: 'PAYEE:',
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.storefront_outlined,
+                                size: 20,
+                                color: Color(0xFF4A90D9),
+                              ),
+                              const SizedBox(width: 6),
+                              SizedBox(
+                                width: 200,
+                                child: TextField(
+                                  controller: _payeeController,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF1A2340),
+                                  ),
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    border: InputBorder.none,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                        const SizedBox(height: 12),
+                        RecurringExpenseOption(
+                          value: _isRecurringExpense,
+                          startDate: _recurringStartDate,
+                          frequency: _recurringFrequency,
+                          onChanged: (value) {
+                            setState(() {
+                              _isRecurringExpense = value;
+                              if (value) {
+                                _recurringStartDate = _data.transactionDate;
+                              }
+                            });
+                          },
+                          onPickStartDate: _pickRecurringStartDate,
+                          onFrequencyChanged: (value) {
+                            setState(() => _recurringFrequency = value);
+                          },
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ),
             const SizedBox(height: 100),
           ],
         ),
       ),
-      bottomNavigationBar: _dataExtracted
-          ? SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _confirm,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1A2340),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Confirm',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                  ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _isSaving ? null : _confirm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A2340),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                elevation: 0,
               ),
-            )
-          : null,
+              child: _isSaving
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Confirm',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -679,6 +631,70 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scanner Area (auto-mode only)
 // ─────────────────────────────────────────────────────────────────────────────
+
+class _AutoEntryHeader extends StatelessWidget {
+  final bool hasExtractedData;
+
+  const _AutoEntryHeader({required this.hasExtractedData});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          hasExtractedData ? 'EXTRACTED DATA' : 'EXPENSE DATA',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+            color: Color(0xFF555555),
+          ),
+        ),
+        const Spacer(),
+        _AutoEntryStatusBadge(hasExtractedData: hasExtractedData),
+      ],
+    );
+  }
+}
+
+class _AutoEntryStatusBadge extends StatelessWidget {
+  final bool hasExtractedData;
+
+  const _AutoEntryStatusBadge({required this.hasExtractedData});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: hasExtractedData
+            ? const Color(0xFF1A2340)
+            : const Color(0xFF059669),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            hasExtractedData ? Icons.check_circle : Icons.edit_outlined,
+            color: Colors.white,
+            size: 14,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            hasExtractedData ? 'AUTO EXTRACT' : 'EDITABLE',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _ScannerArea extends StatelessWidget {
   final Uint8List? imageBytes;

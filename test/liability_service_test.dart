@@ -168,6 +168,25 @@ void main() {
     expect(data.utilizationPercent, 40);
   });
 
+  test('deposit card last four is normalized before storage', () async {
+    await LiabilityService.saveDeposit(
+      orderNumber: 'd-card',
+      totalAmount: 42,
+      creditDeposit: 42,
+      cardLastFour: '4111 1111 1111 9876',
+      cash: 0,
+      giftCard: 0,
+      other: 0,
+      transactionDate: DateTime(2026, 6, 14),
+      isManual: true,
+    );
+
+    final deposits = await LiabilityService.loadDeposits();
+
+    expect(deposits.single.cardLastFour, '9876');
+    expect(deposits.single.toJson()['cardLastFour'], '9876');
+  });
+
   test('default budget seed uses the created month', () async {
     LiabilityService.resetForTesting(seedDefaultBudgetData: true);
 

@@ -49,6 +49,7 @@ class LocalTransactionRepository implements TransactionRepository {
       orderNumber: request.orderNumber,
       totalAmount: request.totalAmount,
       creditDeposit: request.creditDeposit,
+      cardLastFour: request.cardLastFour,
       cash: request.cash,
       giftCard: request.giftCard,
       other: request.other,

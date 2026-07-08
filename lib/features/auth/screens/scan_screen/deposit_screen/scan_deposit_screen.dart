@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:savetep/services/card_last_four.dart';
 import 'package:savetep/services/money_formatter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -12,27 +13,30 @@ class ScannedDepositData {
   final String orderNumber;
   final double totalAmount;
   final double creditDeposit;
+  final String cardLastFour;
   final double cash;
   final double giftCard;
   final double other;
   final DateTime transactionDate;
   final XFile? receiptImage;
 
-  const ScannedDepositData({
+  ScannedDepositData({
     this.orderNumber = '01',
     this.totalAmount = 0,
     this.creditDeposit = 0,
+    String cardLastFour = '',
     this.cash = 0,
     this.giftCard = 0,
     this.other = 0,
     required this.transactionDate,
     this.receiptImage,
-  });
+  }) : cardLastFour = normalizeCardLastFour(cardLastFour);
 
   ScannedDepositData copyWith({
     String? orderNumber,
     double? totalAmount,
     double? creditDeposit,
+    String? cardLastFour,
     double? cash,
     double? giftCard,
     double? other,
@@ -43,6 +47,7 @@ class ScannedDepositData {
       orderNumber: orderNumber ?? this.orderNumber,
       totalAmount: totalAmount ?? this.totalAmount,
       creditDeposit: creditDeposit ?? this.creditDeposit,
+      cardLastFour: cardLastFour ?? this.cardLastFour,
       cash: cash ?? this.cash,
       giftCard: giftCard ?? this.giftCard,
       other: other ?? this.other,
@@ -51,12 +56,6 @@ class ScannedDepositData {
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Entry mode
-// ─────────────────────────────────────────────────────────────────────────────
-
-enum ScanDepositEntryMode { automatic, manual }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared widgets
@@ -86,6 +85,7 @@ class DepositDataCard extends StatelessWidget {
   final TextEditingController orderNumberController;
   final TextEditingController totalAmountController;
   final TextEditingController creditDepositController;
+  final TextEditingController cardLastFourController;
   final TextEditingController cashController;
   final TextEditingController giftCardController;
   final TextEditingController otherController;
@@ -99,6 +99,7 @@ class DepositDataCard extends StatelessWidget {
     required this.orderNumberController,
     required this.totalAmountController,
     required this.creditDepositController,
+    required this.cardLastFourController,
     required this.cashController,
     required this.giftCardController,
     required this.otherController,
@@ -180,18 +181,39 @@ class DepositDataCard extends StatelessWidget {
           const SizedBox(height: 14),
           const Divider(height: 1, color: Color(0xFFEEEEEE)),
           const SizedBox(height: 14),
-          _TotalAmountDisplay(
-            label: 'TOTAL AMOUNT',
-            controller: totalAmountController,
-            thumbnailBytes: receiptImageBytes,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _TotalAmountDisplay(
+                  label: 'TOTAL AMOUNT',
+                  controller: totalAmountController,
+                  thumbnailBytes: receiptImageBytes,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _SmallDataField(
+                  label: 'CARD LAST 4',
+                  controller: cardLastFourController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(4),
+                  ],
+                  fieldKey: const ValueKey('deposit.cardLastFour'),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: _SmallAmountField(
-                  label: 'CREDIT/DEBT',
+                  label: 'CREDIT/DEBIT',
                   controller: creditDepositController,
+                  fieldKey: const ValueKey('deposit.creditDebitAmount'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -199,6 +221,7 @@ class DepositDataCard extends StatelessWidget {
                 child: _SmallAmountField(
                   label: 'CASH',
                   controller: cashController,
+                  fieldKey: const ValueKey('deposit.cashAmount'),
                 ),
               ),
             ],
@@ -210,6 +233,7 @@ class DepositDataCard extends StatelessWidget {
                 child: _SmallAmountField(
                   label: 'GIFT CARD',
                   controller: giftCardController,
+                  fieldKey: const ValueKey('deposit.giftCardAmount'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -217,6 +241,7 @@ class DepositDataCard extends StatelessWidget {
                 child: _SmallAmountField(
                   label: 'OTHER',
                   controller: otherController,
+                  fieldKey: const ValueKey('deposit.otherAmount'),
                 ),
               ),
             ],
@@ -299,12 +324,20 @@ class _TotalAmountDisplay extends StatelessWidget {
                   valueListenable: controller,
                   builder: (context, value, _) {
                     final amount = value.text.isEmpty ? '0.00' : value.text;
-                    return Text(
-                      '\$$amount',
-                      style: const TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1A2340),
+                    return SizedBox(
+                      width: double.infinity,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '\$$amount',
+                          maxLines: 1,
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1A2340),
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -333,11 +366,56 @@ class _TotalAmountDisplay extends StatelessWidget {
 class _SmallAmountField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
-  const _SmallAmountField({required this.label, required this.controller});
+  final Key? fieldKey;
+
+  const _SmallAmountField({
+    required this.label,
+    required this.controller,
+    this.fieldKey,
+  });
 
   @override
   Widget build(BuildContext context) {
+    return _SmallDataField(
+      label: label,
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+      ],
+      prefixText: r'$',
+      fieldKey: fieldKey,
+    );
+  }
+}
+
+class _SmallDataField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final TextInputType keyboardType;
+  final List<TextInputFormatter> inputFormatters;
+  final String? prefixText;
+  final Key? fieldKey;
+
+  const _SmallDataField({
+    required this.label,
+    required this.controller,
+    required this.keyboardType,
+    required this.inputFormatters,
+    this.prefixText,
+    this.fieldKey,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const fieldTextStyle = TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      color: Color(0xFF1A2340),
+    );
+
     return Container(
+      constraints: const BoxConstraints(minHeight: 68),
       decoration: BoxDecoration(
         border: Border.all(color: const Color(0xFFD0D0D0)),
         borderRadius: BorderRadius.circular(8),
@@ -357,26 +435,17 @@ class _SmallAmountField extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           TextField(
+            key: fieldKey,
             controller: controller,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-            ],
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1A2340),
-            ),
-            decoration: const InputDecoration(
+            keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
+            style: fieldTextStyle,
+            decoration: InputDecoration(
               isDense: true,
               contentPadding: EdgeInsets.zero,
               border: InputBorder.none,
-              prefixText: r'$',
-              prefixStyle: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1A2340),
-              ),
+              prefixText: prefixText,
+              prefixStyle: prefixText == null ? null : fieldTextStyle,
             ),
           ),
         ],
@@ -649,9 +718,10 @@ class DepositReviewDialog extends StatelessWidget {
             ),
             const Divider(height: 22, color: Color(0xFFE5E7EB)),
             DepositReviewRow(
-              label: 'Credit/Debt',
+              label: 'Credit/Debit',
               value: _fmtCurrency(data.creditDeposit),
             ),
+            DepositReviewRow(label: 'Card Last 4', value: data.cardLastFour),
             DepositReviewRow(label: 'Cash', value: _fmtCurrency(data.cash)),
             DepositReviewRow(
               label: 'Gift Card',

@@ -2,18 +2,26 @@ import 'package:flutter/material.dart';
 
 import 'deposit_account_balance_summary_screen.dart';
 import 'scan_deposit_auto_screen.dart';
-import 'scan_deposit_manual_screen.dart';
 
 class ScanDepositScreen extends StatelessWidget {
   const ScanDepositScreen({super.key});
 
-  Future<void> _openEntry(BuildContext context, Widget screen) async {
+  Future<void> _openAutoEntry(BuildContext context) async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => screen),
+      MaterialPageRoute(builder: (_) => const ScanDepositAutoScreen()),
     );
     if (!context.mounted) return;
     if (result != null) Navigator.pop(context, result);
+  }
+
+  void _openAccountBalanceSummary(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const DepositAccountBalanceSummaryScreen(),
+      ),
+    );
   }
 
   @override
@@ -42,19 +50,11 @@ class ScanDepositScreen extends StatelessWidget {
         child: Column(
           children: [
             _ChoiceCard(
-              icon: Icons.edit_outlined,
-              title: 'Enter Manually',
-              subtitle: 'Type deposit details yourself',
-              color: const Color(0xFFE0F2FE),
-              onTap: () => _openEntry(context, const ScanDepositManualScreen()),
-            ),
-            const SizedBox(height: 12),
-            _ChoiceCard(
               icon: Icons.document_scanner_outlined,
               title: 'Extract Automatically',
               subtitle: 'Scan a receipt with the camera',
               color: const Color(0xFFDEFACF),
-              onTap: () => _openEntry(context, const ScanDepositAutoScreen()),
+              onTap: () => _openAutoEntry(context),
             ),
             const SizedBox(height: 12),
             _ChoiceCard(
@@ -62,12 +62,7 @@ class ScanDepositScreen extends StatelessWidget {
               title: 'Deposit account balance summary',
               subtitle: 'Review beginning balance, credits, and ending balance',
               color: const Color(0xFFEDE9FE),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const DepositAccountBalanceSummaryScreen(),
-                ),
-              ),
+              onTap: () => _openAccountBalanceSummary(context),
             ),
           ],
         ),

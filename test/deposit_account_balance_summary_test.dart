@@ -101,6 +101,8 @@ void main() {
   ) async {
     await tester.pumpWidget(const MaterialApp(home: ScanDepositScreen()));
 
+    expect(find.text('Enter Manually'), findsNothing);
+    expect(find.text('Extract Automatically'), findsOneWidget);
     expect(find.text('Deposit account balance summary'), findsOneWidget);
     expect(
       find.text('Review beginning balance, credits, and ending balance'),
