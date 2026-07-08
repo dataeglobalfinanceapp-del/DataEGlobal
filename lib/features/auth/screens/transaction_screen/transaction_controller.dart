@@ -1,5 +1,7 @@
 part of 'transaction_screen.dart';
 
+void unawaited(Future<void> future) {}
+
 class _TransactionController extends ChangeNotifier {
   _TransactionKind _kind = _TransactionKind.expense;
   _TransactionFilter _filter = _TransactionFilter.monthly;
@@ -8,16 +10,20 @@ class _TransactionController extends ChangeNotifier {
   String? _category;
   bool _isLoading = true;
   bool _isDisposed = false;
-  List<DepositRecord> _deposits = const <DepositRecord>[];
-  List<ExpenseRecord> _expenses = const <ExpenseRecord>[];
+  final TransactionQueryRepository _repository;
+  TransactionPage<DepositRecord>? _depositPage;
+  TransactionPage<ExpenseRecord>? _expensePage;
+  TransactionAggregates _aggregates = TransactionAggregates.empty();
+  bool _hasMorePages = false;
   final Set<String> _expandedGroups = <String>{};
 
   late _TransactionViewState _state;
 
   _TransactionController({
+    TransactionQueryRepository? repository,
     DateTimeRange? initialExpenseDateRange,
     String? initialExpenseCategory,
-  }) {
+  }) : _repository = repository ?? const LocalTransactionQueryRepository() {
     _expenseDateRange = _TransactionDateUtils.normalizedRange(
       initialExpenseDateRange ?? _TransactionDateUtils.yearDateRange(_year),
     );
@@ -38,13 +44,93 @@ class _TransactionController extends ChangeNotifier {
   Future<void> loadTransactions() async {
     _setLoading(true);
 
-    final List<DepositRecord> deposits = await LiabilityService.loadDeposits();
-    final List<ExpenseRecord> expenses = await LiabilityService.loadExpenses();
+    final aggregates = await _repository.fetchAggregates(
+      year: _year,
+      expenseDateRange: _expenseDateRange,
+      category: _category,
+    );
+    if (_isDisposed) return;
+    _aggregates = aggregates;
+
+    final page = _kind == _TransactionKind.deposit
+        ? await _repository.queryDeposits(
+            TransactionQuery(
+              kind: TransactionKind.deposit,
+              startDate: DateTime(_year),
+              endDate: DateTime(_year, 12, 31),
+              limit: 50,
+            ),
+          )
+        : await _repository.queryExpenses(
+            TransactionQuery(
+              kind: TransactionKind.expense,
+              startDate: _expenseDateRange.start,
+              endDate: _expenseDateRange.end,
+              category: _category,
+              limit: 50,
+            ),
+          );
     if (_isDisposed) return;
 
-    _deposits = List<DepositRecord>.unmodifiable(deposits);
-    _expenses = List<ExpenseRecord>.unmodifiable(expenses);
+    if (_kind == _TransactionKind.deposit) {
+      _depositPage = page as TransactionPage<DepositRecord>;
+      _expensePage = null;
+    } else {
+      _expensePage = page as TransactionPage<ExpenseRecord>;
+      _depositPage = null;
+    }
+    _hasMorePages = page.nextCursor != null;
     _isLoading = false;
+    _rebuildState();
+    _notify();
+  }
+
+  Future<void> loadNextPage() async {
+    if (!_hasMorePages) return;
+
+    final String? cursor = _kind == _TransactionKind.deposit
+        ? _depositPage?.nextCursor
+        : _expensePage?.nextCursor;
+    if (cursor == null) return;
+
+    final page = _kind == _TransactionKind.deposit
+        ? await _repository.queryDeposits(
+            TransactionQuery(
+              kind: TransactionKind.deposit,
+              startDate: DateTime(_year),
+              endDate: DateTime(_year, 12, 31),
+              limit: 50,
+              cursor: cursor,
+            ),
+          )
+        : await _repository.queryExpenses(
+            TransactionQuery(
+              kind: TransactionKind.expense,
+              startDate: _expenseDateRange.start,
+              endDate: _expenseDateRange.end,
+              category: _category,
+              limit: 50,
+              cursor: cursor,
+            ),
+          );
+    if (_isDisposed) return;
+
+    if (_kind == _TransactionKind.deposit) {
+      final existing = _depositPage?.items ?? [];
+      _depositPage = TransactionPage<DepositRecord>(
+        items: [...existing, ...page.items as List<DepositRecord>],
+        nextCursor: page.nextCursor,
+        totalCount: page.totalCount,
+      );
+    } else {
+      final existing = _expensePage?.items ?? [];
+      _expensePage = TransactionPage<ExpenseRecord>(
+        items: [...existing, ...page.items as List<ExpenseRecord>],
+        nextCursor: page.nextCursor,
+        totalCount: page.totalCount,
+      );
+    }
+    _hasMorePages = page.nextCursor != null;
     _rebuildState();
     _notify();
   }
@@ -54,8 +140,7 @@ class _TransactionController extends ChangeNotifier {
 
     _kind = kind;
     _expandedGroups.clear();
-    _rebuildState();
-    _notify();
+    unawaited(loadTransactions());
   }
 
   void setFilter(_TransactionFilter filter) {
@@ -72,8 +157,7 @@ class _TransactionController extends ChangeNotifier {
 
     _category = category;
     _expandedGroups.clear();
-    _rebuildState();
-    _notify();
+    unawaited(loadTransactions());
   }
 
   void selectExpenseCategory(String category) {
@@ -81,16 +165,14 @@ class _TransactionController extends ChangeNotifier {
 
     _kind = _TransactionKind.expense;
     _category = category;
-    _rebuildState();
-    _notify();
+    unawaited(loadTransactions());
   }
 
   void changeYear(int delta) {
     _year += delta;
     _expenseDateRange = _TransactionDateUtils.yearDateRange(_year);
     _expandedGroups.clear();
-    _rebuildState();
-    _notify();
+    unawaited(loadTransactions());
   }
 
   void setExpenseDateRange(DateTimeRange range) {
@@ -104,8 +186,7 @@ class _TransactionController extends ChangeNotifier {
     _expenseDateRange = normalizedRange;
     _year = _expenseDateRange.start.year;
     _expandedGroups.clear();
-    _rebuildState();
-    _notify();
+    unawaited(loadTransactions());
   }
 
   void toggleGroup(String key) {
@@ -132,11 +213,18 @@ class _TransactionController extends ChangeNotifier {
   }
 
   Future<String> exportPdf(_ExportRange range) async {
+    final deposits = await _repository.fetchDepositsForExport(
+      DateTimeRange(start: range.start, end: range.end),
+    );
+    final expenses = await _repository.fetchExpensesForExport(
+      range: DateTimeRange(start: range.start, end: range.end),
+      category: _kind == _TransactionKind.expense ? _category : null,
+    );
     final _TransactionPdfPayload pdf = _TransactionReportBuilder.buildPdf(
       kind: _kind,
       category: _category,
-      deposits: _deposits,
-      expenses: _expenses,
+      deposits: deposits,
+      expenses: expenses,
       range: range,
     );
 
@@ -144,11 +232,18 @@ class _TransactionController extends ChangeNotifier {
   }
 
   Future<String> printPdf(_ExportRange range) async {
+    final deposits = await _repository.fetchDepositsForExport(
+      DateTimeRange(start: range.start, end: range.end),
+    );
+    final expenses = await _repository.fetchExpensesForExport(
+      range: DateTimeRange(start: range.start, end: range.end),
+      category: _kind == _TransactionKind.expense ? _category : null,
+    );
     final _TransactionPdfPayload pdf = _TransactionReportBuilder.buildPdf(
       kind: _kind,
       category: _category,
-      deposits: _deposits,
-      expenses: _expenses,
+      deposits: deposits,
+      expenses: expenses,
       range: range,
     );
 
@@ -156,11 +251,18 @@ class _TransactionController extends ChangeNotifier {
   }
 
   Future<String> exportExcel(_ExportRange range) async {
+    final deposits = await _repository.fetchDepositsForExport(
+      DateTimeRange(start: range.start, end: range.end),
+    );
+    final expenses = await _repository.fetchExpensesForExport(
+      range: DateTimeRange(start: range.start, end: range.end),
+      category: _kind == _TransactionKind.expense ? _category : null,
+    );
     final _TransactionExcelPayload excel = _TransactionReportBuilder.buildExcel(
       kind: _kind,
       category: _category,
-      deposits: _deposits,
-      expenses: _expenses,
+      deposits: deposits,
+      expenses: expenses,
       range: range,
     );
 
@@ -184,51 +286,19 @@ class _TransactionController extends ChangeNotifier {
   }
 
   void _rebuildState() {
-    final bool isExpenseView = _kind == _TransactionKind.expense;
-    final double totalDeposits = isExpenseView
-        ? _TransactionDataMapper.totalDepositsInRange(
-            _deposits,
-            _expenseDateRange,
-          )
-        : _TransactionDataMapper.totalDeposits(_deposits, _year);
-    final double totalExpenses = isExpenseView
-        ? _TransactionDataMapper.totalExpensesInRange(
-            _expenses,
-            _expenseDateRange,
-          )
-        : _TransactionDataMapper.totalExpenses(_expenses, _year);
-    final List<String> expenseCategories =
-        _TransactionDataMapper.expenseCategories(
-          _expenses,
-          dateRange: _expenseDateRange,
-        );
-    final double selectedCategoryExpenseTotal =
-        _TransactionDataMapper.selectedCategoryExpenseTotal(
-          expenses: _expenses,
-          dateRange: _expenseDateRange,
-          category: _category,
-        );
-    final taxEstimate =
-        TaxEstimateService.calculateYearEndEstimate<
-          DepositRecord,
-          ExpenseRecord
-        >(
-          deposits: _deposits,
-          expenses: _expenses,
-          year: _year,
-          depositDate: (record) => record.transactionDate,
-          depositAmount: (record) => record.totalAmount,
-          expenseDate: (record) => record.transactionDate,
-          expenseAmount: (record) => record.totalAmount,
-        );
+    final List<DepositRecord> deposits =
+        _depositPage?.items.cast<DepositRecord>() ?? [];
+    final List<ExpenseRecord> expenses =
+        _expensePage?.items.cast<ExpenseRecord>() ?? [];
+
     final List<_TransactionGroup> groups = _TransactionDataMapper.groups(
       kind: _kind,
       filter: _filter,
       year: _year,
       expenseDateRange: _expenseDateRange,
       category: _category,
-      deposits: _deposits,
-      expenses: _expenses,
+      deposits: deposits,
+      expenses: expenses,
     );
     final List<_TransactionListEntry> entries =
         _TransactionDataMapper.visibleEntries(
@@ -243,11 +313,11 @@ class _TransactionController extends ChangeNotifier {
       year: _year,
       expenseDateRange: _expenseDateRange,
       category: _category,
-      totalDeposits: totalDeposits,
-      totalExpenses: totalExpenses,
-      estimatedTaxToPay: taxEstimate.taxDue,
-      selectedCategoryExpenseTotal: selectedCategoryExpenseTotal,
-      expenseCategories: expenseCategories,
+      totalDeposits: _aggregates.totalDeposits,
+      totalExpenses: _aggregates.totalExpenses,
+      estimatedTaxToPay: _aggregates.estimatedTaxAtYearEnd,
+      selectedCategoryExpenseTotal: _aggregates.selectedCategoryTotal,
+      expenseCategories: _aggregates.expenseCategories,
       groups: groups,
       entries: entries,
     );
@@ -267,99 +337,6 @@ class _TransactionController extends ChangeNotifier {
 
 class _TransactionDataMapper {
   const _TransactionDataMapper._();
-
-  static double totalDeposits(List<DepositRecord> deposits, int year) {
-    return deposits
-        .where((DepositRecord record) => record.transactionDate.year == year)
-        .fold<double>(
-          0,
-          (double total, DepositRecord record) => total + record.totalAmount,
-        );
-  }
-
-  static double totalExpenses(List<ExpenseRecord> expenses, int year) {
-    return expenses
-        .where((ExpenseRecord record) => record.transactionDate.year == year)
-        .fold<double>(
-          0,
-          (double total, ExpenseRecord record) => total + record.totalAmount,
-        );
-  }
-
-  static double totalDepositsInRange(
-    List<DepositRecord> deposits,
-    DateTimeRange dateRange,
-  ) {
-    return deposits
-        .where(
-          (DepositRecord record) => _TransactionDateUtils.isInDateRange(
-            record.transactionDate,
-            dateRange,
-          ),
-        )
-        .fold<double>(
-          0,
-          (double total, DepositRecord record) => total + record.totalAmount,
-        );
-  }
-
-  static double totalExpensesInRange(
-    List<ExpenseRecord> expenses,
-    DateTimeRange dateRange,
-  ) {
-    return expenses
-        .where(
-          (ExpenseRecord record) => _TransactionDateUtils.isInDateRange(
-            record.transactionDate,
-            dateRange,
-          ),
-        )
-        .fold<double>(
-          0,
-          (double total, ExpenseRecord record) => total + record.totalAmount,
-        );
-  }
-
-  static List<String> expenseCategories(
-    List<ExpenseRecord> expenses, {
-    required DateTimeRange dateRange,
-  }) {
-    final List<String> categories = expenses
-        .where(
-          (ExpenseRecord record) => _TransactionDateUtils.isInDateRange(
-            record.transactionDate,
-            dateRange,
-          ),
-        )
-        .map<String>((ExpenseRecord record) => record.category)
-        .where((String category) => category.trim().isNotEmpty)
-        .toSet()
-        .toList(growable: false);
-    categories.sort();
-    return List<String>.unmodifiable(categories);
-  }
-
-  static double selectedCategoryExpenseTotal({
-    required List<ExpenseRecord> expenses,
-    required DateTimeRange dateRange,
-    required String? category,
-  }) {
-    if (category == null) return 0;
-
-    return expenses
-        .where(
-          (ExpenseRecord record) =>
-              _TransactionDateUtils.isInDateRange(
-                record.transactionDate,
-                dateRange,
-              ) &&
-              record.category == category,
-        )
-        .fold<double>(
-          0,
-          (double total, ExpenseRecord record) => total + record.totalAmount,
-        );
-  }
 
   static List<_TransactionGroup> groups({
     required _TransactionKind kind,

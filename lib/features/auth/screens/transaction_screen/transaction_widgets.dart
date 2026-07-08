@@ -31,6 +31,7 @@ class _TransactionList extends StatelessWidget {
   final VoidCallback onExportPdf;
   final VoidCallback onPrintPdf;
   final VoidCallback onExportExcel;
+  final ScrollController scrollController;
 
   const _TransactionList({
     required this.state,
@@ -46,6 +47,7 @@ class _TransactionList extends StatelessWidget {
     required this.onExportPdf,
     required this.onPrintPdf,
     required this.onExportExcel,
+    required this.scrollController,
   });
 
   @override
@@ -53,6 +55,7 @@ class _TransactionList extends StatelessWidget {
     final int entryCount = state.entries.length;
 
     return ListView.builder(
+      controller: scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: _TransactionTokens.pagePadding,
       itemCount: entryCount + 2,

@@ -1,7 +1,10 @@
+import 'dart:async' show unawaited;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import 'package:savetep/data/repositories/local_transaction_query_repository.dart';
+import 'package:savetep/data/repositories/transaction_query_repository.dart';
 import 'package:savetep/features/auth/models/balance_summary_data.dart';
 import 'package:savetep/features/auth/widgets/balance_summary_card.dart';
 import 'package:savetep/services/app_clock.dart';
@@ -12,7 +15,6 @@ import 'package:savetep/services/exporter/pdf_exporter.dart';
 import 'package:savetep/services/exporter/pdf_printer.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/money_formatter.dart';
-import 'package:savetep/services/tax_estimate_service.dart';
 import 'package:savetep/services/yearly_pdf_report.dart';
 
 import '../../widgets/app_date_range_selector.dart';
@@ -48,20 +50,32 @@ class TransactionScreen extends StatefulWidget {
 
 class _TransactionScreenState extends State<TransactionScreen> {
   late final _TransactionController _controller;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _controller = _TransactionController(
+      repository: const LocalTransactionQueryRepository(),
       initialExpenseDateRange: widget.initialExpenseDateRange,
       initialExpenseCategory: widget.initialExpenseCategory,
     )..loadTransactions();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      unawaited(_controller.loadNextPage());
+    }
   }
 
   Future<void> _chooseCategory() async {
@@ -388,6 +402,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     onExportPdf: _exportPdf,
                     onPrintPdf: _printPdf,
                     onExportExcel: _exportExcel,
+                    scrollController: _scrollController,
                   ),
           );
         },
