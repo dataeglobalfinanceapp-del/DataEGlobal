@@ -29,10 +29,12 @@ void main() {
     expect(summary.beginningBalance, 100);
     expect(summary.monthCredits, 75);
     expect(summary.monthExpenses, 40);
+    expect(summary.monthlySurplusRatio, closeTo(0.466, 0.001));
     expect(summary.endingBalance, 135);
 
     final List<DepositBalanceSummary> summaries =
         await LiabilityService.loadDepositBalanceSummariesForYear(year: 2026);
+    expect(summaries[4].monthlySurplusRatio, 1);
     expect(summaries[6].beginningBalance, 135);
     expect(summaries[6].monthCredits, 50);
     expect(summaries[6].endingBalance, 185);
@@ -94,6 +96,47 @@ void main() {
     expect(find.text(r'$75.00'), findsOneWidget);
     expect(find.text(r'$40.00'), findsOneWidget);
     expect(find.text(r'$135.00'), findsWidgets);
+  });
+
+  testWidgets('Deposit account balance summary shows completed month ratios', (
+    WidgetTester tester,
+  ) async {
+    AppClock.set(DateTime(2026, 7, 15));
+
+    await _saveDeposit(amount: 50, date: DateTime(2026, 5, 8));
+    await _saveExpense(amount: 100, date: DateTime(2026, 5, 9));
+    await _saveDeposit(amount: 75, date: DateTime(2026, 6, 10));
+    await _saveExpense(amount: 40, date: DateTime(2026, 6, 12));
+    await _saveDeposit(amount: 200, date: DateTime(2026, 7, 1));
+    await _saveExpense(amount: 100, date: DateTime(2026, 7, 2));
+
+    await tester.pumpWidget(
+      const MaterialApp(home: DepositAccountBalanceSummaryScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('May'), findsOneWidget);
+    expect(find.text('June'), findsOneWidget);
+    expect(find.text('July'), findsOneWidget);
+    expect(find.text('-100%'), findsOneWidget);
+    expect(find.text('46.7%'), findsOneWidget);
+    expect(find.text('50%'), findsNothing);
+
+    final Text lowRatioText = tester.widget<Text>(find.text('46.7%'));
+    expect(lowRatioText.style?.color, const Color(0xFFDC2626));
+    expect(
+      monthlySurplusRatioColor(
+        const DepositBalanceSummary(
+          year: 2026,
+          month: 6,
+          beginningBalance: 0,
+          monthCredits: 0,
+          monthExpenses: 0,
+          monthlySurplusRatio: 1.1,
+        ),
+      ),
+      const Color(0xFF111827),
+    );
   });
 
   testWidgets('Deposit tab exposes account balance summary option', (

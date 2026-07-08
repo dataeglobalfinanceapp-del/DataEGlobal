@@ -120,6 +120,7 @@ class _DepositAccountBalanceSummaryScreenState
                             in visibleSummaries)
                           _MonthSummaryTile(
                             summary: summary,
+                            currentDate: now,
                             isExpanded: _expandedMonths.contains(summary.month),
                             onTap: () => _toggleMonth(summary.month),
                           ),
@@ -184,17 +185,24 @@ class _YearSelector extends StatelessWidget {
 
 class _MonthSummaryTile extends StatelessWidget {
   final DepositBalanceSummary summary;
+  final DateTime currentDate;
   final bool isExpanded;
   final VoidCallback onTap;
 
   const _MonthSummaryTile({
     required this.summary,
+    required this.currentDate,
     required this.isExpanded,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final String? surplusRatioText =
+        shouldShowMonthlySurplusRatio(summary, currentDate)
+        ? formatMonthlySurplusRatio(summary.monthlySurplusRatio)
+        : null;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -224,17 +232,36 @@ class _MonthSummaryTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      _monthNames[summary.month],
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF111827),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    child: Row(
+                      children: <Widget>[
+                        Flexible(
+                          child: Text(
+                            _monthNames[summary.month],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF111827),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (surplusRatioText != null) ...<Widget>[
+                          const SizedBox(width: 6),
+                          Text(
+                            surplusRatioText,
+                            maxLines: 1,
+                            style: TextStyle(
+                              color: monthlySurplusRatioColor(summary),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     formatMoney(summary.endingBalance),
                     textAlign: TextAlign.right,
@@ -328,6 +355,43 @@ class _SummaryAmountRow extends StatelessWidget {
     );
   }
 }
+
+bool shouldShowMonthlySurplusRatio(
+  DepositBalanceSummary summary,
+  DateTime currentDate,
+) {
+  return isCompletedMonth(summary, currentDate) &&
+      summary.monthlySurplusRatio != null;
+}
+
+bool isCompletedMonth(DepositBalanceSummary summary, DateTime currentDate) {
+  final DateTime summaryMonth = DateTime(summary.year, summary.month);
+  final DateTime currentMonth = DateTime(currentDate.year, currentDate.month);
+  return summaryMonth.isBefore(currentMonth);
+}
+
+String formatMonthlySurplusRatio(double? ratio) {
+  if (ratio == null) return '';
+  final double percent = ratio * 100;
+  return '${_formatPercentValue(percent)}%';
+}
+
+Color monthlySurplusRatioColor(DepositBalanceSummary summary) {
+  final double? ratio = summary.monthlySurplusRatio;
+  if (ratio != null && ratio <= _minimumHealthySurplusRatio) {
+    return _surplusRatioWarningColor;
+  }
+  return _summaryPrimaryTextColor;
+}
+
+String _formatPercentValue(double value) {
+  if (value == value.roundToDouble()) return value.round().toString();
+  return value.toStringAsFixed(1);
+}
+
+const double _minimumHealthySurplusRatio = 0;
+const Color _summaryPrimaryTextColor = Color(0xFF111827);
+const Color _surplusRatioWarningColor = Color(0xFFDC2626);
 
 const List<String> _monthNames = <String>[
   '',

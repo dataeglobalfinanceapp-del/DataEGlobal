@@ -1028,6 +1028,10 @@ class LiabilityService {
         beginningBalance: runningBalance,
         monthCredits: monthCredits,
         monthExpenses: monthExpenses,
+        monthlySurplusRatio: _monthlySurplusRatio(
+          depositTotal: monthCredits,
+          expenseTotal: monthExpenses,
+        ),
       );
       summaries.add(summary);
       runningBalance = summary.endingBalance;
@@ -1090,6 +1094,14 @@ class LiabilityService {
           0,
           (double total, ExpenseRecord record) => total + record.totalAmount,
         );
+  }
+
+  static double? _monthlySurplusRatio({
+    required double depositTotal,
+    required double expenseTotal,
+  }) {
+    if (depositTotal <= 0) return null;
+    return (depositTotal - expenseTotal) / depositTotal;
   }
 
   static String _newId(String prefix) =>
@@ -1308,6 +1320,7 @@ class DepositBalanceSummary {
   final double beginningBalance;
   final double monthCredits;
   final double monthExpenses;
+  final double? monthlySurplusRatio;
 
   const DepositBalanceSummary({
     required this.year,
@@ -1315,6 +1328,7 @@ class DepositBalanceSummary {
     required this.beginningBalance,
     required this.monthCredits,
     required this.monthExpenses,
+    this.monthlySurplusRatio,
   });
 
   double get endingBalance => beginningBalance + monthCredits - monthExpenses;
