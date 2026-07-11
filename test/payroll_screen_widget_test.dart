@@ -55,8 +55,13 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Payroll'), findsWidgets);
       expect(find.text('Employees'), findsWidgets);
+      expect(find.text('Setting payroll'), findsOneWidget);
+      expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.refresh), findsNothing);
       expect(find.text('BALANCE'), findsOneWidget);
-      expect(find.text('PAY DATE'), findsOneWidget);
+      expect(find.text('PAY DATE'), findsNothing);
+      expect(find.text('PROCESS PAYROLL DATE'), findsNothing);
+      expect(find.text('PAY PERIOD'), findsNothing);
       expect(find.text('Jack Nicholson'), findsOneWidget);
       expect(
         find.text('6 employees still need to confirm payroll.'),
@@ -66,6 +71,15 @@ void main() {
       expect(find.text('Total Deposit'), findsNothing);
       expect(find.text('Total Expense'), findsNothing);
       expect(find.byType(SingleChildScrollView), findsNothing);
+
+      await tester.tap(find.text('Setting payroll'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Payroll Settings'), findsOneWidget);
+      expect(find.text('PROCESS PAYROLL DATE'), findsOneWidget);
+      expect(find.text('PAY DATE'), findsOneWidget);
+      expect(find.text('PAYROLL SCHEDULE'), findsOneWidget);
+      expect(find.text('PAY PERIOD'), findsOneWidget);
       expect(find.text('06/16/2026'), findsOneWidget);
 
       await tester.tap(find.text('06/16/2026'));
@@ -97,6 +111,9 @@ void main() {
       expect(find.text('06/02/2026'), findsOneWidget);
       expect(find.text('06/02/2026 - 06/15/2026'), findsOneWidget);
       expect(find.text('06/16/2026'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
 
       await tester.enterText(
         find.byKey(const ValueKey<String>('payroll.employee.0.rate')),

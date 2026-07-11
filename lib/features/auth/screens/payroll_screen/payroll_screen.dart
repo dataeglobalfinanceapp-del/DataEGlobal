@@ -19,6 +19,7 @@ part 'payroll/tabs.dart';
 part 'payroll/employees_tab.dart';
 part 'payroll/dialogs.dart';
 part 'payroll/setup_card.dart';
+part 'payroll/settings_screen.dart';
 part 'payroll/employee_payroll_list.dart';
 part 'payroll/helpers.dart';
 part 'payroll/tokens.dart';
@@ -67,8 +68,6 @@ class PayrollScreen extends StatefulWidget {
 }
 
 class _PayrollScreenState extends State<PayrollScreen> {
-  static const List<int> _processDayOptions = <int>[1, 2, 3, 5, 7, 10, 14];
-
   late final PayrollController _controller;
   late final EmployeeDocumentEmailService _employeeDocumentEmailService;
   late final EmployeeDocumentCaptureService _employeeDocumentCaptureService;
@@ -92,94 +91,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
     super.dispose();
   }
 
-  Future<void> _pickPayDate() async {
-    final PayrollRecord payroll = _controller.state.payroll;
-    final DateTime firstSelectableDate =
-        PayrollPayDateValidator.firstSelectablePayDate();
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: PayrollPayDateValidator.normalizePayDate(payroll.payDate),
-      firstDate: firstSelectableDate,
-      lastDate: DateTime(2100, 12, 31),
-      currentDate: AppClock.now,
-      helpText: 'Choose pay date',
-      initialEntryMode: DatePickerEntryMode.calendarOnly,
-      selectableDayPredicate: (DateTime date) {
-        return PayrollPayDateValidator.isSelectablePayDate(date);
-      },
-    );
-    if (picked == null || !mounted) return;
-
-    _controller.setPayDate(picked);
-  }
-
-  Future<void> _pickBiweeklyPeriodBeginDate() async {
-    final PayrollRecord payroll = _controller.state.payroll;
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: payroll.biweeklyPeriodBeginDate,
-      firstDate: PayrollScheduleCalculator.earliestBiweeklyPeriodBeginDate(),
-      lastDate: PayrollScheduleCalculator.latestBiweeklyPeriodBeginDate(),
-      currentDate: AppClock.now,
-      helpText: 'Choose period begin date',
-      initialEntryMode: DatePickerEntryMode.calendarOnly,
-      selectableDayPredicate: (DateTime date) {
-        return PayrollScheduleCalculator.isSelectableBiweeklyPeriodBeginDate(
-          date,
-        );
-      },
-    );
-    if (picked == null || !mounted) return;
-
-    _controller.setBiweeklyPeriodBeginDate(picked);
-  }
-
-  Future<void> _chooseProcessDays() async {
-    final PayrollRecord payroll = _controller.state.payroll;
-    final int? selected = await showModalBottomSheet<int>(
-      context: context,
-      backgroundColor: _PayrollTokens.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: <Widget>[
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 18, 20, 8),
-                child: Text(
-                  'Process Payroll',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-                ),
-              ),
-              for (final int days in _processDayOptions)
-                ListTile(
-                  leading: Icon(
-                    days == payroll.processDaysBefore
-                        ? Icons.check_circle
-                        : Icons.calendar_month_outlined,
-                    color: days == payroll.processDaysBefore
-                        ? _PayrollTokens.success
-                        : _PayrollTokens.textMuted,
-                  ),
-                  title: Text('$days days before pay date'),
-                  subtitle: Text(
-                    _formatDate(payroll.payDate.subtract(Duration(days: days))),
-                  ),
-                  onTap: () => Navigator.pop(context, days),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-    if (selected == null || !mounted) return;
-
-    _controller.setProcessDaysBefore(selected);
-  }
-
   Future<void> _openAddEmployeeDialog() async {
     await showDialog<void>(
       context: context,
@@ -187,6 +98,15 @@ class _PayrollScreenState extends State<PayrollScreen> {
         emailService: _employeeDocumentEmailService,
         captureService: _employeeDocumentCaptureService,
         onEmployeeCreated: _controller.addEmployeeRecord,
+      ),
+    );
+  }
+
+  Future<void> _openPayrollSettings() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) =>
+            _PayrollSettingsScreen(controller: _controller),
       ),
     );
   }
@@ -206,11 +126,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
         title: const Text('Payroll', style: _PayrollTokens.appBarTitle),
         centerTitle: true,
         actions: <Widget>[
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh, color: _PayrollTokens.textStrong),
-            onPressed: _controller.load,
-          ),
+          _PayrollSettingsAction(onPressed: _openPayrollSettings),
         ],
       ),
       body: ListenableBuilder(
@@ -232,10 +148,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
               if (_selectedTab == _PayrollTab.payroll)
                 _PayrollTabContentConsumer(
                   controller: _controller,
-                  onPickPayDate: _pickPayDate,
-                  onPickBiweeklyPeriodBeginDate: _pickBiweeklyPeriodBeginDate,
-                  onChooseProcessDays: _chooseProcessDays,
-                  onScheduleChanged: _controller.setSchedule,
                   onAddEmployee: _controller.addEmployee,
                   onEmployeeChanged: _controller.updateEmployee,
                 )
@@ -250,6 +162,46 @@ class _PayrollScreenState extends State<PayrollScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PayrollSettingsAction extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _PayrollSettingsAction({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          IconButton(
+            tooltip: 'Payroll settings',
+            icon: const Icon(
+              Icons.settings_outlined,
+              color: _PayrollTokens.textStrong,
+            ),
+            onPressed: onPressed,
+          ),
+          TextButton(
+            onPressed: onPressed,
+            style: TextButton.styleFrom(
+              foregroundColor: _PayrollTokens.textStrong,
+              minimumSize: const Size(0, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              'Setting payroll',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }

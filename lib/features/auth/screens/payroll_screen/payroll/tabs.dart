@@ -2,19 +2,11 @@ part of '../payroll_screen.dart';
 
 class _PayrollTabContentConsumer extends StatelessWidget {
   final PayrollController controller;
-  final VoidCallback onPickPayDate;
-  final VoidCallback onPickBiweeklyPeriodBeginDate;
-  final VoidCallback onChooseProcessDays;
-  final ValueChanged<PayrollSchedule> onScheduleChanged;
   final VoidCallback onAddEmployee;
   final _EmployeeChanged onEmployeeChanged;
 
   const _PayrollTabContentConsumer({
     required this.controller,
-    required this.onPickPayDate,
-    required this.onPickBiweeklyPeriodBeginDate,
-    required this.onChooseProcessDays,
-    required this.onScheduleChanged,
     required this.onAddEmployee,
     required this.onEmployeeChanged,
   });
@@ -23,10 +15,6 @@ class _PayrollTabContentConsumer extends StatelessWidget {
   Widget build(BuildContext context) {
     return _PayrollProcessingView(
       controller: controller,
-      onPickPayDate: onPickPayDate,
-      onPickBiweeklyPeriodBeginDate: onPickBiweeklyPeriodBeginDate,
-      onChooseProcessDays: onChooseProcessDays,
-      onScheduleChanged: onScheduleChanged,
       onAddEmployee: onAddEmployee,
       onEmployeeChanged: onEmployeeChanged,
     );
@@ -153,19 +141,11 @@ class _PayrollTabButton extends StatelessWidget {
 
 class _PayrollProcessingView extends StatelessWidget {
   final PayrollController controller;
-  final VoidCallback onPickPayDate;
-  final VoidCallback onPickBiweeklyPeriodBeginDate;
-  final VoidCallback onChooseProcessDays;
-  final ValueChanged<PayrollSchedule> onScheduleChanged;
   final VoidCallback onAddEmployee;
   final _EmployeeChanged onEmployeeChanged;
 
   const _PayrollProcessingView({
     required this.controller,
-    required this.onPickPayDate,
-    required this.onPickBiweeklyPeriodBeginDate,
-    required this.onChooseProcessDays,
-    required this.onScheduleChanged,
     required this.onAddEmployee,
     required this.onEmployeeChanged,
   });
@@ -175,13 +155,7 @@ class _PayrollProcessingView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        _PayrollSetupCardConsumer(
-          controller: controller,
-          onPickPayDate: onPickPayDate,
-          onPickBiweeklyPeriodBeginDate: onPickBiweeklyPeriodBeginDate,
-          onChooseProcessDays: onChooseProcessDays,
-          onScheduleChanged: onScheduleChanged,
-        ),
+        _PayrollSetupCardConsumer(controller: controller),
         const SizedBox(height: 18),
         _EmployeePayrollListConsumer(
           controller: controller,
@@ -195,18 +169,8 @@ class _PayrollProcessingView extends StatelessWidget {
 
 class _PayrollSetupCardConsumer extends StatefulWidget {
   final PayrollController controller;
-  final VoidCallback onPickPayDate;
-  final VoidCallback onPickBiweeklyPeriodBeginDate;
-  final VoidCallback onChooseProcessDays;
-  final ValueChanged<PayrollSchedule> onScheduleChanged;
 
-  const _PayrollSetupCardConsumer({
-    required this.controller,
-    required this.onPickPayDate,
-    required this.onPickBiweeklyPeriodBeginDate,
-    required this.onChooseProcessDays,
-    required this.onScheduleChanged,
-  });
+  const _PayrollSetupCardConsumer({required this.controller});
 
   @override
   State<_PayrollSetupCardConsumer> createState() =>
@@ -248,13 +212,7 @@ class _PayrollSetupCardConsumerState extends State<_PayrollSetupCardConsumer> {
 
   @override
   Widget build(BuildContext context) {
-    return _PayrollSetupCard(
-      state: _state,
-      onPickPayDate: widget.onPickPayDate,
-      onPickBiweeklyPeriodBeginDate: widget.onPickBiweeklyPeriodBeginDate,
-      onChooseProcessDays: widget.onChooseProcessDays,
-      onScheduleChanged: widget.onScheduleChanged,
-    );
+    return _PayrollSetupCard(state: _state);
   }
 }
 
@@ -325,15 +283,7 @@ bool _setupStateChanged(PayrollViewState previous, PayrollViewState next) {
   return previous.balance != next.balance ||
       previous.payPeriodTotalPay != next.payPeriodTotalPay ||
       previousPayroll.unconfirmedEmployeeCount !=
-          nextPayroll.unconfirmedEmployeeCount ||
-      previousPayroll.schedule != nextPayroll.schedule ||
-      previousPayroll.processDaysBefore != nextPayroll.processDaysBefore ||
-      !_dateOnly(
-        previousPayroll.biweeklyPeriodBeginDate,
-      ).isAtSameMomentAs(_dateOnly(nextPayroll.biweeklyPeriodBeginDate)) ||
-      !_dateOnly(
-        previousPayroll.payDate,
-      ).isAtSameMomentAs(_dateOnly(nextPayroll.payDate));
+          nextPayroll.unconfirmedEmployeeCount;
 }
 
 bool _employeeListStateChanged(

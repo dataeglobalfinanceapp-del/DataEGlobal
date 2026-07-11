@@ -2,18 +2,8 @@ part of '../payroll_screen.dart';
 
 class _PayrollSetupCard extends StatelessWidget {
   final PayrollViewState state;
-  final VoidCallback onPickPayDate;
-  final VoidCallback onPickBiweeklyPeriodBeginDate;
-  final VoidCallback onChooseProcessDays;
-  final ValueChanged<PayrollSchedule> onScheduleChanged;
 
-  const _PayrollSetupCard({
-    required this.state,
-    required this.onPickPayDate,
-    required this.onPickBiweeklyPeriodBeginDate,
-    required this.onChooseProcessDays,
-    required this.onScheduleChanged,
-  });
+  const _PayrollSetupCard({required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -29,89 +19,18 @@ class _PayrollSetupCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              if (narrow) ...<Widget>[
-                _PayrollHeaderMetrics(
-                  balance: state.balance,
-                  totalPay: state.payPeriodTotalPay,
-                ),
-                const SizedBox(height: 18),
-                const Divider(height: 1, color: _PayrollTokens.divider),
-                const SizedBox(height: 18),
-                _ProcessDateField(
-                  processDate: payroll.processDate,
-                  onTap: onChooseProcessDays,
-                ),
-              ] else ...<Widget>[
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Expanded(
-                      child: _PayrollHeaderMetrics(
-                        balance: state.balance,
-                        totalPay: state.payPeriodTotalPay,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Container(
-                      width: 1,
-                      height: 80,
-                      color: _PayrollTokens.divider,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 2,
-                      child: _ProcessDateField(
-                        processDate: payroll.processDate,
-                        onTap: onChooseProcessDays,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 18),
-              const Divider(height: 1, color: _PayrollTokens.divider),
-              const SizedBox(height: 18),
-              _ResponsiveFieldPair(
-                first: _DateInputTile(
-                  label: 'PAY DATE',
-                  value: _formatDate(payroll.payDate),
-                  onTap: onPickPayDate,
-                ),
-                second: _ScheduleDropdown(
-                  value: payroll.schedule,
-                  onChanged: onScheduleChanged,
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Divider(height: 1, color: _PayrollTokens.divider),
-              const SizedBox(height: 18),
-              _PayPeriodSection(
-                payroll: payroll,
-                onPickBiweeklyPeriodBeginDate: onPickBiweeklyPeriodBeginDate,
+              _PayrollHeaderMetrics(
+                balance: state.balance,
+                totalPay: state.payPeriodTotalPay,
               ),
               if (payroll.unconfirmedEmployeeCount > 0) ...<Widget>[
-                const SizedBox(height: 10),
+                const SizedBox(height: 16),
+                const Divider(height: 1, color: _PayrollTokens.divider),
+                const SizedBox(height: 16),
                 _PayrollConfirmationCaution(
                   unconfirmedCount: payroll.unconfirmedEmployeeCount,
                 ),
               ],
-              const SizedBox(height: 12),
-              Row(
-                children: <Widget>[
-                  const Icon(
-                    Icons.notifications_active_outlined,
-                    color: _PayrollTokens.primary,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      payroll.processInstruction,
-                      style: _PayrollTokens.helperText,
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         );
