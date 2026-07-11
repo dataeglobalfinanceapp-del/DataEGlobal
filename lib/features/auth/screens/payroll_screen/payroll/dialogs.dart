@@ -319,7 +319,7 @@ class _EmployeeInformationEditFields extends StatelessWidget {
                 fieldKey: const ValueKey<String>(
                   'payroll.employeeInfo.fullName',
                 ),
-                label: 'Full Name',
+                label: 'First name and Last Name',
                 controller: nameController,
               ),
             ),
@@ -868,10 +868,10 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
                               fieldKey: const ValueKey<String>(
                                 'payroll.addEmployee.fullName',
                               ),
-                              label: 'Full Name',
+                              label: 'First name and Last Name',
                               requiredField: true,
                               controller: _fullNameController,
-                              hintText: 'Enter full name',
+                              hintText: 'Enter First name and Last Name',
                               validator:
                                   EmployeeFormValidators.validateRequiredName,
                               textInputAction: TextInputAction.next,
