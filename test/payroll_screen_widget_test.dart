@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:savetep/data/dto/save_employee_request.dart';
 import 'package:savetep/domain/models/temporary_employee_document.dart';
 import 'package:savetep/domain/services/employee_document_capture_service.dart';
 import 'package:savetep/domain/services/employee_document_email_service.dart';
@@ -30,6 +31,31 @@ void main() {
     EmployeeService.resetForTesting(disablePersistence: false);
   });
 
+  testWidgets('PayrollScreen starts with no employees after local cleanup', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: PayrollScreen()));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Jack Nicholson'), findsNothing);
+    expect(find.text('Waylon Dalton'), findsNothing);
+    expect(
+      find.text('6 employees still need to confirm payroll.'),
+      findsNothing,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('payroll.tab.employees')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Employee List'), findsOneWidget);
+    expect(find.text('No employees found.'), findsOneWidget);
+    expect(find.text('Showing 0 employees'), findsOneWidget);
+    expect(find.text('Add New Employee'), findsOneWidget);
+  });
+
   testWidgets(
     'PayrollScreen fits phone width, tabs, and requires payroll confirmations',
     (WidgetTester tester) async {
@@ -49,6 +75,7 @@ void main() {
         isManual: true,
       );
 
+      await _seedDefaultEmployees();
       await tester.pumpWidget(const MaterialApp(home: PayrollScreen()));
       await tester.pumpAndSettle();
 
@@ -480,7 +507,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Minimal Fields'), findsOneWidget);
-      expect(find.text('Showing 7 employees'), findsOneWidget);
+      expect(find.text('Showing 1 employee'), findsOneWidget);
 
       await tester.enterText(
         find.byKey(const ValueKey<String>('payroll.employees.search')),
@@ -867,6 +894,77 @@ Finder _richTextWithPlainText(String text) {
     (Widget widget) => widget is RichText && widget.text.toPlainText() == text,
   );
 }
+
+Future<void> _seedDefaultEmployees() async {
+  final EmployeeService service = EmployeeService();
+  for (final SaveEmployeeRequest request in _defaultEmployeeRequests) {
+    await service.saveEmployee(request);
+  }
+}
+
+const List<SaveEmployeeRequest> _defaultEmployeeRequests =
+    <SaveEmployeeRequest>[
+      SaveEmployeeRequest(
+        id: 'employee-jack-nicholson',
+        fullName: 'Jack Nicholson',
+        birthday: '04/22/1988',
+        phone: '555-2601',
+        address: '195 Spruce Ave, #202, Bayshore, CA 94326',
+        dateHire: '',
+        jobType: 'Hourly',
+        rate: 0,
+      ),
+      SaveEmployeeRequest(
+        id: 'employee-waylon-dalton',
+        fullName: 'Waylon Dalton',
+        birthday: '11/08/1991',
+        phone: '555-7194',
+        address: '84 Market Street, San Mateo, CA 94401',
+        dateHire: '',
+        jobType: 'Hourly',
+        rate: 0,
+      ),
+      SaveEmployeeRequest(
+        id: 'employee-abdullah-lang',
+        fullName: 'Abdullah Lang',
+        birthday: '02/14/1986',
+        phone: '555-4188',
+        address: '410 Oak Lane, Daly City, CA 94015',
+        dateHire: '',
+        jobType: 'Hourly',
+        rate: 0,
+      ),
+      SaveEmployeeRequest(
+        id: 'employee-justine-henderson',
+        fullName: 'Justine Henderson',
+        birthday: '07/30/1994',
+        phone: '555-8320',
+        address: '72 Lincoln Drive, South City, CA 94080',
+        dateHire: '',
+        jobType: 'Hourly',
+        rate: 0,
+      ),
+      SaveEmployeeRequest(
+        id: 'employee-joanna-shaffer',
+        fullName: 'Joanna Shaffer',
+        birthday: '09/18/1989',
+        phone: '555-0137',
+        address: '33 Garden Court, Burlingame, CA 94010',
+        dateHire: '',
+        jobType: 'Hourly',
+        rate: 0,
+      ),
+      SaveEmployeeRequest(
+        id: 'employee-mathias-little',
+        fullName: 'Mathias Little',
+        birthday: '12/03/1990',
+        phone: '555-4412',
+        address: '925 Pine Road, San Bruno, CA 94066',
+        dateHire: '',
+        jobType: 'Hourly',
+        rate: 0,
+      ),
+    ];
 
 Future<void> _enterRequiredAddEmployeeFields(
   WidgetTester tester, {

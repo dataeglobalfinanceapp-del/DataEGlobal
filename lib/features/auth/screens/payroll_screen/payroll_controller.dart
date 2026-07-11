@@ -53,7 +53,7 @@ class PayrollController extends ChangeNotifier {
     _setLoading(true);
 
     final payroll = await PayrollService.loadCurrentPayroll();
-    final employeeRecords = await _loadEmployeeRecordsFor(payroll);
+    final employeeRecords = await _employeeService.loadEmployees();
     final deposits = await LiabilityService.loadDeposits();
     final expenses = await LiabilityService.loadExpenses();
     if (_isDisposed) return;
@@ -379,22 +379,6 @@ class PayrollController extends ChangeNotifier {
     _expenses = List<ExpenseRecord>.unmodifiable(expenses);
     _rebuildState();
     _notify();
-  }
-
-  Future<List<EmployeeRecord>> _loadEmployeeRecordsFor(
-    PayrollRecord payroll,
-  ) async {
-    final List<EmployeeRecord> employeeRecords = await _employeeService
-        .loadEmployees();
-    if (employeeRecords.isNotEmpty) return employeeRecords;
-
-    final List<EmployeeRecord> seededEmployees = <EmployeeRecord>[];
-    for (final PayrollEmployee employee in payroll.employees) {
-      seededEmployees.add(
-        await _employeeService.saveEmployee(_saveEmployeeRequestFrom(employee)),
-      );
-    }
-    return seededEmployees;
   }
 
   List<PayrollEmployee> _payrollEmployeesFromRecords(

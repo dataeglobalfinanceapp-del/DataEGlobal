@@ -8,10 +8,12 @@ Payroll UI widgets.
 2. `EmployeeService` uses the configured `EmployeeRepository` contract.
 3. The default repository is `LocalEmployeeRepository`, which stores employee
    records in the local `LocalStore` folder under `savetep_employee_data_v1`.
-4. New employees, profile edits, and removals are saved through
+4. `EmployeeDataMigration` clears old local seeded employee records once and
+   records the applied cleanup version so new employees are not deleted later.
+5. New employees, profile edits, and removals are saved through
    `EmployeeService`, then the Payroll controller refreshes its working
    employee list from the saved records.
-5. `AwsEmployeeRepository` implements the same contract so a future AWS client
+6. `AwsEmployeeRepository` implements the same contract so a future AWS client
    can be injected without changing Payroll UI code.
 
 Payroll-specific fields such as regular hours, overtime hours, commission,

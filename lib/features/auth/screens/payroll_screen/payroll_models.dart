@@ -235,7 +235,7 @@ class PayrollRecord {
           PayrollScheduleCalculator.defaultBiweeklyPeriodBeginDate(),
       schedule: PayrollSchedule.biWeekly,
       processDaysBefore: 7,
-      employees: defaultEmployees,
+      employees: const <PayrollEmployee>[],
     );
   }
 
@@ -267,57 +267,6 @@ class PayrollRecord {
       reminderSeriesId: _asString(json['reminderSeriesId']),
     );
   }
-
-  static const List<PayrollEmployee> defaultEmployees = <PayrollEmployee>[
-    PayrollEmployee(
-      id: 'employee-jack-nicholson',
-      name: 'Jack Nicholson',
-      birthday: '04/22/1988',
-      phone: '555-2601',
-      address: '195 Spruce Ave, #202, Bayshore, CA 94326',
-      jobType: 'Hourly',
-    ),
-    PayrollEmployee(
-      id: 'employee-waylon-dalton',
-      name: 'Waylon Dalton',
-      birthday: '11/08/1991',
-      phone: '555-7194',
-      address: '84 Market Street, San Mateo, CA 94401',
-      jobType: 'Hourly',
-    ),
-    PayrollEmployee(
-      id: 'employee-abdullah-lang',
-      name: 'Abdullah Lang',
-      birthday: '02/14/1986',
-      phone: '555-4188',
-      address: '410 Oak Lane, Daly City, CA 94015',
-      jobType: 'Hourly',
-    ),
-    PayrollEmployee(
-      id: 'employee-justine-henderson',
-      name: 'Justine Henderson',
-      birthday: '07/30/1994',
-      phone: '555-8320',
-      address: '72 Lincoln Drive, South City, CA 94080',
-      jobType: 'Hourly',
-    ),
-    PayrollEmployee(
-      id: 'employee-joanna-shaffer',
-      name: 'Joanna Shaffer',
-      birthday: '09/18/1989',
-      phone: '555-0137',
-      address: '33 Garden Court, Burlingame, CA 94010',
-      jobType: 'Hourly',
-    ),
-    PayrollEmployee(
-      id: 'employee-mathias-little',
-      name: 'Mathias Little',
-      birthday: '12/03/1990',
-      phone: '555-4412',
-      address: '925 Pine Road, San Bruno, CA 94066',
-      jobType: 'Hourly',
-    ),
-  ];
 
   DateTime get processDate =>
       _dateOnly(payDate).subtract(Duration(days: processDaysBefore));

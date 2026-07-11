@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:savetep/data/dto/save_employee_request.dart';
 import 'package:savetep/domain/services/employee_service.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_controller.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_models.dart';
@@ -105,6 +106,7 @@ void main() {
       final PayrollController controller = PayrollController();
       addTearDown(controller.dispose);
 
+      await _seedPayrollEmployees();
       await controller.load();
       controller.setPayDate(DateTime(2026, 6, 29));
       final firstEmployee = controller.state.payroll.employees.first;
@@ -168,6 +170,7 @@ void main() {
       final PayrollController controller = PayrollController();
       addTearDown(controller.dispose);
 
+      await _seedPayrollEmployees();
       await controller.load();
       controller.setPayDate(DateTime(2026, 6, 29));
       final firstEmployee = controller.state.payroll.employees.first;
@@ -208,5 +211,33 @@ void main() {
           .toList(growable: false);
       expect(payrollExpenses, isEmpty);
     },
+  );
+}
+
+Future<void> _seedPayrollEmployees() async {
+  final EmployeeService service = EmployeeService();
+  await service.saveEmployee(
+    const SaveEmployeeRequest(
+      id: 'employee-alex',
+      fullName: 'Alex Morgan',
+      birthday: '04/22/1988',
+      phone: '555-2601',
+      address: '195 Spruce Ave',
+      dateHire: '06/01/2025',
+      jobType: 'Hourly',
+      rate: 20,
+    ),
+  );
+  await service.saveEmployee(
+    const SaveEmployeeRequest(
+      id: 'employee-jordan',
+      fullName: 'Jordan Lee',
+      birthday: '11/08/1991',
+      phone: '555-7194',
+      address: '84 Market Street',
+      dateHire: '06/01/2025',
+      jobType: 'Hourly',
+      rate: 18,
+    ),
   );
 }

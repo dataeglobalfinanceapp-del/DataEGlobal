@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_models.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_service.dart';
+import 'package:savetep/data/local/local_store.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/reminder_service.dart';
@@ -16,6 +19,7 @@ void main() {
 
   tearDown(() {
     AppClock.reset();
+    LocalStore.resetOverridesForTesting();
     LiabilityService.resetForTesting(disablePersistence: false);
     ReminderService.resetForTesting(disablePersistence: false);
     PayrollService.resetForTesting(disablePersistence: false);
@@ -213,6 +217,70 @@ void main() {
     expect(payrolls.single.payDate, DateTime(2026, 6, 16));
     expect(payrolls.single.biweeklyPeriodBeginDate, DateTime(2026, 6, 1));
   });
+
+  test(
+    'local migration strips persisted employee rows from payroll snapshots once',
+    () async {
+      final Map<String, String> storage = <String, String>{
+        'savetep_payroll_data_v1': jsonEncode(
+          PayrollSnapshot(
+            records: <PayrollRecord>[
+              PayrollRecord(
+                id: 'payroll-with-seed-employees',
+                payDate: DateTime(2026, 6, 30),
+                schedule: PayrollSchedule.monthly,
+                processDaysBefore: 5,
+                syncedExpenseId: 'expense-payroll-old',
+                reminderSeriesId: 'reminder-series-old',
+                employees: const <PayrollEmployee>[
+                  PayrollEmployee(
+                    id: 'employee-jack-nicholson',
+                    name: 'Jack Nicholson',
+                    rate: 20,
+                    regularHours: 40,
+                    isPayrollConfirmed: true,
+                  ),
+                ],
+              ),
+            ],
+          ).toJson(),
+        ),
+      };
+      LocalStore.setOverridesForTesting(
+        read: (String key) async => storage[key],
+        write: (String key, String value) async => storage[key] = value,
+      );
+      PayrollService.resetForTesting(disablePersistence: false);
+
+      final PayrollRecord migrated = await PayrollService.loadCurrentPayroll();
+      final PayrollSnapshot storedSnapshot = PayrollSnapshot.fromJson(
+        jsonDecode(storage['savetep_payroll_data_v1']!) as Map<String, dynamic>,
+      );
+
+      expect(migrated.employees, isEmpty);
+      expect(migrated.syncedExpenseId, isEmpty);
+      expect(migrated.reminderSeriesId, isEmpty);
+      expect(migrated.schedule, PayrollSchedule.monthly);
+      expect(migrated.processDaysBefore, 5);
+      expect(storedSnapshot.records.single.employees, isEmpty);
+      expect(storedSnapshot.records.single.syncedExpenseId, isEmpty);
+      expect(storedSnapshot.records.single.reminderSeriesId, isEmpty);
+      expect(storage['savetep_payroll_employee_data_cleanup_version'], '1');
+
+      await PayrollService.savePayrollDraft(
+        migrated.copyWith(
+          employees: const <PayrollEmployee>[
+            PayrollEmployee(id: 'employee-new', name: 'New Employee'),
+          ],
+        ),
+      );
+      PayrollService.resetForTesting(disablePersistence: false);
+
+      final PayrollRecord reloaded = await PayrollService.loadCurrentPayroll();
+      expect(reloaded.employees, hasLength(1));
+      expect(reloaded.employees.single.name, 'New Employee');
+    },
+  );
 }
 
 String _dateKey(DateTime date) {

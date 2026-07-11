@@ -60,6 +60,11 @@ class LocalEmployeeRepository implements EmployeeRepository {
   Future<void> _ensureLoaded() async {
     if (_loaded) return;
 
+    await EmployeeDataMigration.clearSeedEmployeeDataIfNeeded(
+      employeeStorageKey: _storageKey,
+      disablePersistence: disablePersistenceForTesting,
+    );
+
     final String? raw = await LocalStore.read(_storageKey);
     if (raw == null || raw.trim().isEmpty) {
       _loaded = true;
@@ -96,6 +101,33 @@ class LocalEmployeeRepository implements EmployeeRepository {
 
   String _newId() {
     return 'employee-${AppClock.now.microsecondsSinceEpoch}-${_idCounter++}';
+  }
+}
+
+class EmployeeDataMigration {
+  static const int employeeDataSeedVersion = 1;
+  static const String migrationStorageKey =
+      'savetep_employee_data_seed_cleanup_version';
+
+  const EmployeeDataMigration._();
+
+  static Future<void> clearSeedEmployeeDataIfNeeded({
+    required String employeeStorageKey,
+    required bool disablePersistence,
+  }) async {
+    if (disablePersistence) return;
+
+    final String? version = await LocalStore.read(migrationStorageKey);
+    if (version == employeeDataSeedVersion.toString()) return;
+
+    await LocalStore.write(
+      employeeStorageKey,
+      jsonEncode(<String, dynamic>{'employees': <Object>[]}),
+    );
+    await LocalStore.write(
+      migrationStorageKey,
+      employeeDataSeedVersion.toString(),
+    );
   }
 }
 

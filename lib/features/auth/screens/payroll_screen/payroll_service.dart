@@ -12,6 +12,9 @@ import 'payroll_schedule_calculator.dart';
 
 class PayrollService {
   static const String _storageKey = 'savetep_payroll_data_v1';
+  static const String _employeeDataMigrationStorageKey =
+      'savetep_payroll_employee_data_cleanup_version';
+  static const int _employeeDataSeedVersion = 1;
 
   static final List<PayrollRecord> _records = <PayrollRecord>[];
   static bool _loaded = false;
@@ -242,6 +245,7 @@ class PayrollService {
 
     final String? raw = await LocalStore.read(_storageKey);
     if (raw == null || raw.trim().isEmpty) {
+      await _clearSeedEmployeeDataIfNeeded();
       _loaded = true;
       return;
     }
@@ -249,6 +253,7 @@ class PayrollService {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! Map) {
+        await _clearSeedEmployeeDataIfNeeded();
         _loaded = true;
         return;
       }
@@ -261,7 +266,47 @@ class PayrollService {
       _records.clear();
     }
 
+    await _clearSeedEmployeeDataIfNeeded();
     _loaded = true;
+  }
+
+  static Future<void> _clearSeedEmployeeDataIfNeeded() async {
+    if (_disablePersistenceForTesting) return;
+
+    final String? version = await LocalStore.read(
+      _employeeDataMigrationStorageKey,
+    );
+    if (version == _employeeDataSeedVersion.toString()) return;
+
+    final bool changed = _clearEmployeeDataFromRecords();
+    if (changed) await _persist();
+
+    await LocalStore.write(
+      _employeeDataMigrationStorageKey,
+      _employeeDataSeedVersion.toString(),
+    );
+  }
+
+  static bool _clearEmployeeDataFromRecords() {
+    var changed = false;
+
+    for (var index = 0; index < _records.length; index += 1) {
+      final PayrollRecord payroll = _records[index];
+      final bool hasEmployeeData =
+          payroll.employees.isNotEmpty ||
+          payroll.syncedExpenseId.trim().isNotEmpty ||
+          payroll.reminderSeriesId.trim().isNotEmpty;
+      if (!hasEmployeeData) continue;
+
+      _records[index] = payroll.copyWith(
+        employees: const <PayrollEmployee>[],
+        syncedExpenseId: '',
+        reminderSeriesId: '',
+      );
+      changed = true;
+    }
+
+    return changed;
   }
 
   static Future<void> _persist() async {
