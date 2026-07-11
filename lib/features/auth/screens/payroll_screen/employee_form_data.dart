@@ -96,4 +96,18 @@ class EmployeeFormValidators {
     if (!_emailPattern.hasMatch(email)) return 'Enter a valid email address';
     return null;
   }
+
+  static String? validateOptionalSocialSecurityNumber(String? value) {
+    final String entered = value?.trim() ?? '';
+    if (entered.isEmpty) return null;
+
+    if (socialSecurityNumberDigits(entered).length != 9) {
+      return 'Enter a valid SSN';
+    }
+    return null;
+  }
+
+  static String socialSecurityNumberDigits(String value) {
+    return value.replaceAll(RegExp(r'\D'), '');
+  }
 }

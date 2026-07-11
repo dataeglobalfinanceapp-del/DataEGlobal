@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:savetep/domain/models/temporary_employee_document.dart';
+import 'package:savetep/domain/services/employee_document_capture_service.dart';
 import 'package:savetep/domain/services/employee_document_email_service.dart';
 import 'package:savetep/domain/services/employee_document_email_service_factory.dart';
 import 'package:savetep/services/app_clock.dart';
@@ -11,6 +13,7 @@ import 'payroll_controller.dart';
 import 'payroll_models.dart';
 import 'payroll_pay_date_validator.dart';
 import 'payroll_schedule_calculator.dart';
+import 'employee_create_draft.dart';
 
 part 'payroll/tabs.dart';
 part 'payroll/employees_tab.dart';
@@ -51,8 +54,13 @@ enum _PayrollTab {
 
 class PayrollScreen extends StatefulWidget {
   final EmployeeDocumentEmailService? employeeDocumentEmailService;
+  final EmployeeDocumentCaptureService? employeeDocumentCaptureService;
 
-  const PayrollScreen({super.key, this.employeeDocumentEmailService});
+  const PayrollScreen({
+    super.key,
+    this.employeeDocumentEmailService,
+    this.employeeDocumentCaptureService,
+  });
 
   @override
   State<PayrollScreen> createState() => _PayrollScreenState();
@@ -63,6 +71,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
 
   late final PayrollController _controller;
   late final EmployeeDocumentEmailService _employeeDocumentEmailService;
+  late final EmployeeDocumentCaptureService _employeeDocumentCaptureService;
   _PayrollTab _selectedTab = _PayrollTab.payroll;
 
   @override
@@ -72,6 +81,9 @@ class _PayrollScreenState extends State<PayrollScreen> {
     _employeeDocumentEmailService =
         widget.employeeDocumentEmailService ??
         createEmployeeDocumentEmailService();
+    _employeeDocumentCaptureService =
+        widget.employeeDocumentCaptureService ??
+        ImagePickerEmployeeDocumentCaptureService();
   }
 
   @override
@@ -169,14 +181,14 @@ class _PayrollScreenState extends State<PayrollScreen> {
   }
 
   Future<void> _openAddEmployeeDialog() async {
-    final PayrollEmployee? employee = await showDialog<PayrollEmployee>(
+    await showDialog<void>(
       context: context,
-      builder: (BuildContext context) =>
-          _AddEmployeeDialog(emailService: _employeeDocumentEmailService),
+      builder: (BuildContext context) => _AddEmployeeDialog(
+        emailService: _employeeDocumentEmailService,
+        captureService: _employeeDocumentCaptureService,
+        onEmployeeCreated: _controller.addEmployeeRecord,
+      ),
     );
-    if (employee == null || !mounted) return;
-
-    await _controller.addEmployeeRecord(employee);
   }
 
   void _selectTab(_PayrollTab tab) {

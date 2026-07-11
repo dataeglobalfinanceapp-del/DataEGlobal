@@ -1,6 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:savetep/domain/models/temporary_employee_document.dart';
+import 'package:savetep/domain/services/employee_document_capture_service.dart';
 import 'package:savetep/domain/services/employee_document_email_service.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_screen.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_service.dart';
@@ -250,6 +254,10 @@ void main() {
       expect(find.text('Add New Employee'), findsWidgets);
       expect(find.text('Back'), findsNothing);
       expect(find.text('Next'), findsNothing);
+      expect(find.text('Send Email'), findsOneWidget);
+      expect(find.text('Create next'), findsOneWidget);
+      expect(find.text('Create Next Employee'), findsNothing);
+      expect(find.byIcon(Icons.mail_outline), findsNothing);
 
       await tester.tap(
         find.byKey(const ValueKey<String>('payroll.addEmployee.done')),
@@ -488,10 +496,7 @@ void main() {
       await tester.tap(find.text('Add New Employee'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.byKey(const ValueKey<String>('payroll.addEmployee.fullName')),
-        'Taylor Reed',
-      );
+      await _enterRequiredAddEmployeeFields(tester, fullName: 'Taylor Reed');
       await tester.ensureVisible(
         find.byKey(const ValueKey<String>('payroll.addEmployee.linkW4')),
       );
@@ -546,6 +551,8 @@ void main() {
       expect(service.requests, hasLength(1));
       expect(service.requests.single.recipientEmail, 'manager@example.com');
       expect(service.requests.single.employeeName, 'Taylor Reed');
+      expect(service.requests.single.employeeDetails.address, '100 Pine St');
+      expect(service.requests.single.employeeDetails.rate, 24.5);
       expect(
         service.requests.single.linkW4,
         'https://example.com/taylor-w4.pdf',
@@ -554,6 +561,288 @@ void main() {
       expect(find.text('Add New Employee'), findsWidgets);
     },
   );
+
+  testWidgets('W4 camera photo sends with email and clears after success', (
+    WidgetTester tester,
+  ) async {
+    final service = _RecordingEmployeeDocumentEmailService();
+    final captureService = _FakeEmployeeDocumentCaptureService(
+      document: _temporaryW4Document(),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PayrollScreen(
+          employeeDocumentEmailService: service,
+          employeeDocumentCaptureService: captureService,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('payroll.tab.employees')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add New Employee'));
+    await tester.pumpAndSettle();
+
+    await _enterRequiredAddEmployeeFields(tester, fullName: 'Taylor Reed');
+    await tester.ensureVisible(
+      find.byKey(const ValueKey<String>('payroll.addEmployee.ssn')),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('payroll.addEmployee.ssn')),
+      '123456789',
+    );
+
+    await _pressW4CameraButton(tester);
+
+    expect(captureService.captureCount, 1);
+    expect(
+      find.byKey(
+        const ValueKey<String>('payroll.addEmployee.linkW4.photoStatus'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('W4 photo ready to email'), findsOneWidget);
+
+    final Finder sendEmailButton = find.byKey(
+      const ValueKey<String>('payroll.addEmployee.linkW4.sendEmail'),
+    );
+    await tester.ensureVisible(sendEmailButton);
+    await tester.pumpAndSettle();
+    await tester.tap(sendEmailButton);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('payroll.w4Email.recipient')),
+      'manager@example.com',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('payroll.w4Email.send')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(service.requests, hasLength(1));
+    expect(service.requests.single.temporaryDocument, isNotNull);
+    expect(service.requests.single.temporaryDocument!.fileName, 'w4.jpg');
+    expect(service.requests.single.socialSecurityNumber, '123-45-6789');
+    expect(
+      find.byKey(
+        const ValueKey<String>('payroll.addEmployee.linkW4.photoStatus'),
+      ),
+      findsNothing,
+    );
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.byKey(const ValueKey<String>('payroll.addEmployee.ssn')),
+          )
+          .controller!
+          .text,
+      isEmpty,
+    );
+    expect(find.text('Email draft opened'), findsOneWidget);
+  });
+
+  testWidgets(
+    'W4 photo stays after email cancel or failure and can be deleted',
+    (WidgetTester tester) async {
+      final service = _RecordingEmployeeDocumentEmailService();
+      final captureService = _FakeEmployeeDocumentCaptureService(
+        document: _temporaryW4Document(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PayrollScreen(
+            employeeDocumentEmailService: service,
+            employeeDocumentCaptureService: captureService,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.tab.employees')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add New Employee'));
+      await tester.pumpAndSettle();
+
+      await _enterRequiredAddEmployeeFields(tester, fullName: 'Taylor Reed');
+      await tester.ensureVisible(
+        find.byKey(const ValueKey<String>('payroll.addEmployee.ssn')),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('payroll.addEmployee.ssn')),
+        '987654321',
+      );
+      await _pressW4CameraButton(tester);
+
+      final Finder status = find.byKey(
+        const ValueKey<String>('payroll.addEmployee.linkW4.photoStatus'),
+      );
+      expect(status, findsOneWidget);
+
+      final Finder sendEmailButton = find.byKey(
+        const ValueKey<String>('payroll.addEmployee.linkW4.sendEmail'),
+      );
+      await tester.ensureVisible(sendEmailButton);
+      await tester.pumpAndSettle();
+      await tester.tap(sendEmailButton);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.w4Email.cancel')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(service.requests, isEmpty);
+      expect(status, findsOneWidget);
+      expect(_ssnFieldText(tester), '987-65-4321');
+
+      service.shouldFail = true;
+      await tester.ensureVisible(sendEmailButton);
+      await tester.pumpAndSettle();
+      await tester.tap(sendEmailButton);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('payroll.w4Email.recipient')),
+        'manager@example.com',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.w4Email.send')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(service.requests, isEmpty);
+      expect(status, findsOneWidget);
+      expect(_ssnFieldText(tester), '987-65-4321');
+      expect(find.text('Unable to send W4 email'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>('payroll.addEmployee.linkW4.deletePhoto'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(status, findsNothing);
+      expect(find.text('W4 photo removed'), findsOneWidget);
+    },
+  );
+
+  testWidgets('Create Next Employee saves and resets temporary fields', (
+    WidgetTester tester,
+  ) async {
+    final captureService = _FakeEmployeeDocumentCaptureService(
+      document: _temporaryW4Document(),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PayrollScreen(employeeDocumentCaptureService: captureService),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('payroll.tab.employees')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add New Employee'));
+    await tester.pumpAndSettle();
+
+    await _enterRequiredAddEmployeeFields(tester, fullName: 'First Draft');
+    await tester.ensureVisible(
+      find.byKey(const ValueKey<String>('payroll.addEmployee.ssn')),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('payroll.addEmployee.ssn')),
+      '111223333',
+    );
+    await _pressW4CameraButton(tester);
+    expect(
+      find.byKey(
+        const ValueKey<String>('payroll.addEmployee.linkW4.photoStatus'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('payroll.addEmployee.createNext')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Employee saved. Ready for next employee.'),
+      findsOneWidget,
+    );
+    expect(_fieldText(tester, 'payroll.addEmployee.fullName'), isEmpty);
+    expect(_ssnFieldText(tester), isEmpty);
+    expect(
+      find.byKey(
+        const ValueKey<String>('payroll.addEmployee.linkW4.photoStatus'),
+      ),
+      findsNothing,
+    );
+    expect(find.text('Add New Employee'), findsWidgets);
+
+    await _enterRequiredAddEmployeeFields(tester, fullName: 'Second Draft');
+    await tester.tap(
+      find.byKey(const ValueKey<String>('payroll.addEmployee.done')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('First Draft'), findsOneWidget);
+    expect(find.text('Second Draft'), findsOneWidget);
+    expect(find.text('111-22-3333'), findsNothing);
+  });
+
+  testWidgets('W4 camera errors are shown without storing a photo', (
+    WidgetTester tester,
+  ) async {
+    final captureService = _FakeEmployeeDocumentCaptureService(
+      exception: const EmployeeDocumentCaptureException(
+        'Camera permission is required to capture W4 photos.',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PayrollScreen(
+          employeeDocumentEmailService:
+              _RecordingEmployeeDocumentEmailService(),
+          employeeDocumentCaptureService: captureService,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('payroll.tab.employees')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add New Employee'));
+    await tester.pumpAndSettle();
+
+    await _pressW4CameraButton(tester);
+
+    expect(captureService.captureCount, 1);
+    expect(
+      find.text('Camera permission is required to capture W4 photos.'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey<String>('payroll.addEmployee.linkW4.photoStatus'),
+      ),
+      findsNothing,
+    );
+  });
 }
 
 Finder _richTextWithPlainText(String text) {
@@ -562,12 +851,93 @@ Finder _richTextWithPlainText(String text) {
   );
 }
 
+Future<void> _enterRequiredAddEmployeeFields(
+  WidgetTester tester, {
+  required String fullName,
+  String rate = '24.50',
+  String address = '100 Pine St',
+}) async {
+  await tester.enterText(
+    find.byKey(const ValueKey<String>('payroll.addEmployee.fullName')),
+    fullName,
+  );
+  await tester.enterText(
+    find.byKey(const ValueKey<String>('payroll.addEmployee.rate')),
+    rate,
+  );
+  await tester.ensureVisible(
+    find.byKey(const ValueKey<String>('payroll.addEmployee.address')),
+  );
+  await tester.pumpAndSettle();
+  await tester.enterText(
+    find.byKey(const ValueKey<String>('payroll.addEmployee.address')),
+    address,
+  );
+}
+
+String _fieldText(WidgetTester tester, String key) {
+  return tester
+      .widget<TextFormField>(find.byKey(ValueKey<String>(key)))
+      .controller!
+      .text;
+}
+
+String _ssnFieldText(WidgetTester tester) {
+  return _fieldText(tester, 'payroll.addEmployee.ssn');
+}
+
+Future<void> _pressW4CameraButton(WidgetTester tester) async {
+  final Finder cameraButton = find.byKey(
+    const ValueKey<String>('payroll.addEmployee.linkW4.camera'),
+  );
+  await tester.ensureVisible(cameraButton);
+  await tester.pumpAndSettle();
+
+  final VoidCallback? onPressed = tester
+      .widget<OutlinedButton>(cameraButton)
+      .onPressed;
+  expect(onPressed, isNotNull);
+  onPressed!();
+  await tester.pumpAndSettle();
+}
+
+TemporaryEmployeeDocument _temporaryW4Document() {
+  return TemporaryEmployeeDocument(
+    bytes: Uint8List.fromList(<int>[1, 2, 3, 4]),
+    fileName: 'w4.jpg',
+    mimeType: 'image/jpeg',
+    createdAt: DateTime(2026, 6, 15, 10, 30),
+  );
+}
+
 class _RecordingEmployeeDocumentEmailService
     implements EmployeeDocumentEmailService {
   final List<W4EmailRequest> requests = <W4EmailRequest>[];
+  bool shouldFail = false;
 
   @override
   Future<void> sendW4Email(W4EmailRequest request) async {
+    if (shouldFail) {
+      throw const EmployeeDocumentEmailException('Unable to send W4 email');
+    }
+
     requests.add(request);
+  }
+}
+
+class _FakeEmployeeDocumentCaptureService
+    implements EmployeeDocumentCaptureService {
+  final TemporaryEmployeeDocument? document;
+  final EmployeeDocumentCaptureException? exception;
+  int captureCount = 0;
+
+  _FakeEmployeeDocumentCaptureService({this.document, this.exception});
+
+  @override
+  Future<TemporaryEmployeeDocument?> captureW4Photo() async {
+    captureCount += 1;
+    final EmployeeDocumentCaptureException? captureException = exception;
+    if (captureException != null) throw captureException;
+    return document;
   }
 }

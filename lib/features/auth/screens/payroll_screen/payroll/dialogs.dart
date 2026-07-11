@@ -531,10 +531,18 @@ class _EmployeeDetailData {
   const _EmployeeDetailData({required this.label, required this.value});
 }
 
+enum _AddEmployeeSaveMode { saveAndClose, saveAndCreateNext }
+
 class _AddEmployeeDialog extends StatefulWidget {
   final EmployeeDocumentEmailService emailService;
+  final EmployeeDocumentCaptureService captureService;
+  final Future<void> Function(PayrollEmployee employee) onEmployeeCreated;
 
-  const _AddEmployeeDialog({required this.emailService});
+  const _AddEmployeeDialog({
+    required this.emailService,
+    required this.captureService,
+    required this.onEmployeeCreated,
+  });
 
   @override
   State<_AddEmployeeDialog> createState() => _AddEmployeeDialogState();
@@ -562,21 +570,65 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _dateHireController = TextEditingController();
   final TextEditingController _rateController = TextEditingController();
+  final TextEditingController _socialSecurityNumberController =
+      TextEditingController();
   final TextEditingController _linkW4Controller = TextEditingController();
+  final FocusNode _socialSecurityNumberFocusNode = FocusNode();
+
+  late final EmployeeCreateDraft _employeeDraft;
 
   String? _jobType;
   String? _payMethod;
+  bool _isSaving = false;
+  bool _isSendingEmail = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _employeeDraft = EmployeeCreateDraft(captureService: widget.captureService)
+      ..addListener(_handleEmployeeDraftChanged);
+    _socialSecurityNumberController.addListener(
+      _handleSocialSecurityNumberChanged,
+    );
+    _socialSecurityNumberFocusNode.addListener(
+      _handleSocialSecurityNumberFocusChanged,
+    );
+  }
 
   @override
   void dispose() {
+    _employeeDraft.removeListener(_handleEmployeeDraftChanged);
+    _employeeDraft.dispose();
+    _socialSecurityNumberController.removeListener(
+      _handleSocialSecurityNumberChanged,
+    );
+    _socialSecurityNumberFocusNode.removeListener(
+      _handleSocialSecurityNumberFocusChanged,
+    );
+    _socialSecurityNumberFocusNode.dispose();
     _fullNameController.dispose();
     _birthdayController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
     _dateHireController.dispose();
     _rateController.dispose();
+    _socialSecurityNumberController.dispose();
     _linkW4Controller.dispose();
     super.dispose();
+  }
+
+  void _handleEmployeeDraftChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _handleSocialSecurityNumberChanged() {
+    _employeeDraft.updateSocialSecurityNumber(
+      _socialSecurityNumberController.text,
+    );
+  }
+
+  void _handleSocialSecurityNumberFocusChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _pickBirthday() async {
@@ -619,23 +671,51 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
     setState(() => controller.text = _formatDate(picked));
   }
 
+  Future<void> _captureW4Photo() async {
+    final EmployeeDocumentCaptureResult result = await _employeeDraft
+        .captureW4Photo();
+    if (!mounted) return;
+
+    switch (result.status) {
+      case EmployeeDocumentCaptureStatus.captured:
+        _showMessage('W4 photo ready to email');
+        break;
+      case EmployeeDocumentCaptureStatus.canceled:
+        break;
+      case EmployeeDocumentCaptureStatus.failed:
+        _showMessage(result.message ?? 'Unable to capture W4 photo');
+        break;
+    }
+  }
+
+  void _deleteW4Photo() {
+    _employeeDraft.clearW4Document();
+    _showMessage('W4 photo removed');
+  }
+
   Future<void> _sendW4Email() async {
+    final EmployeeFormData? formData = _validatedFormData();
+    if (formData == null || _isSendingEmail || _isSaving) return;
+
     final String? recipientEmail = await showDialog<String>(
       context: context,
       builder: (BuildContext context) => const _W4EmailRecipientDialog(),
     );
     if (recipientEmail == null || !mounted) return;
 
+    setState(() => _isSendingEmail = true);
     try {
       await widget.emailService.sendW4Email(
         W4EmailRequest(
           recipientEmail: recipientEmail,
-          employeeName: _fullNameController.text,
-          linkW4: _linkW4Controller.text,
+          employeeDetails: _emailDetailsFrom(formData),
+          linkW4: formData.linkW4,
+          sensitiveData: _employeeDraft.sensitiveData,
         ),
       );
       if (!mounted) return;
 
+      _clearTemporarySensitiveData();
       _showMessage('Email draft opened');
     } on EmployeeDocumentEmailException catch (error) {
       if (!mounted) return;
@@ -643,19 +723,21 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
     } catch (_) {
       if (!mounted) return;
       _showMessage('Unable to send W4 email');
+    } finally {
+      if (mounted) setState(() => _isSendingEmail = false);
     }
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    messenger.removeCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _save() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+  EmployeeFormData? _validatedFormData() {
+    if (!(_formKey.currentState?.validate() ?? false)) return null;
 
-    final EmployeeFormData formData = EmployeeFormData.fromInput(
+    return EmployeeFormData.fromInput(
       fullName: _fullNameController.text,
       birthday: _birthdayController.text,
       phone: _phoneController.text,
@@ -666,8 +748,67 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
       payMethod: _payMethod ?? '',
       linkW4: _linkW4Controller.text,
     );
+  }
 
-    Navigator.pop(context, formData.toPayrollEmployee());
+  W4EmailEmployeeDetails _emailDetailsFrom(EmployeeFormData formData) {
+    return W4EmailEmployeeDetails(
+      fullName: formData.fullName,
+      birthday: formData.birthday,
+      phone: formData.phone,
+      address: formData.address,
+      dateHire: formData.dateHire,
+      jobType: formData.jobType,
+      rate: formData.rate,
+      payMethod: formData.payMethod,
+    );
+  }
+
+  Future<void> _save(_AddEmployeeSaveMode mode) async {
+    final EmployeeFormData? formData = _validatedFormData();
+    if (formData == null || _isSaving || _isSendingEmail) return;
+
+    setState(() => _isSaving = true);
+    try {
+      await widget.onEmployeeCreated(formData.toPayrollEmployee());
+      if (!mounted) return;
+
+      if (mode == _AddEmployeeSaveMode.saveAndClose) {
+        Navigator.pop(context);
+        return;
+      }
+
+      _resetForNextEmployee();
+      _showMessage('Employee saved. Ready for next employee.');
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('Unable to save employee');
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _resetForNextEmployee() {
+    FocusScope.of(context).unfocus();
+    _formKey.currentState?.reset();
+    _fullNameController.clear();
+    _birthdayController.clear();
+    _phoneController.clear();
+    _addressController.clear();
+    _dateHireController.clear();
+    _rateController.clear();
+    _linkW4Controller.clear();
+    setState(() {
+      _jobType = null;
+      _payMethod = null;
+    });
+    _clearTemporarySensitiveData();
+  }
+
+  void _clearTemporarySensitiveData() {
+    if (_socialSecurityNumberController.text.isNotEmpty) {
+      _socialSecurityNumberController.clear();
+    }
+    _employeeDraft.clearSensitiveData();
   }
 
   @override
@@ -823,9 +964,18 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
                                   EmployeeFormValidators.validateRequiredText,
                               textInputAction: TextInputAction.newline,
                             ),
-                            _AddEmployeeW4Field(
-                              controller: _linkW4Controller,
-                              onSendEmail: _sendW4Email,
+                            _AddEmployeeDocumentFields(
+                              socialSecurityNumberController:
+                                  _socialSecurityNumberController,
+                              socialSecurityNumberFocusNode:
+                                  _socialSecurityNumberFocusNode,
+                              maskSocialSecurityNumber:
+                                  !_socialSecurityNumberFocusNode.hasFocus,
+                              linkW4Controller: _linkW4Controller,
+                              document: _employeeDraft.w4Document,
+                              isCapturing: _employeeDraft.isCapturing,
+                              onCapturePhoto: _captureW4Photo,
+                              onDeletePhoto: _deleteW4Photo,
                             ),
                           ],
                           <Widget>[
@@ -847,28 +997,12 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
                 const Divider(height: 1, color: _PayrollTokens.divider),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(28, 20, 28, 22),
-                  child: Align(
-                    alignment: stacked
-                        ? Alignment.center
-                        : Alignment.centerRight,
-                    child: SizedBox(
-                      width: stacked ? double.infinity : 120,
-                      height: 48,
-                      child: FilledButton(
-                        key: const ValueKey<String>('payroll.addEmployee.done'),
-                        onPressed: _save,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _PayrollTokens.tabSelected,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              _PayrollTokens.controlRadius,
-                            ),
-                          ),
-                        ),
-                        child: const Text('Done'),
-                      ),
-                    ),
+                  child: _AddEmployeeActionButtons(
+                    isBusy: _isSaving || _isSendingEmail,
+                    onSendEmail: _sendW4Email,
+                    onCreateNextEmployee: () =>
+                        _save(_AddEmployeeSaveMode.saveAndCreateNext),
+                    onDone: () => _save(_AddEmployeeSaveMode.saveAndClose),
                   ),
                 ),
               ],
@@ -927,6 +1061,7 @@ class _AddEmployeeTextField extends StatelessWidget {
   final bool requiredField;
   final bool optional;
   final TextEditingController controller;
+  final FocusNode? focusNode;
   final String hintText;
   final String? prefixText;
   final TextInputType? keyboardType;
@@ -935,12 +1070,16 @@ class _AddEmployeeTextField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final int minLines;
   final int maxLines;
+  final bool obscureText;
+  final bool enableSuggestions;
+  final bool autocorrect;
 
   const _AddEmployeeTextField({
     required this.fieldKey,
     required this.label,
     required this.controller,
     required this.hintText,
+    this.focusNode,
     this.requiredField = false,
     this.optional = false,
     this.prefixText,
@@ -950,6 +1089,9 @@ class _AddEmployeeTextField extends StatelessWidget {
     this.textInputAction,
     this.minLines = 1,
     this.maxLines = 1,
+    this.obscureText = false,
+    this.enableSuggestions = true,
+    this.autocorrect = true,
   });
 
   @override
@@ -961,8 +1103,12 @@ class _AddEmployeeTextField extends StatelessWidget {
       child: TextFormField(
         key: fieldKey,
         controller: controller,
+        focusNode: focusNode,
         minLines: minLines,
         maxLines: maxLines,
+        obscureText: obscureText,
+        enableSuggestions: enableSuggestions,
+        autocorrect: autocorrect,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
         validator: validator,
@@ -979,13 +1125,25 @@ class _AddEmployeeTextField extends StatelessWidget {
   }
 }
 
-class _AddEmployeeW4Field extends StatelessWidget {
-  final TextEditingController controller;
-  final VoidCallback onSendEmail;
+class _AddEmployeeDocumentFields extends StatelessWidget {
+  final TextEditingController socialSecurityNumberController;
+  final FocusNode socialSecurityNumberFocusNode;
+  final bool maskSocialSecurityNumber;
+  final TextEditingController linkW4Controller;
+  final TemporaryEmployeeDocument? document;
+  final bool isCapturing;
+  final VoidCallback onCapturePhoto;
+  final VoidCallback onDeletePhoto;
 
-  const _AddEmployeeW4Field({
-    required this.controller,
-    required this.onSendEmail,
+  const _AddEmployeeDocumentFields({
+    required this.socialSecurityNumberController,
+    required this.socialSecurityNumberFocusNode,
+    required this.maskSocialSecurityNumber,
+    required this.linkW4Controller,
+    required this.document,
+    required this.isCapturing,
+    required this.onCapturePhoto,
+    required this.onDeletePhoto,
   });
 
   @override
@@ -994,29 +1152,228 @@ class _AddEmployeeW4Field extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         _AddEmployeeTextField(
+          fieldKey: const ValueKey<String>('payroll.addEmployee.ssn'),
+          label: 'Social Security Number',
+          optional: true,
+          controller: socialSecurityNumberController,
+          focusNode: socialSecurityNumberFocusNode,
+          hintText: '123-45-6789',
+          keyboardType: TextInputType.number,
+          inputFormatters: <TextInputFormatter>[_SsnInputFormatter()],
+          validator:
+              EmployeeFormValidators.validateOptionalSocialSecurityNumber,
+          textInputAction: TextInputAction.next,
+          obscureText:
+              maskSocialSecurityNumber &&
+              socialSecurityNumberController.text.isNotEmpty,
+          enableSuggestions: false,
+          autocorrect: false,
+        ),
+        const SizedBox(height: 18),
+        _AddEmployeeTextField(
           fieldKey: const ValueKey<String>('payroll.addEmployee.linkW4'),
           label: 'Link W4',
           optional: true,
-          controller: controller,
+          controller: linkW4Controller,
           hintText: 'Enter link to W4 (optional)',
           keyboardType: TextInputType.url,
           textInputAction: TextInputAction.next,
         ),
         const SizedBox(height: 10),
-        OutlinedButton.icon(
-          key: const ValueKey<String>('payroll.addEmployee.linkW4.sendEmail'),
-          onPressed: onSendEmail,
-          icon: const Icon(Icons.mail_outline, size: 18),
-          label: const Text('Send Email'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: _PayrollTokens.tabSelected,
-            side: const BorderSide(color: _PayrollTokens.border),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: <Widget>[
+            OutlinedButton.icon(
+              key: const ValueKey<String>('payroll.addEmployee.linkW4.camera'),
+              onPressed: isCapturing ? null : onCapturePhoto,
+              icon: isCapturing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.photo_camera_outlined, size: 18),
+              label: Text(isCapturing ? 'Opening Camera' : 'Take Photo'),
+              style: _w4ActionButtonStyle,
+            ),
+          ],
+        ),
+        if (document != null) ...<Widget>[
+          const SizedBox(height: 10),
+          _W4PhotoStatus(document: document!, onDeletePhoto: onDeletePhoto),
+        ],
+      ],
+    );
+  }
+
+  ButtonStyle get _w4ActionButtonStyle {
+    return OutlinedButton.styleFrom(
+      foregroundColor: _PayrollTokens.tabSelected,
+      side: const BorderSide(color: _PayrollTokens.border),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+      ),
+    );
+  }
+}
+
+class _W4PhotoStatus extends StatelessWidget {
+  final TemporaryEmployeeDocument document;
+  final VoidCallback onDeletePhoto;
+
+  const _W4PhotoStatus({required this.document, required this.onDeletePhoto});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('payroll.addEmployee.linkW4.photoStatus'),
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: _PayrollTokens.selectedRow,
+        borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+        border: Border.all(color: _PayrollTokens.border),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(
+            Icons.description_outlined,
+            size: 20,
+            color: _PayrollTokens.tabSelected,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'W4 photo ready: ${document.fileName}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _PayrollTokens.helperText.copyWith(
+                color: _PayrollTokens.textStrong,
+              ),
             ),
           ),
+          IconButton(
+            key: const ValueKey<String>(
+              'payroll.addEmployee.linkW4.deletePhoto',
+            ),
+            tooltip: 'Remove W4 photo',
+            onPressed: onDeletePhoto,
+            icon: const Icon(Icons.delete_outline, size: 20),
+            color: _PayrollTokens.error,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddEmployeeActionButtons extends StatelessWidget {
+  final bool isBusy;
+  final VoidCallback onSendEmail;
+  final VoidCallback onCreateNextEmployee;
+  final VoidCallback onDone;
+
+  const _AddEmployeeActionButtons({
+    required this.isBusy,
+    required this.onSendEmail,
+    required this.onCreateNextEmployee,
+    required this.onDone,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double spacing = constraints.maxWidth < 420 ? 8 : 12;
+        final List<Widget> buttons = <Widget>[
+          _AddEmployeeActionButton(
+            key: const ValueKey<String>('payroll.addEmployee.linkW4.sendEmail'),
+            label: 'Send Email',
+            onPressed: isBusy ? null : onSendEmail,
+          ),
+          _AddEmployeeActionButton(
+            key: const ValueKey<String>('payroll.addEmployee.createNext'),
+            label: 'Create next',
+            onPressed: isBusy ? null : onCreateNextEmployee,
+          ),
+          _AddEmployeeActionButton(
+            key: const ValueKey<String>('payroll.addEmployee.done'),
+            label: 'Done',
+            onPressed: isBusy ? null : onDone,
+          ),
+        ];
+
+        return Row(
+          children: <Widget>[
+            for (int index = 0; index < buttons.length; index += 1) ...[
+              Expanded(child: buttons[index]),
+              if (index < buttons.length - 1) SizedBox(width: spacing),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _AddEmployeeActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+
+  const _AddEmployeeActionButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: FilledButton(
+        onPressed: onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: _PayrollTokens.tabSelected,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: _PayrollTokens.border,
+          disabledForegroundColor: _PayrollTokens.textMuted,
+          minimumSize: Size.zero,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+          ),
         ),
-      ],
+        child: Center(
+          child: FittedBox(fit: BoxFit.scaleDown, child: Text(label)),
+        ),
+      ),
+    );
+  }
+}
+
+class _SsnInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final String digits = EmployeeFormValidators.socialSecurityNumberDigits(
+      newValue.text,
+    );
+    final String limitedDigits = digits.length > 9
+        ? digits.substring(0, 9)
+        : digits;
+    final StringBuffer formatted = StringBuffer();
+
+    for (int index = 0; index < limitedDigits.length; index += 1) {
+      if (index == 3 || index == 5) formatted.write('-');
+      formatted.write(limitedDigits[index]);
+    }
+
+    final String formattedText = formatted.toString();
+    return TextEditingValue(
+      text: formattedText,
+      selection: TextSelection.collapsed(offset: formattedText.length),
     );
   }
 }
