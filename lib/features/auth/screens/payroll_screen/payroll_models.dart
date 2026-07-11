@@ -1,5 +1,6 @@
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/recurrence_schedule.dart';
+import 'package:savetep/domain/models/employee_payroll_setup.dart';
 
 import 'payroll_pay_date_validator.dart';
 import 'payroll_schedule_calculator.dart';
@@ -83,6 +84,7 @@ class PayrollEmployee {
   final String dateHire;
   final String payMethod;
   final String linkW4;
+  final EmployeePayrollSetup? payrollSetup;
   final PayrollAction payrollAction;
   final bool isPayrollConfirmed;
 
@@ -101,6 +103,7 @@ class PayrollEmployee {
     this.dateHire = '',
     this.payMethod = '',
     this.linkW4 = '',
+    this.payrollSetup,
     this.payrollAction = PayrollAction.same,
     this.isPayrollConfirmed = false,
   });
@@ -121,6 +124,7 @@ class PayrollEmployee {
       dateHire: _asString(json['dateHire']),
       payMethod: _asString(json['payMethod']),
       linkW4: _asString(json['linkW4']),
+      payrollSetup: employeePayrollSetupFromJson(json['payrollSetup']),
       payrollAction: PayrollAction.fromLabel(_asString(json['payrollAction'])),
       isPayrollConfirmed: json['isPayrollConfirmed'] == true,
     );
@@ -158,6 +162,8 @@ class PayrollEmployee {
     String? dateHire,
     String? payMethod,
     String? linkW4,
+    EmployeePayrollSetup? payrollSetup,
+    bool clearPayrollSetup = false,
     PayrollAction? payrollAction,
     bool? isPayrollConfirmed,
   }) {
@@ -176,6 +182,9 @@ class PayrollEmployee {
       dateHire: dateHire ?? this.dateHire,
       payMethod: payMethod ?? this.payMethod,
       linkW4: linkW4 ?? this.linkW4,
+      payrollSetup: clearPayrollSetup
+          ? null
+          : payrollSetup ?? this.payrollSetup,
       payrollAction: payrollAction ?? this.payrollAction,
       isPayrollConfirmed: isPayrollConfirmed ?? this.isPayrollConfirmed,
     );
@@ -196,6 +205,7 @@ class PayrollEmployee {
     'dateHire': dateHire,
     'payMethod': payMethod,
     'linkW4': linkW4,
+    'payrollSetup': payrollSetup?.toJson(),
     'payrollAction': payrollAction.label,
     'isPayrollConfirmed': isPayrollConfirmed,
   };

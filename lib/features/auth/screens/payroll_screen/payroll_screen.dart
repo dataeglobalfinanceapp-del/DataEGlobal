@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:savetep/domain/models/employee_payroll_setup.dart';
 import 'package:savetep/domain/models/temporary_employee_document.dart';
 import 'package:savetep/domain/services/employee_document_capture_service.dart';
 import 'package:savetep/domain/services/employee_document_email_service.dart';
@@ -9,10 +10,9 @@ import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/money_formatter.dart';
 
 import 'employee_form_data.dart';
+import 'employee_payroll_setup_validators.dart';
 import 'payroll_controller.dart';
 import 'payroll_models.dart';
-import 'payroll_pay_date_validator.dart';
-import 'payroll_schedule_calculator.dart';
 import 'employee_create_draft.dart';
 
 part 'payroll/tabs.dart';

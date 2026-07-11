@@ -324,6 +324,21 @@ bool _samePayrollEmployee(PayrollEmployee previous, PayrollEmployee next) {
       previous.dateHire == next.dateHire &&
       previous.payMethod == next.payMethod &&
       previous.linkW4 == next.linkW4 &&
+      _sameEmployeePayrollSetup(previous.payrollSetup, next.payrollSetup) &&
       previous.payrollAction == next.payrollAction &&
       previous.isPayrollConfirmed == next.isPayrollConfirmed;
+}
+
+bool _sameEmployeePayrollSetup(
+  EmployeePayrollSetup? previous,
+  EmployeePayrollSetup? next,
+) {
+  if (identical(previous, next)) return true;
+  if (previous == null || next == null) return false;
+
+  return previous.schedule == next.schedule &&
+      previous.weekday == next.weekday &&
+      previous.paidAfterDays == next.paidAfterDays &&
+      previous.remindAfterDays == next.remindAfterDays &&
+      previous.rate == next.rate;
 }

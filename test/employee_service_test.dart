@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:savetep/data/dto/save_employee_request.dart';
 import 'package:savetep/data/local/local_employee_repository.dart';
 import 'package:savetep/data/local/local_store.dart';
+import 'package:savetep/domain/models/employee_payroll_setup.dart';
 import 'package:savetep/domain/services/employee_service.dart';
 import 'package:savetep/services/app_clock.dart';
 
@@ -36,10 +37,19 @@ void main() {
           rate: 24.5,
           payMethod: 'Direct Deposit',
           linkW4: 'https://example.com/taylor-w4.pdf',
+          payrollSetup: EmployeePayrollSetup(
+            schedule: EmployeePayrollSchedule.biweekly,
+            weekday: EmployeePayrollWeekday.friday,
+            paidAfterDays: 3,
+            remindAfterDays: 2,
+            rate: 24.5,
+          ),
         ),
       );
 
       expect(saved.id, isNotEmpty);
+      expect(saved.payrollSetup?.schedule, EmployeePayrollSchedule.biweekly);
+      expect(saved.payrollSetup?.weekday, EmployeePayrollWeekday.friday);
       expect(await service.loadEmployees(), hasLength(1));
 
       final updated = await service.saveEmployee(
@@ -54,10 +64,12 @@ void main() {
           rate: saved.rate,
           payMethod: saved.payMethod,
           linkW4: saved.linkW4,
+          payrollSetup: saved.payrollSetup,
         ),
       );
 
       expect(updated.phone, '555-4400');
+      expect(updated.payrollSetup?.paidAfterDays, 3);
       expect((await service.loadEmployees()).single.phone, '555-4400');
 
       expect(await service.deleteEmployee(saved.id), isTrue);

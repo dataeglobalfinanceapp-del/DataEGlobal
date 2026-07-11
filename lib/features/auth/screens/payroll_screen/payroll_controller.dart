@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:savetep/data/dto/save_employee_request.dart';
 import 'package:savetep/data/repositories/employee_repository.dart';
+import 'package:savetep/domain/models/employee_payroll_setup.dart';
 import 'package:savetep/domain/services/employee_service.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/recurrence_schedule.dart';
@@ -234,6 +235,44 @@ class PayrollController extends ChangeNotifier {
     }
   }
 
+  Future<void> updateEmployeePayrollSetup(
+    String id,
+    EmployeePayrollSetup setup,
+  ) async {
+    PayrollEmployee? updatedEmployee;
+    var rateChanged = false;
+    final employees = _payroll.employees
+        .map((PayrollEmployee employee) {
+          if (employee.id != id) return employee;
+
+          rateChanged = employee.rate != setup.rate;
+          updatedEmployee = employee.copyWith(
+            rate: setup.rate,
+            payrollSetup: setup,
+            payrollAction: rateChanged
+                ? PayrollAction.change
+                : employee.payrollAction,
+            isPayrollConfirmed: rateChanged
+                ? false
+                : employee.isPayrollConfirmed,
+          );
+          return updatedEmployee!;
+        })
+        .toList(growable: false);
+    if (updatedEmployee == null) return;
+
+    _payroll = _payroll.copyWith(employees: employees);
+    _rebuildState();
+    _notify();
+
+    await _employeeService.saveEmployee(
+      _saveEmployeeRequestFrom(updatedEmployee!),
+    );
+    if (rateChanged) {
+      await _saveDraftPayroll(clearPayrollExpense: true);
+    }
+  }
+
   void _setLoading(bool isLoading) {
     if (_isLoading == isLoading) return;
     _isLoading = isLoading;
@@ -416,6 +455,7 @@ class PayrollController extends ChangeNotifier {
       dateHire: record.dateHire,
       payMethod: record.payMethod,
       linkW4: record.linkW4,
+      payrollSetup: record.payrollSetup,
       payrollAction: existing?.payrollAction ?? PayrollAction.same,
       isPayrollConfirmed: existing?.isPayrollConfirmed ?? false,
     );
@@ -440,6 +480,7 @@ class PayrollController extends ChangeNotifier {
       rate: employee.rate,
       payMethod: employee.payMethod,
       linkW4: employee.linkW4,
+      payrollSetup: employee.payrollSetup,
     );
   }
 

@@ -103,41 +103,84 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Payroll Settings'), findsOneWidget);
-      expect(find.text('PROCESS PAYROLL DATE'), findsOneWidget);
-      expect(find.text('PAY DATE'), findsOneWidget);
-      expect(find.text('PAYROLL SCHEDULE'), findsOneWidget);
-      expect(find.text('PAY PERIOD'), findsOneWidget);
-      expect(find.text('06/16/2026'), findsOneWidget);
+      expect(find.text('PROCESS PAYROLL DATE'), findsNothing);
+      expect(find.text('PAY DATE'), findsNothing);
+      expect(find.text('PAYROLL SCHEDULE'), findsNothing);
+      expect(find.text('PAY PERIOD'), findsNothing);
+      expect(find.text('6 employees not have payroll setup.'), findsOneWidget);
+      expect(find.text('Jack Nicholson'), findsOneWidget);
+      expect(find.text('None'), findsWidgets);
 
-      await tester.tap(find.text('06/16/2026'));
+      await tester.tap(find.text('6 employees not have payroll setup.'));
       await tester.pumpAndSettle();
-      expect(find.text('Choose pay date'), findsOneWidget);
-      await tester.tap(find.text('15').last, warnIfMissed: false);
+
+      await tester.tap(find.byIcon(Icons.settings_outlined).first);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-      expect(find.text('06/16/2026'), findsOneWidget);
-      expect(find.text('Period begin date'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey<String>('payroll.biweeklyPeriodBeginDate')),
-        findsOneWidget,
+
+      expect(find.text('Payroll schedule'), findsOneWidget);
+      expect(find.text('Paid after X days after period end'), findsOneWidget);
+      expect(find.text('Remind X days after period end'), findsOneWidget);
+      expect(find.text('Rate'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.employeeSetup.save')),
       );
-      expect(find.text('06/01/2026'), findsOneWidget);
-      expect(find.text('06/01/2026 - 06/14/2026'), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.text('Choose a payroll schedule'), findsOneWidget);
 
       await tester.tap(
-        find.byKey(const ValueKey<String>('payroll.biweeklyPeriodBeginDate')),
+        find.byKey(const ValueKey<String>('payroll.employeeSetup.schedule')),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Choose period begin date'), findsOneWidget);
-      await tester.tap(find.text('2').last);
+      await tester.tap(find.text('Biweekly').last);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('OK'));
+      expect(find.text('Weekday'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.employeeSetup.weekday')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Friday').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('payroll.employeeSetup.paidAfterDays'),
+        ),
+        '21',
+      );
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('payroll.employeeSetup.remindAfterDays'),
+        ),
+        '8',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.employeeSetup.save')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Enter 0-20'), findsOneWidget);
+      expect(find.text('Enter 0-7'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('payroll.employeeSetup.paidAfterDays'),
+        ),
+        '3',
+      );
+      await tester.enterText(
+        find.byKey(
+          const ValueKey<String>('payroll.employeeSetup.remindAfterDays'),
+        ),
+        '2',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('payroll.employeeSetup.rate')),
+        '21.25',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.employeeSetup.save')),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.text('06/02/2026'), findsOneWidget);
-      expect(find.text('06/02/2026 - 06/15/2026'), findsOneWidget);
-      expect(find.text('06/16/2026'), findsOneWidget);
+      expect(find.text('Biweekly'), findsOneWidget);
+      expect(find.text('5 employees not have payroll setup.'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();

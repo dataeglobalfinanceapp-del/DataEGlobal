@@ -1,4 +1,5 @@
 import 'package:savetep/data/dto/save_employee_request.dart';
+import 'package:savetep/domain/models/employee_payroll_setup.dart';
 
 class EmployeeRecord {
   final String id;
@@ -11,6 +12,7 @@ class EmployeeRecord {
   final double rate;
   final String payMethod;
   final String linkW4;
+  final EmployeePayrollSetup? payrollSetup;
 
   const EmployeeRecord({
     required this.id,
@@ -23,6 +25,7 @@ class EmployeeRecord {
     required this.rate,
     this.payMethod = '',
     this.linkW4 = '',
+    this.payrollSetup,
   });
 
   factory EmployeeRecord.fromJson(Map<dynamic, dynamic> json) {
@@ -37,6 +40,7 @@ class EmployeeRecord {
       rate: _asDouble(json['rate']),
       payMethod: _asString(json['payMethod']),
       linkW4: _asString(json['linkW4']),
+      payrollSetup: employeePayrollSetupFromJson(json['payrollSetup']),
     );
   }
 
@@ -55,6 +59,7 @@ class EmployeeRecord {
       rate: request.rate,
       payMethod: request.payMethod,
       linkW4: request.linkW4,
+      payrollSetup: request.payrollSetup,
     );
   }
 
@@ -69,6 +74,7 @@ class EmployeeRecord {
     'rate': rate,
     'payMethod': payMethod,
     'linkW4': linkW4,
+    'payrollSetup': payrollSetup?.toJson(),
   };
 }
 

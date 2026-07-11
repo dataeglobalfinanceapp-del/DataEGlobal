@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/data/dto/save_employee_request.dart';
+import 'package:savetep/data/repositories/employee_repository.dart';
+import 'package:savetep/domain/models/employee_payroll_setup.dart';
 import 'package:savetep/domain/services/employee_service.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_controller.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_models.dart';
@@ -212,6 +214,53 @@ void main() {
       expect(payrollExpenses, isEmpty);
     },
   );
+
+  test('employee payroll setup saves through controller', () async {
+    await _seedPayrollEmployees();
+    final PayrollController controller = PayrollController();
+    addTearDown(controller.dispose);
+
+    await controller.load();
+    controller.setPayDate(DateTime(2026, 6, 29));
+    final PayrollEmployee employee = controller.state.payroll.employees.first;
+
+    await controller.updateEmployeePayrollSetup(
+      employee.id,
+      const EmployeePayrollSetup(
+        schedule: EmployeePayrollSchedule.biweekly,
+        weekday: EmployeePayrollWeekday.friday,
+        paidAfterDays: 3,
+        remindAfterDays: 2,
+        rate: 25,
+      ),
+    );
+
+    final PayrollEmployee updated = controller.state.payroll.employees.first;
+    expect(updated.payrollSetup?.schedule, EmployeePayrollSchedule.biweekly);
+    expect(updated.payrollSetup?.weekday, EmployeePayrollWeekday.friday);
+    expect(updated.payrollSetup?.paidAfterDays, 3);
+    expect(updated.payrollSetup?.remindAfterDays, 2);
+    expect(updated.rate, 25);
+    expect(updated.payrollAction, PayrollAction.change);
+    expect(updated.isPayrollConfirmed, isFalse);
+
+    final EmployeeRecord savedEmployee =
+        (await EmployeeService().loadEmployees()).first;
+    expect(
+      savedEmployee.payrollSetup?.schedule,
+      EmployeePayrollSchedule.biweekly,
+    );
+    expect(savedEmployee.rate, 25);
+
+    final PayrollController reloadedController = PayrollController();
+    addTearDown(reloadedController.dispose);
+    await reloadedController.load();
+
+    final PayrollEmployee reloaded =
+        reloadedController.state.payroll.employees.first;
+    expect(reloaded.payrollSetup?.weekday, EmployeePayrollWeekday.friday);
+    expect(reloaded.rate, 25);
+  });
 }
 
 Future<void> _seedPayrollEmployees() async {

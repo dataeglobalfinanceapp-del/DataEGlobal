@@ -11,7 +11,6 @@ class _PayrollTokens {
   static const Color textMuted = Color(0xFF4B5563);
   static const Color border = Color(0xFFD8DEE8);
   static const Color divider = Color(0xFFE5E7EB);
-  static const Color success = Color(0xFF57B82F);
   static const Color selectedRow = Color(0xFFEAF4FF);
   static const Color warning = Color(0xFFB45309);
   static const Color warningBackground = Color(0xFFFFFBEB);
@@ -30,12 +29,6 @@ class _PayrollTokens {
     color: surface,
     borderRadius: BorderRadius.circular(cardRadius),
     boxShadow: panelShadow,
-  );
-
-  static BoxDecoration get inputBoxDecoration => BoxDecoration(
-    color: surface,
-    borderRadius: BorderRadius.circular(controlRadius),
-    border: Border.all(color: border),
   );
 
   static InputDecoration get inputDecoration => InputDecoration(
