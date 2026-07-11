@@ -112,23 +112,6 @@ class PayrollController extends ChangeNotifier {
     _notify();
   }
 
-  Future<void> addEmployee() async {
-    final EmployeeRecord savedEmployee = await _employeeService.saveEmployee(
-      _saveEmployeeRequestFrom(
-        const PayrollEmployee(id: '', name: 'New Employee'),
-      ),
-    );
-    if (_isDisposed) return;
-
-    final employees = <PayrollEmployee>[
-      ..._payroll.employees,
-      _payrollEmployeeFromRecord(savedEmployee),
-    ];
-    _payroll = _payroll.copyWith(employees: employees);
-    _rebuildState();
-    _notify();
-  }
-
   Future<void> addEmployeeRecord(PayrollEmployee employee) async {
     final EmployeeRecord savedEmployee = await _employeeService.saveEmployee(
       _saveEmployeeRequestFrom(employee),

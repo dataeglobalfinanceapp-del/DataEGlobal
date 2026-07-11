@@ -2,12 +2,10 @@ part of '../payroll_screen.dart';
 
 class _PayrollTabContentConsumer extends StatelessWidget {
   final PayrollController controller;
-  final VoidCallback onAddEmployee;
   final _EmployeeChanged onEmployeeChanged;
 
   const _PayrollTabContentConsumer({
     required this.controller,
-    required this.onAddEmployee,
     required this.onEmployeeChanged,
   });
 
@@ -15,7 +13,6 @@ class _PayrollTabContentConsumer extends StatelessWidget {
   Widget build(BuildContext context) {
     return _PayrollProcessingView(
       controller: controller,
-      onAddEmployee: onAddEmployee,
       onEmployeeChanged: onEmployeeChanged,
     );
   }
@@ -23,13 +20,13 @@ class _PayrollTabContentConsumer extends StatelessWidget {
 
 class _EmployeesTabContentConsumer extends StatelessWidget {
   final PayrollController controller;
-  final VoidCallback onAddEmployee;
+  final Future<void> Function() onCreateEmployee;
   final ValueChanged<String> onRemoveEmployee;
   final _EmployeeChanged onEmployeeChanged;
 
   const _EmployeesTabContentConsumer({
     required this.controller,
-    required this.onAddEmployee,
+    required this.onCreateEmployee,
     required this.onRemoveEmployee,
     required this.onEmployeeChanged,
   });
@@ -42,7 +39,7 @@ class _EmployeesTabContentConsumer extends StatelessWidget {
         final PayrollViewState state = controller.state;
         return _EmployeesManagementView(
           state: state,
-          onAddEmployee: onAddEmployee,
+          onCreateEmployee: onCreateEmployee,
           onRemoveEmployee: onRemoveEmployee,
           onEmployeeChanged: onEmployeeChanged,
         );
@@ -141,12 +138,10 @@ class _PayrollTabButton extends StatelessWidget {
 
 class _PayrollProcessingView extends StatelessWidget {
   final PayrollController controller;
-  final VoidCallback onAddEmployee;
   final _EmployeeChanged onEmployeeChanged;
 
   const _PayrollProcessingView({
     required this.controller,
-    required this.onAddEmployee,
     required this.onEmployeeChanged,
   });
 
@@ -159,7 +154,6 @@ class _PayrollProcessingView extends StatelessWidget {
         const SizedBox(height: 18),
         _EmployeePayrollListConsumer(
           controller: controller,
-          onAddEmployee: onAddEmployee,
           onEmployeeChanged: onEmployeeChanged,
         ),
       ],
@@ -218,12 +212,10 @@ class _PayrollSetupCardConsumerState extends State<_PayrollSetupCardConsumer> {
 
 class _EmployeePayrollListConsumer extends StatefulWidget {
   final PayrollController controller;
-  final VoidCallback onAddEmployee;
   final _EmployeeChanged onEmployeeChanged;
 
   const _EmployeePayrollListConsumer({
     required this.controller,
-    required this.onAddEmployee,
     required this.onEmployeeChanged,
   });
 
@@ -270,7 +262,6 @@ class _EmployeePayrollListConsumerState
   Widget build(BuildContext context) {
     return _EmployeePayrollList(
       state: _state,
-      onAddEmployee: widget.onAddEmployee,
       onEmployeeChanged: widget.onEmployeeChanged,
     );
   }

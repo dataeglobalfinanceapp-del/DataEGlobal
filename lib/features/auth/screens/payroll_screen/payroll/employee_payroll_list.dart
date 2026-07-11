@@ -2,12 +2,10 @@ part of '../payroll_screen.dart';
 
 class _EmployeePayrollList extends StatefulWidget {
   final PayrollViewState state;
-  final VoidCallback onAddEmployee;
   final _EmployeeChanged onEmployeeChanged;
 
   const _EmployeePayrollList({
     required this.state,
-    required this.onAddEmployee,
     required this.onEmployeeChanged,
   });
 
@@ -100,18 +98,7 @@ class _EmployeePayrollListState extends State<_EmployeePayrollList> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Row(
-          children: <Widget>[
-            const Expanded(
-              child: Text('Employees', style: _PayrollTokens.sectionTitle),
-            ),
-            TextButton.icon(
-              onPressed: widget.onAddEmployee,
-              icon: const Icon(Icons.add),
-              label: const Text('Add'),
-            ),
-          ],
-        ),
+        const Text('Employees', style: _PayrollTokens.sectionTitle),
         const SizedBox(height: 8),
         for (int index = 0; index < employees.length; index += 1)
           Padding(

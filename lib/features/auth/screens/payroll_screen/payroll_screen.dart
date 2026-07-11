@@ -148,13 +148,12 @@ class _PayrollScreenState extends State<PayrollScreen> {
               if (_selectedTab == _PayrollTab.payroll)
                 _PayrollTabContentConsumer(
                   controller: _controller,
-                  onAddEmployee: _controller.addEmployee,
                   onEmployeeChanged: _controller.updateEmployee,
                 )
               else
                 _EmployeesTabContentConsumer(
                   controller: _controller,
-                  onAddEmployee: _openAddEmployeeDialog,
+                  onCreateEmployee: _openAddEmployeeDialog,
                   onRemoveEmployee: _controller.removeEmployee,
                   onEmployeeChanged: _controller.updateEmployee,
                 ),

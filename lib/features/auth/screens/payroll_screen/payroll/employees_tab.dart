@@ -2,13 +2,13 @@ part of '../payroll_screen.dart';
 
 class _EmployeesManagementView extends StatefulWidget {
   final PayrollViewState state;
-  final VoidCallback onAddEmployee;
+  final Future<void> Function() onCreateEmployee;
   final ValueChanged<String> onRemoveEmployee;
   final _EmployeeChanged onEmployeeChanged;
 
   const _EmployeesManagementView({
     required this.state,
-    required this.onAddEmployee,
+    required this.onCreateEmployee,
     required this.onRemoveEmployee,
     required this.onEmployeeChanged,
   });
@@ -75,8 +75,10 @@ class _EmployeesManagementViewState extends State<_EmployeesManagementView> {
     );
   }
 
-  void _addEmployee() {
-    widget.onAddEmployee();
+  Future<void> _createEmployee() async {
+    await widget.onCreateEmployee();
+    if (!mounted) return;
+    _syncSelectedEmployee();
     setState(() {});
   }
 
@@ -104,7 +106,7 @@ class _EmployeesManagementViewState extends State<_EmployeesManagementView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            _EmployeesHeader(onAddEmployee: _addEmployee),
+            _EmployeesHeader(onCreateEmployee: _createEmployee),
             const SizedBox(height: 18),
             listCard,
           ],
@@ -115,9 +117,9 @@ class _EmployeesManagementViewState extends State<_EmployeesManagementView> {
 }
 
 class _EmployeesHeader extends StatelessWidget {
-  final VoidCallback onAddEmployee;
+  final VoidCallback onCreateEmployee;
 
-  const _EmployeesHeader({required this.onAddEmployee});
+  const _EmployeesHeader({required this.onCreateEmployee});
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +131,7 @@ class _EmployeesHeader extends StatelessWidget {
           style: _PayrollTokens.employeesTitle,
         );
         final Widget button = FilledButton.icon(
-          onPressed: onAddEmployee,
+          onPressed: onCreateEmployee,
           icon: const Icon(Icons.add),
           label: const Text('Add New Employee'),
           style: FilledButton.styleFrom(
