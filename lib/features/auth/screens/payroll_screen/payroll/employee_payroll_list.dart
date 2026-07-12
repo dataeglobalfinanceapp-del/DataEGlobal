@@ -469,7 +469,8 @@ class _PayrollActionField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const SizedBox(height: 25),
+        const Text('STATUS', style: _PayrollTokens.cardFieldLabel),
+        const SizedBox(height: 8),
         _PayrollStatusDropdown(
           keyPrefix: 'payroll.employee.$index.action',
           selectedStatus: selectedAction,
@@ -524,10 +525,10 @@ class _PayrollStatusDropdown extends StatelessWidget {
     final List<PayrollAction> options = statusOptions.toList(growable: false);
 
     return SizedBox(
-      height: 56,
+      height: 48,
       width: double.infinity,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 5),
         decoration: BoxDecoration(
           color: _PayrollTokens.surface,
           borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
@@ -538,6 +539,7 @@ class _PayrollStatusDropdown extends StatelessWidget {
             key: ValueKey<String>('$keyPrefix.dropdown'),
             value: selectedStatus,
             isExpanded: true,
+            padding: const EdgeInsets.symmetric(vertical: 4),
             borderRadius: BorderRadius.circular(_PayrollTokens.cardRadius),
             icon: const Icon(
               Icons.keyboard_arrow_down,
@@ -593,7 +595,7 @@ class _PayrollStatusValue extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 13,
+          fontSize: 15,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -622,7 +624,7 @@ class _PayrollStatusMenuItem extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
         color: textColor,
-        fontSize: 13,
+        fontSize: 15,
         fontWeight: FontWeight.w800,
       ),
     );
