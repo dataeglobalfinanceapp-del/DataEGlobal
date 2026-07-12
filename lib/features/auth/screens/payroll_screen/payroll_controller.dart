@@ -170,46 +170,46 @@ class PayrollController extends ChangeNotifier {
         tips != null;
     final bool payrollStateChanged =
         payrollFieldsChanged || payrollAction != null || shouldConfirmPayroll;
-    PayrollEmployee? updatedEmployee;
-    final employees = _payroll.employees
-        .map((PayrollEmployee employee) {
-          if (employee.id != id) return employee;
-          final PayrollAction nextPayrollAction =
-              payrollAction ??
-              (payrollFieldsChanged
-                  ? PayrollAction.change
-                  : employee.payrollAction);
-          updatedEmployee = employee.copyWith(
-            name: name,
-            rate: rate,
-            regularHours: regularHours,
-            overtimeHours: overtimeHours,
-            commission: commission,
-            tips: tips,
-            birthday: birthday,
-            phone: phone,
-            address: address,
-            dateHire: dateHire,
-            jobType: jobType,
-            payMethod: payMethod,
-            linkW4: linkW4,
-            payrollAction: nextPayrollAction,
-            isPayrollConfirmed: shouldConfirmPayroll
-                ? true
-                : payrollStateChanged
-                ? false
-                : employee.isPayrollConfirmed,
-          );
-          return updatedEmployee!;
-        })
-        .toList(growable: false);
-    if (updatedEmployee == null) return;
+    final int employeeIndex = _payroll.employees.indexWhere(
+      (PayrollEmployee employee) => employee.id == id,
+    );
+    if (employeeIndex == -1) return;
+
+    final PayrollEmployee employee = _payroll.employees[employeeIndex];
+    final PayrollAction nextPayrollAction =
+        payrollAction ??
+        (payrollFieldsChanged ? PayrollAction.change : employee.payrollAction);
+    final PayrollEmployee updatedEmployee = employee.copyWith(
+      name: name,
+      rate: rate,
+      regularHours: regularHours,
+      overtimeHours: overtimeHours,
+      commission: commission,
+      tips: tips,
+      birthday: birthday,
+      phone: phone,
+      address: address,
+      dateHire: dateHire,
+      jobType: jobType,
+      payMethod: payMethod,
+      linkW4: linkW4,
+      payrollAction: nextPayrollAction,
+      isPayrollConfirmed: shouldConfirmPayroll
+          ? true
+          : payrollStateChanged
+          ? false
+          : employee.isPayrollConfirmed,
+    );
+    final List<PayrollEmployee> employees = List<PayrollEmployee>.of(
+      _payroll.employees,
+    );
+    employees[employeeIndex] = updatedEmployee;
 
     _payroll = _payroll.copyWith(employees: employees);
     _rebuildState();
     _notify();
     await _employeeService.saveEmployee(
-      _saveEmployeeRequestFrom(updatedEmployee!),
+      _saveEmployeeRequestFrom(updatedEmployee),
     );
     if (payrollStateChanged && _payroll.allEmployeesConfirmed) {
       await _saveConfirmedPayroll();
@@ -222,34 +222,32 @@ class PayrollController extends ChangeNotifier {
     String id,
     EmployeePayrollSetup setup,
   ) async {
-    PayrollEmployee? updatedEmployee;
-    var rateChanged = false;
-    final employees = _payroll.employees
-        .map((PayrollEmployee employee) {
-          if (employee.id != id) return employee;
+    final int employeeIndex = _payroll.employees.indexWhere(
+      (PayrollEmployee employee) => employee.id == id,
+    );
+    if (employeeIndex == -1) return;
 
-          rateChanged = employee.rate != setup.rate;
-          updatedEmployee = employee.copyWith(
-            rate: setup.rate,
-            payrollSetup: setup,
-            payrollAction: rateChanged
-                ? PayrollAction.change
-                : employee.payrollAction,
-            isPayrollConfirmed: rateChanged
-                ? false
-                : employee.isPayrollConfirmed,
-          );
-          return updatedEmployee!;
-        })
-        .toList(growable: false);
-    if (updatedEmployee == null) return;
+    final PayrollEmployee employee = _payroll.employees[employeeIndex];
+    final bool rateChanged = employee.rate != setup.rate;
+    final PayrollEmployee updatedEmployee = employee.copyWith(
+      rate: setup.rate,
+      payrollSetup: setup,
+      payrollAction: rateChanged
+          ? PayrollAction.change
+          : employee.payrollAction,
+      isPayrollConfirmed: rateChanged ? false : employee.isPayrollConfirmed,
+    );
+    final List<PayrollEmployee> employees = List<PayrollEmployee>.of(
+      _payroll.employees,
+    );
+    employees[employeeIndex] = updatedEmployee;
 
     _payroll = _payroll.copyWith(employees: employees);
     _rebuildState();
     _notify();
 
     await _employeeService.saveEmployee(
-      _saveEmployeeRequestFrom(updatedEmployee!),
+      _saveEmployeeRequestFrom(updatedEmployee),
     );
     if (rateChanged) {
       await _saveDraftPayroll(clearPayrollExpense: true);

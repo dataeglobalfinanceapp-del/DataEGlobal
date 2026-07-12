@@ -200,6 +200,68 @@ void main() {
     },
   );
 
+  test('confirming payroll updates one employee row only', () async {
+    EmployeeService.configureRepository(
+      _InMemoryEmployeeRepository(<EmployeeRecord>[
+        const EmployeeRecord(
+          id: 'employee-shared',
+          fullName: 'Maya Rodriguez',
+          birthday: '03/14/1992',
+          phone: '555-0148',
+          address: '214 Maple Avenue',
+          dateHire: '01/08/2024',
+          jobType: 'Hourly',
+          rate: 20,
+        ),
+        const EmployeeRecord(
+          id: 'employee-shared',
+          fullName: 'Noah Bennett',
+          birthday: '09/27/1998',
+          phone: '555-0263',
+          address: '87 Cedar Lane',
+          dateHire: '03/18/2024',
+          jobType: 'Part Time',
+          rate: 16.9,
+        ),
+      ]),
+    );
+    final PayrollController controller = PayrollController();
+    addTearDown(controller.dispose);
+
+    await controller.load();
+    controller.setPayDate(DateTime(2026, 6, 29));
+
+    await controller.updateEmployee(
+      'employee-shared',
+      rate: 20,
+      regularHours: 10,
+      overtimeHours: 1,
+      commission: 5,
+      tips: 2,
+      confirmPayroll: true,
+    );
+
+    final List<PayrollEmployee> employees = controller.state.payroll.employees;
+    expect(employees, hasLength(2));
+    expect(employees.first.name, 'Maya Rodriguez');
+    expect(employees.first.regularHours, 10);
+    expect(employees.first.overtimeHours, 1);
+    expect(employees.first.commission, 5);
+    expect(employees.first.tips, 2);
+    expect(employees.first.isPayrollConfirmed, isTrue);
+    expect(employees.first.totalPay, 237);
+
+    expect(employees.last.name, 'Noah Bennett');
+    expect(employees.last.rate, 16.9);
+    expect(employees.last.regularHours, 0);
+    expect(employees.last.overtimeHours, 0);
+    expect(employees.last.commission, 0);
+    expect(employees.last.tips, 0);
+    expect(employees.last.isPayrollConfirmed, isFalse);
+    expect(employees.last.totalPay, 0);
+    expect(controller.state.payroll.totalPay, 237);
+  });
+
   test(
     'missed unconfirmed payroll rolls forward with zeroed payroll fields',
     () async {
@@ -295,6 +357,46 @@ void main() {
     expect(reloaded.payrollSetup?.weekday, EmployeePayrollWeekday.friday);
     expect(reloaded.rate, 25);
   });
+}
+
+class _InMemoryEmployeeRepository implements EmployeeRepository {
+  final List<EmployeeRecord> _employees;
+
+  _InMemoryEmployeeRepository(List<EmployeeRecord> employees)
+    : _employees = List<EmployeeRecord>.of(employees);
+
+  @override
+  Future<List<EmployeeRecord>> loadEmployees() async {
+    return List<EmployeeRecord>.unmodifiable(_employees);
+  }
+
+  @override
+  Future<EmployeeRecord> saveEmployee(SaveEmployeeRequest request) async {
+    final EmployeeRecord record = EmployeeRecord.fromRequest(
+      id: request.id,
+      request: request,
+    );
+    final int index = _employees.indexWhere(
+      (EmployeeRecord employee) => employee.id == record.id,
+    );
+    if (index == -1) {
+      _employees.add(record);
+    } else {
+      _employees[index] = record;
+    }
+    return record;
+  }
+
+  @override
+  Future<bool> deleteEmployee(String id) async {
+    final int index = _employees.indexWhere(
+      (EmployeeRecord employee) => employee.id == id,
+    );
+    if (index == -1) return false;
+
+    _employees.removeAt(index);
+    return true;
+  }
 }
 
 Future<void> _seedPayrollEmployees() async {
