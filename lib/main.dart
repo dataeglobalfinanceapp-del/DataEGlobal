@@ -35,14 +35,14 @@ Future<void> main() async {
   } on AmplifyException catch (e) {
     runApp(
       ProviderScope(child: _AmplifyConfigurationErrorApp(message: e.message)),
-    ); // ← remove const
+    );
   }
 }
 
 Future<void> _configureAmplify() async {
   await Amplify.addPlugin(AmplifyAuthCognito());
   await Amplify.configure(amplifyConfig);
-  safePrint('Amplify configured ✓');
+  safePrint('Amplify configured');
 }
 
 class _AmplifyConfigurationErrorApp extends StatelessWidget {

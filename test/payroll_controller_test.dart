@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/data/dto/save_employee_request.dart';
+import 'package:savetep/data/local/default_employee_seed_data.dart';
+import 'package:savetep/data/local/local_employee_repository.dart';
+import 'package:savetep/data/local/local_store.dart';
 import 'package:savetep/data/repositories/employee_repository.dart';
 import 'package:savetep/domain/models/employee_payroll_setup.dart';
 import 'package:savetep/domain/services/employee_service.dart';
@@ -26,6 +29,7 @@ void main() {
     PayrollService.resetForTesting(disablePersistence: false);
     EmployeeService.resetForTesting(disablePersistence: false);
     ReminderService.resetForTesting(disablePersistence: false);
+    LocalStore.resetOverridesForTesting();
   });
 
   test(
@@ -101,6 +105,36 @@ void main() {
     controller.setPayDate(DateTime(2026, 6, 17));
     expect(controller.state.payroll.payDate, DateTime(2026, 6, 17));
   });
+
+  test(
+    'loads default local employees when employee storage is empty',
+    () async {
+      final Map<String, String> storage = <String, String>{};
+      LocalStore.setOverridesForTesting(
+        read: (String key) async => storage[key],
+        write: (String key, String value) async => storage[key] = value,
+      );
+      EmployeeService.configureRepository(LocalEmployeeRepository());
+
+      final PayrollController controller = PayrollController();
+      addTearDown(controller.dispose);
+
+      await controller.load();
+
+      expect(
+        controller.state.payroll.employees,
+        hasLength(DefaultEmployeeSeedData.employees.length),
+      );
+      expect(
+        controller.state.payroll.employees.map((employee) => employee.name),
+        DefaultEmployeeSeedData.employees.map((employee) => employee.fullName),
+      );
+      expect(
+        controller.state.payroll.employees.map((employee) => employee.rate),
+        <double>[20, 16.9, 20, 17.5, 18.5, 25],
+      );
+    },
+  );
 
   test(
     'confirming all employee payrolls syncs expense and persists values',

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/data/dto/save_employee_request.dart';
+import 'package:savetep/data/local/default_employee_seed_data.dart';
 import 'package:savetep/data/local/local_employee_repository.dart';
 import 'package:savetep/data/local/local_store.dart';
 import 'package:savetep/domain/models/employee_payroll_setup.dart';
@@ -77,7 +78,92 @@ void main() {
     },
   );
 
-  test('local migration clears existing employee data only once', () async {
+  test(
+    'local repository seeds default employees when storage is empty',
+    () async {
+      final Map<String, String> storage = <String, String>{};
+      LocalStore.setOverridesForTesting(
+        read: (String key) async => storage[key],
+        write: (String key, String value) async => storage[key] = value,
+      );
+
+      final EmployeeService service = EmployeeService(
+        repository: LocalEmployeeRepository(),
+      );
+
+      final employees = await service.loadEmployees();
+
+      expect(employees, hasLength(DefaultEmployeeSeedData.employees.length));
+      expect(
+        employees.map((employee) => employee.fullName),
+        DefaultEmployeeSeedData.employees.map((employee) => employee.fullName),
+      );
+      expect(employees.map((employee) => employee.rate), <double>[
+        20,
+        16.9,
+        20,
+        17.5,
+        18.5,
+        25,
+      ]);
+
+      final Map<String, dynamic> stored =
+          jsonDecode(storage['savetep_employee_data_v1']!)
+              as Map<String, dynamic>;
+      expect(
+        stored['defaultEmployeeSeedVersion'],
+        DefaultEmployeeSeedData.version,
+      );
+      expect(
+        stored['employees'],
+        hasLength(DefaultEmployeeSeedData.employees.length),
+      );
+
+      final EmployeeService reloadedService = EmployeeService(
+        repository: LocalEmployeeRepository(),
+      );
+
+      expect(
+        await reloadedService.loadEmployees(),
+        hasLength(DefaultEmployeeSeedData.employees.length),
+      );
+    },
+  );
+
+  test('local repository leaves non-empty employee storage unseeded', () async {
+    final Map<String, String> storage = <String, String>{
+      'savetep_employee_data_v1': jsonEncode(<String, dynamic>{
+        'employees': <Map<String, Object?>>[
+          <String, Object?>{
+            'id': 'employee-existing',
+            'fullName': 'Existing Employee',
+            'birthday': '08/12/1993',
+            'phone': '555-2200',
+            'address': '123 Existing Avenue',
+            'dateHire': '02/03/2025',
+            'jobType': 'Hourly',
+            'rate': 22,
+          },
+        ],
+      }),
+    };
+    LocalStore.setOverridesForTesting(
+      read: (String key) async => storage[key],
+      write: (String key, String value) async => storage[key] = value,
+    );
+
+    final EmployeeService service = EmployeeService(
+      repository: LocalEmployeeRepository(),
+    );
+
+    final employees = await service.loadEmployees();
+
+    expect(employees, hasLength(1));
+    expect(employees.single.fullName, 'Existing Employee');
+    expect(employees.single.rate, 22);
+  });
+
+  test('local migration replaces legacy seed data only once', () async {
     final Map<String, String> storage = <String, String>{
       'savetep_employee_data_v1': jsonEncode(<String, dynamic>{
         'employees': <Map<String, Object?>>[
@@ -103,15 +189,17 @@ void main() {
       repository: LocalEmployeeRepository(),
     );
 
-    expect(await service.loadEmployees(), isEmpty);
+    expect(
+      await service.loadEmployees(),
+      hasLength(DefaultEmployeeSeedData.employees.length),
+    );
     expect(
       storage[EmployeeDataMigration.migrationStorageKey],
       EmployeeDataMigration.employeeDataSeedVersion.toString(),
     );
     expect(
-      (jsonDecode(storage['savetep_employee_data_v1']!)
-          as Map<String, dynamic>)['employees'],
-      isEmpty,
+      (await service.loadEmployees()).map((employee) => employee.fullName),
+      DefaultEmployeeSeedData.employees.map((employee) => employee.fullName),
     );
 
     await service.saveEmployee(
@@ -130,9 +218,12 @@ void main() {
       repository: LocalEmployeeRepository(),
     );
 
-    expect(await reloadedService.loadEmployees(), hasLength(1));
     expect(
-      (await reloadedService.loadEmployees()).single.fullName,
+      await reloadedService.loadEmployees(),
+      hasLength(DefaultEmployeeSeedData.employees.length + 1),
+    );
+    expect(
+      (await reloadedService.loadEmployees()).last.fullName,
       'New Employee',
     );
   });

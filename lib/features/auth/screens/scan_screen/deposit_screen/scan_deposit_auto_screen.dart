@@ -273,7 +273,7 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Deposit saved ✓')));
+      ).showSnackBar(const SnackBar(content: Text('Deposit saved')));
       Navigator.pop(context, updatedData);
     } catch (e) {
       if (!mounted) return;
@@ -536,7 +536,7 @@ class _ScannerArea extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Or use the ⚡ icon above',
+                      'Or use the quick action above',
                       style: TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
                     ),
                   ],

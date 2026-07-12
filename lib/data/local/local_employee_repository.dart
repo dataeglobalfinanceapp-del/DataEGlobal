@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:savetep/data/dto/save_employee_request.dart';
+import 'package:savetep/data/local/default_employee_seed_data.dart';
 import 'package:savetep/data/local/local_store.dart';
 import 'package:savetep/data/repositories/employee_repository.dart';
 import 'package:savetep/services/app_clock.dart';
@@ -12,6 +13,7 @@ class LocalEmployeeRepository implements EmployeeRepository {
   final List<EmployeeRecord> _employees = <EmployeeRecord>[];
 
   int _idCounter = 0;
+  int _defaultEmployeeSeedVersion = 0;
   bool _loaded;
 
   LocalEmployeeRepository({this.disablePersistenceForTesting = false})
@@ -67,6 +69,7 @@ class LocalEmployeeRepository implements EmployeeRepository {
 
     final String? raw = await LocalStore.read(_storageKey);
     if (raw == null || raw.trim().isEmpty) {
+      await _seedDefaultEmployeesIfNeeded();
       _loaded = true;
       return;
     }
@@ -76,14 +79,35 @@ class LocalEmployeeRepository implements EmployeeRepository {
       final Object? employeeJson = decoded is Map
           ? decoded['employees']
           : decoded;
+      _defaultEmployeeSeedVersion = decoded is Map
+          ? _asInt(decoded['defaultEmployeeSeedVersion'])
+          : 0;
       _employees
         ..clear()
         ..addAll(_employeeListFrom(employeeJson));
     } catch (_) {
       _employees.clear();
+      _defaultEmployeeSeedVersion = 0;
     }
 
+    await _seedDefaultEmployeesIfNeeded();
     _loaded = true;
+  }
+
+  Future<void> _seedDefaultEmployeesIfNeeded() async {
+    if (_employees.isNotEmpty ||
+        _defaultEmployeeSeedVersion >= DefaultEmployeeSeedData.version) {
+      return;
+    }
+
+    _employees.addAll(
+      DefaultEmployeeSeedData.employees.map(
+        (SaveEmployeeRequest request) =>
+            EmployeeRecord.fromRequest(id: request.id, request: request),
+      ),
+    );
+    _defaultEmployeeSeedVersion = DefaultEmployeeSeedData.version;
+    await _persist();
   }
 
   Future<void> _persist() async {
@@ -92,6 +116,7 @@ class LocalEmployeeRepository implements EmployeeRepository {
     await LocalStore.write(
       _storageKey,
       jsonEncode(<String, dynamic>{
+        'defaultEmployeeSeedVersion': _defaultEmployeeSeedVersion,
         'employees': _employees
             .map((EmployeeRecord employee) => employee.toJson())
             .toList(growable: false),
@@ -108,6 +133,14 @@ class EmployeeDataMigration {
   static const int employeeDataSeedVersion = 1;
   static const String migrationStorageKey =
       'savetep_employee_data_seed_cleanup_version';
+  static const Set<String> _legacySeedEmployeeIds = <String>{
+    'employee-jack-nicholson',
+    'employee-waylon-dalton',
+    'employee-abdullah-lang',
+    'employee-justine-henderson',
+    'employee-joanna-shaffer',
+    'employee-mathias-little',
+  };
 
   const EmployeeDataMigration._();
 
@@ -120,15 +153,43 @@ class EmployeeDataMigration {
     final String? version = await LocalStore.read(migrationStorageKey);
     if (version == employeeDataSeedVersion.toString()) return;
 
-    await LocalStore.write(
-      employeeStorageKey,
-      jsonEncode(<String, dynamic>{'employees': <Object>[]}),
-    );
+    final String? raw = await LocalStore.read(employeeStorageKey);
+    if (_containsOnlyLegacySeedEmployees(raw)) {
+      await LocalStore.write(
+        employeeStorageKey,
+        jsonEncode(<String, dynamic>{'employees': <Object>[]}),
+      );
+    }
     await LocalStore.write(
       migrationStorageKey,
       employeeDataSeedVersion.toString(),
     );
   }
+
+  static bool _containsOnlyLegacySeedEmployees(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return false;
+
+    try {
+      final Object? decoded = jsonDecode(raw);
+      final Object? employeeJson = decoded is Map
+          ? decoded['employees']
+          : decoded;
+      final List<EmployeeRecord> employees = _employeeListFrom(employeeJson);
+      return employees.isNotEmpty &&
+          employees.every(
+            (EmployeeRecord employee) =>
+                _legacySeedEmployeeIds.contains(employee.id),
+          );
+    } catch (_) {
+      return false;
+    }
+  }
+}
+
+int _asInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
 }
 
 List<EmployeeRecord> _employeeListFrom(Object? value) {
