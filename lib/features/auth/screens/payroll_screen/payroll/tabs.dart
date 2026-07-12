@@ -2,10 +2,12 @@ part of '../payroll_screen.dart';
 
 class _PayrollTabContentConsumer extends StatelessWidget {
   final PayrollController controller;
+  final VoidCallback onOpenPayrollSettings;
   final _EmployeeChanged onEmployeeChanged;
 
   const _PayrollTabContentConsumer({
     required this.controller,
+    required this.onOpenPayrollSettings,
     required this.onEmployeeChanged,
   });
 
@@ -13,6 +15,7 @@ class _PayrollTabContentConsumer extends StatelessWidget {
   Widget build(BuildContext context) {
     return _PayrollProcessingView(
       controller: controller,
+      onOpenPayrollSettings: onOpenPayrollSettings,
       onEmployeeChanged: onEmployeeChanged,
     );
   }
@@ -138,10 +141,12 @@ class _PayrollTabButton extends StatelessWidget {
 
 class _PayrollProcessingView extends StatelessWidget {
   final PayrollController controller;
+  final VoidCallback onOpenPayrollSettings;
   final _EmployeeChanged onEmployeeChanged;
 
   const _PayrollProcessingView({
     required this.controller,
+    required this.onOpenPayrollSettings,
     required this.onEmployeeChanged,
   });
 
@@ -150,7 +155,10 @@ class _PayrollProcessingView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        _PayrollSetupCardConsumer(controller: controller),
+        _PayrollSetupCardConsumer(
+          controller: controller,
+          onOpenPayrollSettings: onOpenPayrollSettings,
+        ),
         const SizedBox(height: 18),
         _EmployeePayrollListConsumer(
           controller: controller,
@@ -163,8 +171,12 @@ class _PayrollProcessingView extends StatelessWidget {
 
 class _PayrollSetupCardConsumer extends StatefulWidget {
   final PayrollController controller;
+  final VoidCallback onOpenPayrollSettings;
 
-  const _PayrollSetupCardConsumer({required this.controller});
+  const _PayrollSetupCardConsumer({
+    required this.controller,
+    required this.onOpenPayrollSettings,
+  });
 
   @override
   State<_PayrollSetupCardConsumer> createState() =>
@@ -206,7 +218,10 @@ class _PayrollSetupCardConsumerState extends State<_PayrollSetupCardConsumer> {
 
   @override
   Widget build(BuildContext context) {
-    return _PayrollSetupCard(state: _state);
+    return _PayrollSetupCard(
+      state: _state,
+      onOpenPayrollSettings: widget.onOpenPayrollSettings,
+    );
   }
 }
 

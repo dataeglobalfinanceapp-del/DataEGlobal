@@ -148,6 +148,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
               if (_selectedTab == _PayrollTab.payroll)
                 _PayrollTabContentConsumer(
                   controller: _controller,
+                  onOpenPayrollSettings: _openPayrollSettings,
                   onEmployeeChanged: _controller.updateEmployee,
                 )
               else

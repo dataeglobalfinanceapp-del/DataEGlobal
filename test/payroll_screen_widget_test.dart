@@ -99,7 +99,7 @@ void main() {
       expect(find.text('Total Expense'), findsNothing);
       expect(find.byType(SingleChildScrollView), findsNothing);
 
-      await tester.tap(find.text('Setting payroll'));
+      await tester.tap(find.text('6 employees still need to confirm payroll.'));
       await tester.pumpAndSettle();
 
       expect(find.text('Payroll Settings'), findsOneWidget);

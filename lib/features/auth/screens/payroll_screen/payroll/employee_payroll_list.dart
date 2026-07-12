@@ -400,14 +400,20 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
                 controller: _tipsController,
                 hintText: 'Enter',
               ),
+              _PayrollActionField(
+                index: widget.index,
+                selectedAction: _selectedAction,
+                onActionSelected: _selectAction,
+              ),
             ],
           ),
-          const SizedBox(height: 18),
-          _PayrollEmployeeActions(
-            index: widget.index,
-            selectedAction: _selectedAction,
-            onActionSelected: _selectAction,
-            onConfirm: _confirm,
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: _PayrollConfirmButton(
+              index: widget.index,
+              onConfirm: _confirm,
+            ),
           ),
         ],
       ),
@@ -447,64 +453,55 @@ class _EmployeeInputGrid extends StatelessWidget {
   }
 }
 
-class _PayrollEmployeeActions extends StatelessWidget {
+class _PayrollActionField extends StatelessWidget {
   final int index;
   final PayrollAction selectedAction;
   final ValueChanged<PayrollAction> onActionSelected;
-  final VoidCallback onConfirm;
 
-  const _PayrollEmployeeActions({
+  const _PayrollActionField({
     required this.index,
     required this.selectedAction,
     required this.onActionSelected,
-    required this.onConfirm,
   });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool narrow = constraints.maxWidth < 430;
-        final Widget statusDropdown = _PayrollStatusDropdown(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const SizedBox(height: 25),
+        _PayrollStatusDropdown(
           keyPrefix: 'payroll.employee.$index.action',
           selectedStatus: selectedAction,
           statusOptions: PayrollAction.values,
           onSelected: onActionSelected,
-        );
-        final Widget confirmButton = FilledButton(
-          key: ValueKey<String>('payroll.employee.$index.confirm'),
-          onPressed: onConfirm,
-          style: FilledButton.styleFrom(
-            backgroundColor: _PayrollTokens.tabSelected,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(0, 48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
-            ),
-          ),
-          child: const Text('Confirm'),
-        );
+        ),
+      ],
+    );
+  }
+}
 
-        if (narrow) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              statusDropdown,
-              const SizedBox(height: 12),
-              SizedBox(width: double.infinity, child: confirmButton),
-            ],
-          );
-        }
+class _PayrollConfirmButton extends StatelessWidget {
+  final int index;
+  final VoidCallback onConfirm;
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: <Widget>[
-            Expanded(child: statusDropdown),
-            const SizedBox(width: 14),
-            SizedBox(width: 128, child: confirmButton),
-          ],
-        );
-      },
+  const _PayrollConfirmButton({required this.index, required this.onConfirm});
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton(
+      key: ValueKey<String>('payroll.employee.$index.confirm'),
+      onPressed: onConfirm,
+      style: FilledButton.styleFrom(
+        backgroundColor: _PayrollTokens.tabSelected,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(0, 44),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+        ),
+      ),
+      child: const Text('Confirm'),
     );
   }
 }
@@ -526,10 +523,10 @@ class _PayrollStatusDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<PayrollAction> options = statusOptions.toList(growable: false);
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 362, minHeight: 56),
+    return SizedBox(
+      height: 56,
+      width: double.infinity,
       child: Container(
-        height: 56,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: _PayrollTokens.surface,
@@ -583,6 +580,7 @@ class _PayrollStatusValue extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       height: 40,
       alignment: Alignment.center,
       decoration: BoxDecoration(
@@ -595,7 +593,7 @@ class _PayrollStatusValue extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -624,7 +622,7 @@ class _PayrollStatusMenuItem extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
         color: textColor,
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: FontWeight.w800,
       ),
     );
@@ -663,10 +661,10 @@ class _PayrollAmountField extends StatelessWidget {
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
             ],
             textAlign: TextAlign.start,
-            style: _PayrollTokens.inputText,
+            style: _PayrollTokens.inputText.copyWith(fontSize: 15),
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: _PayrollTokens.inputHint,
+              hintStyle: _PayrollTokens.inputHint.copyWith(fontSize: 15),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               fillColor: _PayrollTokens.surface,
               filled: true,
