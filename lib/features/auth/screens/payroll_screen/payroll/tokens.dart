@@ -127,7 +127,7 @@ class _PayrollTokens {
   );
   static const TextStyle cardFieldLabel = TextStyle(
     color: Color(0xFF4B5563),
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: FontWeight.w900,
   );
   static const TextStyle balanceValue = TextStyle(
@@ -154,12 +154,6 @@ class _PayrollTokens {
     color: warning,
     fontSize: 12,
     fontWeight: FontWeight.w700,
-    height: 1.3,
-  );
-  static const TextStyle errorText = TextStyle(
-    color: error,
-    fontSize: 12,
-    fontWeight: FontWeight.w800,
     height: 1.3,
   );
   static const TextStyle employeeListName = TextStyle(
@@ -190,13 +184,13 @@ class _PayrollTokens {
   );
   static const TextStyle employeeName = TextStyle(
     color: Colors.black,
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: FontWeight.w800,
     height: 1.25,
   );
   static const TextStyle rowTotal = TextStyle(
     color: Colors.black,
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: FontWeight.w900,
   );
   static const TextStyle footerTotal = TextStyle(

@@ -264,7 +264,7 @@ void main() {
       expect(find.text(r'$1,107.00'), findsWidgets);
       expect(
         find.text('Please confirm payroll for this employee.'),
-        findsOneWidget,
+        findsNothing,
       );
       expect(
         find.text('5 employees still need to confirm payroll.'),
