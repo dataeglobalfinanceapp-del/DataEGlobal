@@ -296,6 +296,8 @@ bool _employeeListStateChanged(
   PayrollViewState previous,
   PayrollViewState next,
 ) {
+  if (previous.payroll.payDate != next.payroll.payDate) return true;
+
   return !_samePayrollEmployees(
     previous.payroll.employees,
     next.payroll.employees,

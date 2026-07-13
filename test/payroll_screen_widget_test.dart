@@ -185,6 +185,10 @@ void main() {
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Biweekly'), findsOneWidget);
+      expect(find.text('PAYROLL PERIOD'), findsOneWidget);
+      expect(find.text('05/31/26 - 06/13/26'), findsOneWidget);
+
       await tester.enterText(
         find.byKey(const ValueKey<String>('payroll.employee.0.rate')),
         '20',

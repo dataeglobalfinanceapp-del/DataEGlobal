@@ -13,6 +13,7 @@ import 'employee_form_data.dart';
 import 'employee_payroll_setup_validators.dart';
 import 'payroll_controller.dart';
 import 'payroll_models.dart';
+import 'payroll_schedule_calculator.dart';
 import 'employee_create_draft.dart';
 
 part 'payroll/tabs.dart';

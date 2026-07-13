@@ -188,10 +188,22 @@ class _PayrollTokens {
     fontWeight: FontWeight.w800,
     height: 1.25,
   );
+  static const TextStyle employeeSchedule = TextStyle(
+    color: textMuted,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    height: 1.2,
+  );
   static const TextStyle rowTotal = TextStyle(
     color: Colors.black,
     fontSize: 22,
     fontWeight: FontWeight.w900,
+  );
+  static const TextStyle payrollPeriodValue = TextStyle(
+    color: textStrong,
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    height: 1.2,
   );
   static const TextStyle footerTotal = TextStyle(
     color: Colors.black,
