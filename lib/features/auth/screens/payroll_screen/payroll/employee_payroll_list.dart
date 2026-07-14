@@ -389,11 +389,7 @@ class _EmployeePayrollPeriod extends StatelessWidget {
 }
 
 String _employeePayrollScheduleText(PayrollEmployee employee) {
-  return employee.payrollSetting?.schedule.label ??
-      PayrollPeriodCalculator.defaultSettingForDateHire(
-        employee.dateHire,
-      )?.schedule.label ??
-      'Bi Weekly';
+  return employee.payrollSetting?.schedule.label ?? 'None';
 }
 
 class _EmployeeInputGrid extends StatelessWidget {

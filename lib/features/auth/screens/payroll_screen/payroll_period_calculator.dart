@@ -38,9 +38,7 @@ class PayrollPeriodCalculator {
   }) {
     return currentPeriod(
       dateHire: employee.dateHire,
-      setting:
-          employee.payrollSetting ??
-          defaultSettingForDateHire(employee.dateHire),
+      setting: employee.payrollSetting,
       asOf: asOf,
     );
   }

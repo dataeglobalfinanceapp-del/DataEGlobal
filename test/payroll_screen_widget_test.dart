@@ -99,7 +99,7 @@ void main() {
       expect(find.text('Total Expense'), findsNothing);
       expect(find.byType(SingleChildScrollView), findsNothing);
 
-      expect(find.text('Bi Weekly'), findsWidgets);
+      expect(find.text('None'), findsWidgets);
       expect(find.text('Payroll Settings'), findsNothing);
 
       await tester.tap(
@@ -109,13 +109,34 @@ void main() {
 
       expect(find.text('Payroll Settings'), findsOneWidget);
       expect(find.text('Jack Nicholson'), findsOneWidget);
-      expect(find.text('Payroll Schedule'), findsWidgets);
-      expect(find.text('Ending Day'), findsWidgets);
-      expect(find.text('First Period End Date'), findsWidgets);
-      expect(find.text('Pay Date setting'), findsWidgets);
-      expect(find.text('Process Payroll setting'), findsWidgets);
-      expect(find.text('--/--/--'), findsWidgets);
+      expect(find.text('6 employees have not set up payroll.'), findsOneWidget);
+      expect(find.text('Payroll Schedule'), findsNothing);
+      expect(find.text('Ending Day'), findsNothing);
+      expect(find.text('First Period End Date'), findsNothing);
+      expect(find.text('Pay Date setting'), findsNothing);
+      expect(find.text('Process Payroll setting'), findsNothing);
 
+      await tester.tap(
+        find.byKey(
+          const ValueKey<String>(
+            'payroll.settings.employee-jack-nicholson.openSetup',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Payroll Setup'), findsOneWidget);
+      expect(find.text('Jack Nicholson'), findsOneWidget);
+      expect(find.text('Date Hire: -'), findsOneWidget);
+      expect(find.text('Payroll Schedule'), findsOneWidget);
+      expect(find.text('Ending Day'), findsOneWidget);
+      expect(find.text('First Period End Date'), findsOneWidget);
+      expect(find.text('Pay Date setting'), findsOneWidget);
+      expect(find.text('Process Payroll setting'), findsOneWidget);
+      expect(find.text('--/--/--'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
       await tester.pageBack();
       await tester.pumpAndSettle();
 

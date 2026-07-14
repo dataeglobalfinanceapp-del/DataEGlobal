@@ -8,7 +8,6 @@ import 'package:savetep/services/liability_service.dart';
 
 import 'payroll_models.dart';
 import 'payroll_pay_date_validator.dart';
-import 'payroll_period_calculator.dart';
 import 'payroll_service.dart';
 
 class PayrollViewState {
@@ -305,9 +304,7 @@ class PayrollController extends ChangeNotifier {
     PayrollEmployee? existing,
   }) {
     final EmployeePayrollSetting? payrollSetting =
-        record.payrollSetting ??
-        existing?.payrollSetting ??
-        PayrollPeriodCalculator.defaultSettingForDateHire(record.dateHire);
+        record.payrollSetting ?? existing?.payrollSetting;
 
     return PayrollEmployee(
       id: record.id,
