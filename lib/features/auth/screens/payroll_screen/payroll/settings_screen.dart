@@ -1,5 +1,39 @@
 part of '../payroll_screen.dart';
 
+const List<int> _monthDays = <int>[
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  18,
+  19,
+  20,
+  21,
+  22,
+  23,
+  24,
+  25,
+  26,
+  27,
+  28,
+  29,
+  30,
+  31,
+];
+
 class _PayrollSettingsScreen extends StatelessWidget {
   final PayrollController controller;
 
@@ -238,9 +272,21 @@ class _PayrollEmployeeSetupScreenState
     setState(() => _setting = setting);
   }
 
+  String? get _validationMessage {
+    final EmployeePayrollSetting? setting = _setting;
+    if (setting == null) return null;
+
+    if (setting.schedule.usesSemiMonthlyEndingDays &&
+        setting.firstSemiMonthlyEndingDay ==
+            setting.secondSemiMonthlyEndingDay) {
+      return 'Semi Monthly ending days cannot be the same.';
+    }
+    return null;
+  }
+
   Future<void> _save() async {
     final EmployeePayrollSetting? setting = _setting;
-    if (setting == null || _isSaving) return;
+    if (setting == null || _isSaving || _validationMessage != null) return;
 
     setState(() => _isSaving = true);
     try {
@@ -298,38 +344,101 @@ class _PayrollEmployeeSetupScreenState
     if (picked == null || !mounted) return;
 
     final DateTime pickedDate = PayrollPeriodCalculator.dateOnly(picked);
-    _updateDraft(
-      setting.copyWith(
-        firstPeriodEndDate: pickedDate,
-        endingDay: EmployeePayrollEndingDay.fromDate(pickedDate),
-      ),
-    );
+    _updateDraft(setting.copyWith(firstPeriodEndDate: pickedDate));
   }
 
   @override
   Widget build(BuildContext context) {
     final EmployeePayrollSetting? setting = _setting;
     final DateTime? dateHire = _dateHire;
+    final bool canSelectSchedule = dateHire != null;
     final bool canEditPeriod = dateHire != null && setting != null;
+    final String? validationMessage = _validationMessage;
+    final EmployeePayrollSchedule selectedSchedule =
+        setting?.schedule ?? EmployeePayrollSchedule.none;
     ValueChanged<EmployeePayrollSchedule>? onScheduleChanged;
     ValueChanged<EmployeePayrollEndingDay>? onEndingDayChanged;
+    ValueChanged<int>? onMonthlyEndingDayChanged;
+    ValueChanged<int>? onFirstSemiMonthlyEndingDayChanged;
+    ValueChanged<int>? onSecondSemiMonthlyEndingDayChanged;
     ValueChanged<EmployeePayDateSetting>? onPayDateSettingChanged;
     ValueChanged<EmployeeProcessPayrollSetting>? onProcessPayrollSettingChanged;
+
+    if (dateHire != null) {
+      onScheduleChanged = (EmployeePayrollSchedule schedule) {
+        setState(() {
+          _setting = PayrollPeriodCalculator.settingForSchedule(
+            dateHire: widget.employee.dateHire,
+            schedule: schedule,
+            base: _setting,
+          );
+        });
+      };
+    }
 
     if (dateHire != null && setting != null) {
       final EmployeePayrollSetting editableSetting = setting;
       final DateTime editableDateHire = dateHire;
-      onScheduleChanged = (EmployeePayrollSchedule schedule) {
-        _updateDraft(editableSetting.copyWith(schedule: schedule));
-      };
       onEndingDayChanged = (EmployeePayrollEndingDay endingDay) {
         _updateDraft(
           editableSetting.copyWith(
             endingDay: endingDay,
+            clearMonthlyEndingDay: true,
+            clearFirstSemiMonthlyEndingDay: true,
+            clearSecondSemiMonthlyEndingDay: true,
             firstPeriodEndDate:
                 PayrollPeriodCalculator.firstPeriodEndDateForEndingDay(
                   hireDate: editableDateHire,
                   endingDay: endingDay,
+                ),
+          ),
+        );
+      };
+      onMonthlyEndingDayChanged = (int endingDay) {
+        _updateDraft(
+          editableSetting.copyWith(
+            monthlyEndingDay: endingDay,
+            clearEndingDay: true,
+            clearFirstSemiMonthlyEndingDay: true,
+            clearSecondSemiMonthlyEndingDay: true,
+            firstPeriodEndDate:
+                PayrollPeriodCalculator.firstPeriodEndDateForMonthlyEndingDay(
+                  hireDate: editableDateHire,
+                  endingDay: endingDay,
+                ),
+          ),
+        );
+      };
+      onFirstSemiMonthlyEndingDayChanged = (int endingDay) {
+        final int secondEndingDay =
+            editableSetting.secondSemiMonthlyEndingDay ?? 30;
+        _updateDraft(
+          editableSetting.copyWith(
+            firstSemiMonthlyEndingDay: endingDay,
+            clearEndingDay: true,
+            clearMonthlyEndingDay: true,
+            firstPeriodEndDate:
+                PayrollPeriodCalculator.firstPeriodEndDateForSemiMonthlyEndingDays(
+                  hireDate: editableDateHire,
+                  firstEndingDay: endingDay,
+                  secondEndingDay: secondEndingDay,
+                ),
+          ),
+        );
+      };
+      onSecondSemiMonthlyEndingDayChanged = (int endingDay) {
+        final int firstEndingDay =
+            editableSetting.firstSemiMonthlyEndingDay ?? 15;
+        _updateDraft(
+          editableSetting.copyWith(
+            secondSemiMonthlyEndingDay: endingDay,
+            clearEndingDay: true,
+            clearMonthlyEndingDay: true,
+            firstPeriodEndDate:
+                PayrollPeriodCalculator.firstPeriodEndDateForSemiMonthlyEndingDays(
+                  hireDate: editableDateHire,
+                  firstEndingDay: firstEndingDay,
+                  secondEndingDay: endingDay,
                 ),
           ),
         );
@@ -380,9 +489,17 @@ class _PayrollEmployeeSetupScreenState
                 const SizedBox(height: 18),
                 _PayrollSetupFormFields(
                   setting: setting,
+                  selectedSchedule: selectedSchedule,
                   enabled: canEditPeriod,
+                  canSelectSchedule: canSelectSchedule,
+                  validationMessage: validationMessage,
                   onScheduleChanged: onScheduleChanged,
                   onEndingDayChanged: onEndingDayChanged,
+                  onMonthlyEndingDayChanged: onMonthlyEndingDayChanged,
+                  onFirstSemiMonthlyEndingDayChanged:
+                      onFirstSemiMonthlyEndingDayChanged,
+                  onSecondSemiMonthlyEndingDayChanged:
+                      onSecondSemiMonthlyEndingDayChanged,
                   onFirstPeriodEndDateTap: canEditPeriod
                       ? _pickFirstPeriodEndDate
                       : null,
@@ -393,7 +510,8 @@ class _PayrollEmployeeSetupScreenState
                 const SizedBox(height: 22),
                 _PayrollSetupActions(
                   employeeId: widget.employee.id,
-                  canSave: canEditPeriod && !_isSaving,
+                  canSave:
+                      canEditPeriod && validationMessage == null && !_isSaving,
                   isSaving: _isSaving,
                   onSave: _save,
                   onNextEmployee: _openNextEmployee,
@@ -473,9 +591,15 @@ class _PayrollSetupActions extends StatelessWidget {
 
 class _PayrollSetupFormFields extends StatelessWidget {
   final EmployeePayrollSetting? setting;
+  final EmployeePayrollSchedule selectedSchedule;
   final bool enabled;
+  final bool canSelectSchedule;
+  final String? validationMessage;
   final ValueChanged<EmployeePayrollSchedule>? onScheduleChanged;
   final ValueChanged<EmployeePayrollEndingDay>? onEndingDayChanged;
+  final ValueChanged<int>? onMonthlyEndingDayChanged;
+  final ValueChanged<int>? onFirstSemiMonthlyEndingDayChanged;
+  final ValueChanged<int>? onSecondSemiMonthlyEndingDayChanged;
   final VoidCallback? onFirstPeriodEndDateTap;
   final ValueChanged<EmployeePayDateSetting>? onPayDateSettingChanged;
   final ValueChanged<EmployeeProcessPayrollSetting>?
@@ -483,9 +607,15 @@ class _PayrollSetupFormFields extends StatelessWidget {
 
   const _PayrollSetupFormFields({
     required this.setting,
+    required this.selectedSchedule,
     required this.enabled,
+    required this.canSelectSchedule,
+    required this.validationMessage,
     required this.onScheduleChanged,
     required this.onEndingDayChanged,
+    required this.onMonthlyEndingDayChanged,
+    required this.onFirstSemiMonthlyEndingDayChanged,
+    required this.onSecondSemiMonthlyEndingDayChanged,
     required this.onFirstPeriodEndDateTap,
     required this.onPayDateSettingChanged,
     required this.onProcessPayrollSettingChanged,
@@ -499,18 +629,23 @@ class _PayrollSetupFormFields extends StatelessWidget {
       children: <Widget>[
         _PayrollSettingsDropdownField<EmployeePayrollSchedule>(
           label: 'Payroll Schedule',
-          value: currentSetting?.schedule ?? EmployeePayrollSchedule.biWeekly,
+          value: selectedSchedule,
           options: EmployeePayrollSchedule.values,
           optionLabel: (EmployeePayrollSchedule schedule) => schedule.label,
-          onChanged: enabled ? onScheduleChanged : null,
+          onChanged: canSelectSchedule ? onScheduleChanged : null,
         ),
         const SizedBox(height: 16),
-        _PayrollSettingsDropdownField<EmployeePayrollEndingDay>(
-          label: 'Ending Day',
-          value: currentSetting?.endingDay ?? EmployeePayrollEndingDay.sunday,
-          options: EmployeePayrollEndingDay.values,
-          optionLabel: (EmployeePayrollEndingDay day) => day.label,
-          onChanged: enabled ? onEndingDayChanged : null,
+        _PayrollEndingDayFields(
+          setting: currentSetting,
+          selectedSchedule: selectedSchedule,
+          enabled: enabled,
+          validationMessage: validationMessage,
+          onEndingDayChanged: onEndingDayChanged,
+          onMonthlyEndingDayChanged: onMonthlyEndingDayChanged,
+          onFirstSemiMonthlyEndingDayChanged:
+              onFirstSemiMonthlyEndingDayChanged,
+          onSecondSemiMonthlyEndingDayChanged:
+              onSecondSemiMonthlyEndingDayChanged,
         ),
         const SizedBox(height: 16),
         _PayrollSettingsDateField(
@@ -548,6 +683,119 @@ class _PayrollSetupFormFields extends StatelessWidget {
   }
 }
 
+class _PayrollEndingDayFields extends StatelessWidget {
+  final EmployeePayrollSetting? setting;
+  final EmployeePayrollSchedule selectedSchedule;
+  final bool enabled;
+  final String? validationMessage;
+  final ValueChanged<EmployeePayrollEndingDay>? onEndingDayChanged;
+  final ValueChanged<int>? onMonthlyEndingDayChanged;
+  final ValueChanged<int>? onFirstSemiMonthlyEndingDayChanged;
+  final ValueChanged<int>? onSecondSemiMonthlyEndingDayChanged;
+
+  const _PayrollEndingDayFields({
+    required this.setting,
+    required this.selectedSchedule,
+    required this.enabled,
+    required this.validationMessage,
+    required this.onEndingDayChanged,
+    required this.onMonthlyEndingDayChanged,
+    required this.onFirstSemiMonthlyEndingDayChanged,
+    required this.onSecondSemiMonthlyEndingDayChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final EmployeePayrollSetting? currentSetting = setting;
+    if (selectedSchedule == EmployeePayrollSchedule.none ||
+        currentSetting == null) {
+      return const _PayrollSettingsStaticField(
+        label: 'Ending Day',
+        value: 'None',
+      );
+    }
+
+    if (selectedSchedule.usesWeekdayEndingDay) {
+      return _PayrollSettingsDropdownField<EmployeePayrollEndingDay>(
+        label: 'Ending Day',
+        value: currentSetting.endingDay ?? EmployeePayrollEndingDay.sunday,
+        options: EmployeePayrollEndingDay.values,
+        optionLabel: (EmployeePayrollEndingDay day) => day.label,
+        onChanged: enabled ? onEndingDayChanged : null,
+      );
+    }
+
+    if (selectedSchedule.usesMonthlyEndingDay) {
+      return _PayrollSettingsDropdownField<int>(
+        label: 'Ending Day',
+        value: currentSetting.monthlyEndingDay ?? 1,
+        options: _monthDays,
+        optionLabel: (int day) => day.toString(),
+        onChanged: enabled ? onMonthlyEndingDayChanged : null,
+      );
+    }
+
+    return Column(
+      children: <Widget>[
+        _PayrollSettingsDropdownField<int>(
+          label: 'First Ending Day',
+          value: currentSetting.firstSemiMonthlyEndingDay ?? 15,
+          options: _monthDays,
+          optionLabel: (int day) => day.toString(),
+          onChanged: enabled ? onFirstSemiMonthlyEndingDayChanged : null,
+        ),
+        const SizedBox(height: 16),
+        _PayrollSettingsDropdownField<int>(
+          label: 'Second Ending Day',
+          value: currentSetting.secondSemiMonthlyEndingDay ?? 30,
+          options: _monthDays,
+          optionLabel: (int day) => day.toString(),
+          onChanged: enabled ? onSecondSemiMonthlyEndingDayChanged : null,
+        ),
+        if (validationMessage != null) ...<Widget>[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              validationMessage!,
+              style: _PayrollTokens.cautionText.copyWith(
+                color: _PayrollTokens.error,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PayrollSettingsStaticField extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _PayrollSettingsStaticField({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return _PayrollSettingsFieldFrame(
+      label: label,
+      child: TextFormField(
+        key: ValueKey<String>('payroll.settings.$label.static'),
+        initialValue: value,
+        readOnly: true,
+        enabled: false,
+        style: _PayrollTokens.inputText.copyWith(fontSize: 16),
+        decoration: _PayrollTokens.inputDecoration.copyWith(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PayrollSettingsDropdownField<T> extends StatelessWidget {
   final String label;
   final T value;
@@ -568,6 +816,7 @@ class _PayrollSettingsDropdownField<T> extends StatelessWidget {
     return _PayrollSettingsFieldFrame(
       label: label,
       child: DropdownButtonFormField<T>(
+        key: ValueKey<String>('payroll.settings.dropdown.$label.$T'),
         initialValue: value,
         isExpanded: true,
         icon: const Icon(Icons.keyboard_arrow_down),

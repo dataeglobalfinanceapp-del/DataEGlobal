@@ -45,4 +45,75 @@ void main() {
     expect(period?.displayText, '07/18/26 - 07/24/26');
     expect(period?.end.weekday, DateTime.friday);
   });
+
+  test('monthly periods use the selected month ending day', () {
+    final setting = EmployeePayrollSetting(
+      schedule: EmployeePayrollSchedule.monthly,
+      monthlyEndingDay: 25,
+      firstPeriodEndDate: DateTime(2026, 7, 25),
+    );
+
+    final firstPeriod = PayrollPeriodCalculator.currentPeriod(
+      dateHire: '07/13/2026',
+      setting: setting,
+      asOf: DateTime(2026, 7, 13),
+    );
+    final nextPeriod = PayrollPeriodCalculator.currentPeriod(
+      dateHire: '07/13/2026',
+      setting: setting,
+      asOf: DateTime(2026, 7, 26),
+    );
+
+    expect(firstPeriod?.displayText, '07/13/26 - 07/25/26');
+    expect(nextPeriod?.displayText, '07/26/26 - 08/25/26');
+  });
+
+  test('monthly first period moves to next month when ending day passed', () {
+    final setting = EmployeePayrollSetting(
+      schedule: EmployeePayrollSchedule.monthly,
+      monthlyEndingDay: 25,
+      firstPeriodEndDate: DateTime(2026, 8, 25),
+    );
+
+    final firstPeriod = PayrollPeriodCalculator.currentPeriod(
+      dateHire: '07/26/2026',
+      setting: setting,
+      asOf: DateTime(2026, 7, 26),
+    );
+
+    expect(firstPeriod?.displayText, '07/26/26 - 08/25/26');
+  });
+
+  test('semi monthly periods advance to the next configured ending day', () {
+    final setting = EmployeePayrollSetting(
+      schedule: EmployeePayrollSchedule.semiMonthly,
+      firstSemiMonthlyEndingDay: 15,
+      secondSemiMonthlyEndingDay: 30,
+      firstPeriodEndDate: DateTime(2026, 7, 15),
+    );
+
+    final firstPeriod = PayrollPeriodCalculator.currentPeriod(
+      dateHire: '07/13/2026',
+      setting: setting,
+      asOf: DateTime(2026, 7, 13),
+    );
+    final nextPeriod = PayrollPeriodCalculator.currentPeriod(
+      dateHire: '07/13/2026',
+      setting: setting,
+      asOf: DateTime(2026, 7, 16),
+    );
+
+    expect(firstPeriod?.displayText, '07/13/26 - 07/15/26');
+    expect(nextPeriod?.displayText, '07/16/26 - 07/30/26');
+  });
+
+  test('monthly ending days clamp to the last day of short months', () {
+    final firstPeriodEnd =
+        PayrollPeriodCalculator.firstPeriodEndDateForMonthlyEndingDay(
+          hireDate: DateTime(2026, 2, 1),
+          endingDay: 31,
+        );
+
+    expect(firstPeriodEnd, DateTime(2026, 2, 28));
+  });
 }

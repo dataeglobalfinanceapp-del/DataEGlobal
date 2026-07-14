@@ -1,14 +1,20 @@
 class EmployeePayrollSetting {
   final EmployeePayrollSchedule schedule;
-  final EmployeePayrollEndingDay endingDay;
+  final EmployeePayrollEndingDay? endingDay;
+  final int? monthlyEndingDay;
+  final int? firstSemiMonthlyEndingDay;
+  final int? secondSemiMonthlyEndingDay;
   final DateTime firstPeriodEndDate;
   final EmployeePayDateSetting payDateSetting;
   final EmployeeProcessPayrollSetting processPayrollSetting;
 
   const EmployeePayrollSetting({
     required this.schedule,
-    required this.endingDay,
     required this.firstPeriodEndDate,
+    this.endingDay,
+    this.monthlyEndingDay,
+    this.firstSemiMonthlyEndingDay,
+    this.secondSemiMonthlyEndingDay,
     this.payDateSetting = EmployeePayDateSetting.afterPeriodEnd,
     this.processPayrollSetting = EmployeeProcessPayrollSetting.manualReview,
   });
@@ -17,6 +23,11 @@ class EmployeePayrollSetting {
     return EmployeePayrollSetting(
       schedule: EmployeePayrollSchedule.fromValue(json['schedule']),
       endingDay: EmployeePayrollEndingDay.fromValue(json['endingDay']),
+      monthlyEndingDay: _asMonthDay(json['monthlyEndingDay']),
+      firstSemiMonthlyEndingDay: _asMonthDay(json['firstSemiMonthlyEndingDay']),
+      secondSemiMonthlyEndingDay: _asMonthDay(
+        json['secondSemiMonthlyEndingDay'],
+      ),
       firstPeriodEndDate: _asDate(json['firstPeriodEndDate']) ?? DateTime(2000),
       payDateSetting: EmployeePayDateSetting.fromValue(json['payDateSetting']),
       processPayrollSetting: EmployeeProcessPayrollSetting.fromValue(
@@ -28,13 +39,29 @@ class EmployeePayrollSetting {
   EmployeePayrollSetting copyWith({
     EmployeePayrollSchedule? schedule,
     EmployeePayrollEndingDay? endingDay,
+    bool clearEndingDay = false,
+    int? monthlyEndingDay,
+    bool clearMonthlyEndingDay = false,
+    int? firstSemiMonthlyEndingDay,
+    bool clearFirstSemiMonthlyEndingDay = false,
+    int? secondSemiMonthlyEndingDay,
+    bool clearSecondSemiMonthlyEndingDay = false,
     DateTime? firstPeriodEndDate,
     EmployeePayDateSetting? payDateSetting,
     EmployeeProcessPayrollSetting? processPayrollSetting,
   }) {
     return EmployeePayrollSetting(
       schedule: schedule ?? this.schedule,
-      endingDay: endingDay ?? this.endingDay,
+      endingDay: clearEndingDay ? null : endingDay ?? this.endingDay,
+      monthlyEndingDay: clearMonthlyEndingDay
+          ? null
+          : monthlyEndingDay ?? this.monthlyEndingDay,
+      firstSemiMonthlyEndingDay: clearFirstSemiMonthlyEndingDay
+          ? null
+          : firstSemiMonthlyEndingDay ?? this.firstSemiMonthlyEndingDay,
+      secondSemiMonthlyEndingDay: clearSecondSemiMonthlyEndingDay
+          ? null
+          : secondSemiMonthlyEndingDay ?? this.secondSemiMonthlyEndingDay,
       firstPeriodEndDate: firstPeriodEndDate ?? this.firstPeriodEndDate,
       payDateSetting: payDateSetting ?? this.payDateSetting,
       processPayrollSetting:
@@ -42,19 +69,29 @@ class EmployeePayrollSetting {
     );
   }
 
-  Map<String, dynamic> toJson() => <String, dynamic>{
-    'schedule': schedule.name,
-    'endingDay': endingDay.name,
-    'firstPeriodEndDate': firstPeriodEndDate.toIso8601String(),
-    'payDateSetting': payDateSetting.name,
-    'processPayrollSetting': processPayrollSetting.name,
-  };
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'schedule': schedule.name,
+      if (endingDay != null) 'endingDay': endingDay!.name,
+      if (monthlyEndingDay != null) 'monthlyEndingDay': monthlyEndingDay,
+      if (firstSemiMonthlyEndingDay != null)
+        'firstSemiMonthlyEndingDay': firstSemiMonthlyEndingDay,
+      if (secondSemiMonthlyEndingDay != null)
+        'secondSemiMonthlyEndingDay': secondSemiMonthlyEndingDay,
+      'firstPeriodEndDate': firstPeriodEndDate.toIso8601String(),
+      'payDateSetting': payDateSetting.name,
+      'processPayrollSetting': processPayrollSetting.name,
+    };
+  }
 
   @override
   bool operator ==(Object other) {
     return other is EmployeePayrollSetting &&
         other.schedule == schedule &&
         other.endingDay == endingDay &&
+        other.monthlyEndingDay == monthlyEndingDay &&
+        other.firstSemiMonthlyEndingDay == firstSemiMonthlyEndingDay &&
+        other.secondSemiMonthlyEndingDay == secondSemiMonthlyEndingDay &&
         other.firstPeriodEndDate == firstPeriodEndDate &&
         other.payDateSetting == payDateSetting &&
         other.processPayrollSetting == processPayrollSetting;
@@ -64,6 +101,9 @@ class EmployeePayrollSetting {
   int get hashCode => Object.hash(
     schedule,
     endingDay,
+    monthlyEndingDay,
+    firstSemiMonthlyEndingDay,
+    secondSemiMonthlyEndingDay,
     firstPeriodEndDate,
     payDateSetting,
     processPayrollSetting,
@@ -71,13 +111,29 @@ class EmployeePayrollSetting {
 }
 
 enum EmployeePayrollSchedule {
+  none('None'),
   weekly('Weekly', 7),
-  biWeekly('Bi Weekly', 14);
+  biWeekly('Bi Weekly', 14),
+  monthly('Monthly'),
+  semiMonthly('Semi Monthly');
 
   final String label;
-  final int periodLengthDays;
+  final int? periodLengthDays;
 
-  const EmployeePayrollSchedule(this.label, this.periodLengthDays);
+  const EmployeePayrollSchedule(this.label, [this.periodLengthDays]);
+
+  bool get usesWeekdayEndingDay {
+    return this == EmployeePayrollSchedule.weekly ||
+        this == EmployeePayrollSchedule.biWeekly;
+  }
+
+  bool get usesMonthlyEndingDay {
+    return this == EmployeePayrollSchedule.monthly;
+  }
+
+  bool get usesSemiMonthlyEndingDays {
+    return this == EmployeePayrollSchedule.semiMonthly;
+  }
 
   static EmployeePayrollSchedule fromValue(Object? value) {
     final String normalized = value
@@ -88,9 +144,12 @@ enum EmployeePayrollSchedule {
         .replaceAll('_', '')
         .replaceAll(' ', '');
     return switch (normalized) {
+      'none' => EmployeePayrollSchedule.none,
       'weekly' => EmployeePayrollSchedule.weekly,
       'biweekly' => EmployeePayrollSchedule.biWeekly,
-      _ => EmployeePayrollSchedule.biWeekly,
+      'monthly' => EmployeePayrollSchedule.monthly,
+      'semimonthly' => EmployeePayrollSchedule.semiMonthly,
+      _ => EmployeePayrollSchedule.none,
     };
   }
 }
@@ -120,7 +179,8 @@ enum EmployeePayrollEndingDay {
     );
   }
 
-  static EmployeePayrollEndingDay fromValue(Object? value) {
+  static EmployeePayrollEndingDay? fromValue(Object? value) {
+    if (value == null) return null;
     final String normalized = value.toString().trim().toLowerCase().replaceAll(
       '_',
       '',
@@ -133,7 +193,7 @@ enum EmployeePayrollEndingDay {
       'friday' => EmployeePayrollEndingDay.friday,
       'saturday' => EmployeePayrollEndingDay.saturday,
       'sunday' => EmployeePayrollEndingDay.sunday,
-      _ => EmployeePayrollEndingDay.sunday,
+      _ => null,
     };
   }
 }
@@ -212,4 +272,11 @@ DateTime? _asDate(Object? value) {
   final int? year = int.tryParse(parts[2]);
   if (month == null || day == null || year == null) return null;
   return DateTime(year < 100 ? 2000 + year : year, month, day);
+}
+
+int? _asMonthDay(Object? value) {
+  if (value == null) return null;
+  final int? day = int.tryParse(value.toString());
+  if (day == null || day < 1 || day > 31) return null;
+  return day;
 }

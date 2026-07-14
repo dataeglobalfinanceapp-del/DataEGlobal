@@ -513,11 +513,25 @@ void main() {
       const ValueKey<String>('payroll.settings.First Period End Date'),
     );
     expect(find.text('Maya Rodriguez'), findsOneWidget);
-    expect(_settingsDateFieldText(tester), '03/24/24');
+    expect(_settingsDateFieldText(tester), '--/--/--');
 
-    await tester.tap(find.text('Bi Weekly').last);
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>(
+          'payroll.settings.dropdown.Payroll Schedule.EmployeePayrollSchedule',
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Weekly').last);
+    await tester.tap(find.text('Monthly').last);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('payroll.settings.dropdown.Ending Day.int'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('25').last);
     await tester.pumpAndSettle();
     expect(
       (await employeeService.loadEmployees()).first.payrollSetting,
@@ -526,19 +540,6 @@ void main() {
 
     await tester.ensureVisible(firstPeriodEndDateField);
     await tester.pumpAndSettle();
-    await tester.tap(firstPeriodEndDateField);
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find
-          .descendant(
-            of: find.byType(DatePickerDialog),
-            matching: find.text('25'),
-          )
-          .last,
-    );
-    await tester.tap(find.widgetWithText(TextButton, 'OK'));
-    await tester.pumpAndSettle();
-
     expect(_settingsDateFieldText(tester), '03/25/24');
     expect(
       (await employeeService.loadEmployees()).first.payrollSetting,
@@ -555,8 +556,9 @@ void main() {
     final savedEmployees = await employeeService.loadEmployees();
     expect(
       savedEmployees.first.payrollSetting?.schedule,
-      EmployeePayrollSchedule.weekly,
+      EmployeePayrollSchedule.monthly,
     );
+    expect(savedEmployees.first.payrollSetting?.monthlyEndingDay, 25);
     expect(
       savedEmployees.first.payrollSetting?.firstPeriodEndDate,
       DateTime(2024, 3, 25),
@@ -566,7 +568,7 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('1 employee has not set up payroll.'), findsOneWidget);
-    expect(find.text('Weekly'), findsOneWidget);
+    expect(find.text('Monthly'), findsOneWidget);
     expect(find.text('None'), findsOneWidget);
 
     await tester.tap(
@@ -593,6 +595,37 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Jordan Lee'), findsOneWidget);
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>(
+          'payroll.settings.dropdown.Payroll Schedule.EmployeePayrollSchedule',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Semi Monthly').last);
+    await tester.pumpAndSettle();
+    expect(find.text('First Ending Day'), findsOneWidget);
+    expect(find.text('Second Ending Day'), findsOneWidget);
+    final secondEndingDayDropdown = tester.widget<DropdownButtonFormField<int>>(
+      find.byKey(
+        const ValueKey<String>(
+          'payroll.settings.dropdown.Second Ending Day.int',
+        ),
+      ),
+    );
+    secondEndingDayDropdown.onChanged!(15);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Semi Monthly ending days cannot be the same.'),
+      findsOneWidget,
+    );
+    final FilledButton saveButton = tester.widget<FilledButton>(
+      find.byKey(
+        const ValueKey<String>('payroll.settings.employee-setup-b.save'),
+      ),
+    );
+    expect(saveButton.onPressed, isNull);
     expect((await employeeService.loadEmployees()).last.payrollSetting, isNull);
 
     await tester.ensureVisible(
@@ -611,6 +644,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
     expect(find.text('No more employee to setup'), findsOneWidget);
   });
 
