@@ -1,59 +1,9 @@
 part of '../payroll_screen.dart';
 
-class _PayrollSettingsScreen extends StatefulWidget {
+class _PayrollSettingsScreen extends StatelessWidget {
   final PayrollController controller;
 
   const _PayrollSettingsScreen({required this.controller});
-
-  @override
-  State<_PayrollSettingsScreen> createState() => _PayrollSettingsScreenState();
-}
-
-class _PayrollSettingsScreenState extends State<_PayrollSettingsScreen> {
-  final ScrollController _scrollController = ScrollController();
-  final Map<String, GlobalKey> _employeeRowKeys = <String, GlobalKey>{};
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _openEmployeeSetupEditor(PayrollEmployee employee) async {
-    final EmployeePayrollSetup? setup =
-        await showModalBottomSheet<EmployeePayrollSetup>(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: _PayrollTokens.surface,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-          ),
-          builder: (BuildContext context) {
-            return _EmployeePayrollSetupEditor(employee: employee);
-          },
-        );
-    if (setup == null || !mounted) return;
-
-    await widget.controller.updateEmployeePayrollSetup(employee.id, setup);
-  }
-
-  void _jumpToFirstMissingSetup(List<PayrollEmployee> employees) {
-    for (final PayrollEmployee employee in employees) {
-      if (employee.payrollSetup != null) continue;
-
-      final BuildContext? rowContext =
-          _employeeRowKeys[employee.id]?.currentContext;
-      if (rowContext != null) {
-        Scrollable.ensureVisible(
-          rowContext,
-          alignment: 0.12,
-          duration: const Duration(milliseconds: 260),
-          curve: Curves.easeOutCubic,
-        );
-      }
-      return;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,29 +19,45 @@ class _PayrollSettingsScreenState extends State<_PayrollSettingsScreen> {
         centerTitle: true,
       ),
       body: ListenableBuilder(
-        listenable: widget.controller,
+        listenable: controller,
         builder: (BuildContext context, Widget? child) {
-          final PayrollViewState state = widget.controller.state;
+          final PayrollViewState state = controller.state;
           if (state.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
           final List<PayrollEmployee> employees = state.payroll.employees;
-          _employeeRowKeys.removeWhere(
-            (String id, GlobalKey key) =>
-                !employees.any((PayrollEmployee employee) => employee.id == id),
-          );
+          if (employees.isEmpty) {
+            return ListView(
+              padding: _PayrollTokens.pagePadding,
+              children: <Widget>[
+                Container(
+                  decoration: _PayrollTokens.panelDecoration,
+                  padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
+                  child: const Text(
+                    'No employees found.',
+                    style: _PayrollTokens.helperText,
+                  ),
+                ),
+              ],
+            );
+          }
 
-          return SingleChildScrollView(
-            controller: _scrollController,
+          return ListView.builder(
             padding: _PayrollTokens.pagePadding,
-            child: _PayrollEmployeeSetupList(
-              employees: employees,
-              rowKeyForEmployee: (PayrollEmployee employee) =>
-                  _employeeRowKeys.putIfAbsent(employee.id, () => GlobalKey()),
-              onMissingWarningTap: () => _jumpToFirstMissingSetup(employees),
-              onEditEmployee: _openEmployeeSetupEditor,
-            ),
+            itemCount: employees.length,
+            itemBuilder: (BuildContext context, int index) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _PayrollEmployeeSettingsCard(
+                  key: ValueKey<String>(
+                    'payroll.settings.card.${employees[index].id}',
+                  ),
+                  employee: employees[index],
+                  onSettingChanged: controller.updateEmployeePayrollSetting,
+                ),
+              );
+            },
           );
         },
       ),
@@ -99,501 +65,276 @@ class _PayrollSettingsScreenState extends State<_PayrollSettingsScreen> {
   }
 }
 
-class _PayrollEmployeeSetupList extends StatelessWidget {
-  final List<PayrollEmployee> employees;
-  final GlobalKey Function(PayrollEmployee employee) rowKeyForEmployee;
-  final VoidCallback onMissingWarningTap;
-  final ValueChanged<PayrollEmployee> onEditEmployee;
-
-  const _PayrollEmployeeSetupList({
-    required this.employees,
-    required this.rowKeyForEmployee,
-    required this.onMissingWarningTap,
-    required this.onEditEmployee,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final int missingSetupCount = employees
-        .where((PayrollEmployee employee) => employee.payrollSetup == null)
-        .length;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        if (missingSetupCount > 0) ...<Widget>[
-          _PayrollSetupWarning(
-            missingSetupCount: missingSetupCount,
-            onTap: onMissingWarningTap,
-          ),
-          const SizedBox(height: 12),
-        ],
-        Container(
-          decoration: _PayrollTokens.panelDecoration,
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: <Widget>[
-              if (employees.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(18, 24, 18, 24),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'No employees found.',
-                      style: _PayrollTokens.helperText,
-                    ),
-                  ),
-                )
-              else
-                for (int index = 0; index < employees.length; index += 1)
-                  _PayrollEmployeeSetupRow(
-                    key: rowKeyForEmployee(employees[index]),
-                    employee: employees[index],
-                    showDivider: index < employees.length - 1,
-                    onEdit: () => onEditEmployee(employees[index]),
-                  ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PayrollSetupWarning extends StatelessWidget {
-  final int missingSetupCount;
-  final VoidCallback onTap;
-
-  const _PayrollSetupWarning({
-    required this.missingSetupCount,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: _PayrollTokens.warningBackground,
-      borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
-            border: Border.all(color: const Color(0xFFFCD34D)),
-          ),
-          child: Row(
-            children: <Widget>[
-              const Icon(
-                Icons.warning_amber_rounded,
-                color: _PayrollTokens.warning,
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '$missingSetupCount employees not have payroll setup.',
-                  style: _PayrollTokens.cautionText,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PayrollEmployeeSetupRow extends StatelessWidget {
+class _PayrollEmployeeSettingsCard extends StatelessWidget {
   final PayrollEmployee employee;
-  final bool showDivider;
-  final VoidCallback onEdit;
+  final Future<void> Function(String id, EmployeePayrollSetting setting)
+  onSettingChanged;
 
-  const _PayrollEmployeeSetupRow({
+  const _PayrollEmployeeSettingsCard({
     super.key,
     required this.employee,
-    required this.showDivider,
-    required this.onEdit,
+    required this.onSettingChanged,
   });
+
+  Future<void> _updateSetting(EmployeePayrollSetting setting) {
+    return onSettingChanged(employee.id, setting);
+  }
+
+  Future<void> _pickFirstPeriodEndDate(
+    BuildContext context,
+    EmployeePayrollSetting setting,
+    DateTime dateHire,
+  ) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: setting.firstPeriodEndDate.isBefore(dateHire)
+          ? dateHire
+          : setting.firstPeriodEndDate,
+      firstDate: dateHire,
+      lastDate: DateTime(2100, 12, 31),
+      helpText: 'Choose first period end date',
+    );
+    if (picked == null || !context.mounted) return;
+
+    final DateTime pickedDate = PayrollPeriodCalculator.dateOnly(picked);
+    await _updateSetting(
+      setting.copyWith(
+        firstPeriodEndDate: pickedDate,
+        endingDay: EmployeePayrollEndingDay.fromDate(pickedDate),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final EmployeePayrollSetup? setup = employee.payrollSetup;
-    final String scheduleText = setup?.schedule.statusLabel ?? 'None';
-    final Color scheduleColor = setup == null
-        ? _PayrollTokens.error
-        : _PayrollTokens.textMuted;
+    final DateTime? dateHire = PayrollPeriodCalculator.parseEmployeeDate(
+      employee.dateHire,
+    );
+    final EmployeePayrollSetting? setting =
+        employee.payrollSetting ??
+        PayrollPeriodCalculator.defaultSettingForDateHire(employee.dateHire);
+    final bool canEditPeriod = dateHire != null && setting != null;
 
-    return Material(
-      color: _PayrollTokens.surface,
-      child: InkWell(
-        onTap: onEdit,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 66),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: showDivider
-                    ? _PayrollTokens.divider
-                    : Colors.transparent,
-              ),
-            ),
+    return Container(
+      decoration: _PayrollTokens.panelDecoration,
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            employee.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: _PayrollTokens.employeeName,
           ),
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  employee.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: _PayrollTokens.employeeListName,
-                ),
+          const SizedBox(height: 4),
+          Text(
+            'Date Hire: ${employee.dateHire.trim().isEmpty ? '-' : employee.dateHire}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _PayrollTokens.helperText,
+          ),
+          const SizedBox(height: 16),
+          _PayrollSettingsFieldGrid(
+            fields: <Widget>[
+              _PayrollSettingsDropdownField<EmployeePayrollSchedule>(
+                label: 'Payroll Schedule',
+                value: setting?.schedule ?? EmployeePayrollSchedule.biWeekly,
+                options: EmployeePayrollSchedule.values,
+                optionLabel: (EmployeePayrollSchedule schedule) =>
+                    schedule.label,
+                onChanged: canEditPeriod
+                    ? (EmployeePayrollSchedule schedule) {
+                        _updateSetting(setting.copyWith(schedule: schedule));
+                      }
+                    : null,
               ),
-              const SizedBox(width: 12),
-              Flexible(
-                child: Text(
-                  scheduleText,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: scheduleColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              _PayrollSettingsDropdownField<EmployeePayrollEndingDay>(
+                label: 'Ending Day',
+                value: setting?.endingDay ?? EmployeePayrollEndingDay.sunday,
+                options: EmployeePayrollEndingDay.values,
+                optionLabel: (EmployeePayrollEndingDay day) => day.label,
+                onChanged: canEditPeriod
+                    ? (EmployeePayrollEndingDay endingDay) {
+                        _updateSetting(
+                          setting.copyWith(
+                            endingDay: endingDay,
+                            firstPeriodEndDate:
+                                PayrollPeriodCalculator.firstPeriodEndDateForEndingDay(
+                                  hireDate: dateHire,
+                                  endingDay: endingDay,
+                                ),
+                          ),
+                        );
+                      }
+                    : null,
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: 'Edit payroll setup',
-                onPressed: onEdit,
-                icon: const Icon(Icons.settings_outlined),
-                color: _PayrollTokens.textMuted,
+              _PayrollSettingsDateField(
+                label: 'First Period End Date',
+                value: setting == null
+                    ? '--/--/--'
+                    : PayrollPeriodCalculator.formatShortDate(
+                        setting.firstPeriodEndDate,
+                      ),
+                enabled: canEditPeriod,
+                onTap: canEditPeriod
+                    ? () => _pickFirstPeriodEndDate(context, setting, dateHire)
+                    : null,
+              ),
+              _PayrollSettingsDropdownField<EmployeePayDateSetting>(
+                label: 'Pay Date setting',
+                value:
+                    setting?.payDateSetting ??
+                    EmployeePayDateSetting.afterPeriodEnd,
+                options: EmployeePayDateSetting.values,
+                optionLabel: (EmployeePayDateSetting value) => value.label,
+                onChanged: canEditPeriod
+                    ? (EmployeePayDateSetting payDateSetting) {
+                        _updateSetting(
+                          setting.copyWith(payDateSetting: payDateSetting),
+                        );
+                      }
+                    : null,
+              ),
+              _PayrollSettingsDropdownField<EmployeeProcessPayrollSetting>(
+                label: 'Process Payroll setting',
+                value:
+                    setting?.processPayrollSetting ??
+                    EmployeeProcessPayrollSetting.manualReview,
+                options: EmployeeProcessPayrollSetting.values,
+                optionLabel: (EmployeeProcessPayrollSetting value) =>
+                    value.label,
+                onChanged: canEditPeriod
+                    ? (EmployeeProcessPayrollSetting processPayrollSetting) {
+                        _updateSetting(
+                          setting.copyWith(
+                            processPayrollSetting: processPayrollSetting,
+                          ),
+                        );
+                      }
+                    : null,
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
-class _EmployeePayrollSetupEditor extends StatefulWidget {
-  final PayrollEmployee employee;
+class _PayrollSettingsFieldGrid extends StatelessWidget {
+  final List<Widget> fields;
 
-  const _EmployeePayrollSetupEditor({required this.employee});
-
-  @override
-  State<_EmployeePayrollSetupEditor> createState() =>
-      _EmployeePayrollSetupEditorState();
-}
-
-class _EmployeePayrollSetupEditorState
-    extends State<_EmployeePayrollSetupEditor> {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  late final TextEditingController _paidAfterDaysController;
-  late final TextEditingController _remindAfterDaysController;
-  late final TextEditingController _rateController;
-  EmployeePayrollSchedule? _schedule;
-  EmployeePayrollWeekday? _weekday;
-
-  @override
-  void initState() {
-    super.initState();
-    final EmployeePayrollSetup? setup = widget.employee.payrollSetup;
-    _schedule = setup?.schedule;
-    _weekday = setup?.weekday;
-    _paidAfterDaysController = TextEditingController(
-      text: (setup?.paidAfterDays ?? 0).toString(),
-    );
-    _remindAfterDaysController = TextEditingController(
-      text: (setup?.remindAfterDays ?? 0).toString(),
-    );
-    _rateController = TextEditingController(
-      text: _amountText(setup?.rate ?? widget.employee.rate),
-    );
-  }
-
-  @override
-  void dispose() {
-    _paidAfterDaysController.dispose();
-    _remindAfterDaysController.dispose();
-    _rateController.dispose();
-    super.dispose();
-  }
-
-  void _handleScheduleChanged(EmployeePayrollSchedule? schedule) {
-    if (schedule == null) return;
-
-    setState(() {
-      _schedule = schedule;
-      if (schedule.requiresWeekday) {
-        _weekday ??= EmployeePayrollWeekday.monday;
-      } else {
-        _weekday = null;
-      }
-    });
-  }
-
-  void _save() {
-    if (_formKey.currentState?.validate() != true) return;
-
-    final EmployeePayrollSchedule? schedule = _schedule;
-    if (schedule == null) return;
-
-    final EmployeePayrollSetup setup = EmployeePayrollSetup(
-      schedule: schedule,
-      weekday: schedule.requiresWeekday ? _weekday : null,
-      paidAfterDays: int.parse(_paidAfterDaysController.text.trim()),
-      remindAfterDays: int.parse(_remindAfterDaysController.text.trim()),
-      rate: parseMoney(_rateController.text),
-    );
-    Navigator.pop(context, setup);
-  }
+  const _PayrollSettingsFieldGrid({required this.fields});
 
   @override
   Widget build(BuildContext context) {
-    final EdgeInsets viewInsets = MediaQuery.viewInsetsOf(context);
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final int columns = constraints.maxWidth >= 560 ? 2 : 1;
+        const double gap = 14;
+        final double width = columns == 1
+            ? constraints.maxWidth
+            : (constraints.maxWidth - gap) / columns;
 
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(bottom: viewInsets.bottom),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        widget.employee.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: _PayrollTokens.dialogTitle,
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                _PayrollSetupDropdownField<EmployeePayrollSchedule>(
-                  fieldKey: const ValueKey<String>(
-                    'payroll.employeeSetup.schedule',
-                  ),
-                  label: 'Payroll schedule',
-                  value: _schedule,
-                  hintText: 'Select payroll schedule',
-                  items: EmployeePayrollSchedule.values,
-                  itemLabel: (EmployeePayrollSchedule schedule) =>
-                      schedule.label,
-                  validator: (EmployeePayrollSchedule? schedule) =>
-                      schedule == null ? 'Choose a payroll schedule' : null,
-                  onChanged: _handleScheduleChanged,
-                ),
-                if (_schedule?.requiresWeekday == true) ...<Widget>[
-                  const SizedBox(height: 16),
-                  _PayrollSetupDropdownField<EmployeePayrollWeekday>(
-                    fieldKey: const ValueKey<String>(
-                      'payroll.employeeSetup.weekday',
-                    ),
-                    label: 'Weekday',
-                    value: _weekday,
-                    hintText: 'Select weekday',
-                    items: EmployeePayrollWeekday.values,
-                    itemLabel: (EmployeePayrollWeekday weekday) =>
-                        weekday.label,
-                    validator: (EmployeePayrollWeekday? weekday) =>
-                        weekday == null ? 'Select weekday' : null,
-                    onChanged: (EmployeePayrollWeekday? weekday) =>
-                        setState(() => _weekday = weekday),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                _PayrollSetupNumberField(
-                  fieldKey: const ValueKey<String>(
-                    'payroll.employeeSetup.paidAfterDays',
-                  ),
-                  label: 'Paid after X days after period end',
-                  controller: _paidAfterDaysController,
-                  validator:
-                      EmployeePayrollSetupValidators.validatePaidAfterDays,
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 16),
-                _PayrollSetupNumberField(
-                  fieldKey: const ValueKey<String>(
-                    'payroll.employeeSetup.remindAfterDays',
-                  ),
-                  label: 'Remind X days after period end',
-                  controller: _remindAfterDaysController,
-                  validator:
-                      EmployeePayrollSetupValidators.validateRemindAfterDays,
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 16),
-                _PayrollSetupRateField(
-                  fieldKey: const ValueKey<String>(
-                    'payroll.employeeSetup.rate',
-                  ),
-                  controller: _rateController,
-                ),
-                const SizedBox(height: 22),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: FilledButton(
-                    key: const ValueKey<String>('payroll.employeeSetup.save'),
-                    onPressed: _save,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _PayrollTokens.tabSelected,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          _PayrollTokens.controlRadius,
-                        ),
-                      ),
-                    ),
-                    child: const Text('Save'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+        return Wrap(
+          spacing: gap,
+          runSpacing: 14,
+          children: <Widget>[
+            for (final Widget field in fields)
+              SizedBox(width: width, child: field),
+          ],
+        );
+      },
     );
   }
 }
 
-class _PayrollSetupDropdownField<T> extends StatelessWidget {
-  final Key fieldKey;
+class _PayrollSettingsDropdownField<T> extends StatelessWidget {
   final String label;
-  final T? value;
-  final String hintText;
-  final List<T> items;
-  final String Function(T item) itemLabel;
-  final FormFieldValidator<T> validator;
-  final ValueChanged<T?> onChanged;
+  final T value;
+  final List<T> options;
+  final String Function(T value) optionLabel;
+  final ValueChanged<T>? onChanged;
 
-  const _PayrollSetupDropdownField({
-    required this.fieldKey,
+  const _PayrollSettingsDropdownField({
     required this.label,
     required this.value,
-    required this.hintText,
-    required this.items,
-    required this.itemLabel,
-    required this.validator,
+    required this.options,
+    required this.optionLabel,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return _PayrollSetupFieldFrame(
+    return _PayrollSettingsFieldFrame(
       label: label,
       child: DropdownButtonFormField<T>(
-        key: fieldKey,
         initialValue: value,
-        icon: const Icon(Icons.keyboard_arrow_down),
         isExpanded: true,
-        decoration: _PayrollTokens.inputDecoration.copyWith(
-          hintText: hintText,
-          hintStyle: _PayrollTokens.inputHint,
-        ),
-        items: items
+        icon: const Icon(Icons.keyboard_arrow_down),
+        decoration: _PayrollTokens.inputDecoration,
+        style: _PayrollTokens.inputText,
+        items: options
             .map(
-              (T item) => DropdownMenuItem<T>(
-                value: item,
-                child: Text(itemLabel(item)),
+              (T option) => DropdownMenuItem<T>(
+                value: option,
+                child: Text(
+                  optionLabel(option),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             )
             .toList(growable: false),
-        validator: validator,
-        onChanged: onChanged,
+        onChanged: onChanged == null
+            ? null
+            : (T? nextValue) {
+                if (nextValue == null) return;
+                onChanged!(nextValue);
+              },
       ),
     );
   }
 }
 
-class _PayrollSetupNumberField extends StatelessWidget {
-  final Key fieldKey;
+class _PayrollSettingsDateField extends StatelessWidget {
   final String label;
-  final TextEditingController controller;
-  final FormFieldValidator<String> validator;
-  final TextInputAction textInputAction;
+  final String value;
+  final bool enabled;
+  final VoidCallback? onTap;
 
-  const _PayrollSetupNumberField({
-    required this.fieldKey,
+  const _PayrollSettingsDateField({
     required this.label,
-    required this.controller,
-    required this.validator,
-    required this.textInputAction,
+    required this.value,
+    required this.enabled,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return _PayrollSetupFieldFrame(
+    return _PayrollSettingsFieldFrame(
       label: label,
       child: TextFormField(
-        key: fieldKey,
-        controller: controller,
-        keyboardType: TextInputType.number,
-        inputFormatters: <TextInputFormatter>[
-          FilteringTextInputFormatter.digitsOnly,
-        ],
-        textInputAction: textInputAction,
-        validator: validator,
+        key: ValueKey<String>('payroll.settings.$label'),
+        initialValue: value,
+        readOnly: true,
+        enabled: enabled,
+        onTap: onTap,
         style: _PayrollTokens.inputText,
-        decoration: _PayrollTokens.inputDecoration,
+        decoration: _PayrollTokens.inputDecoration.copyWith(
+          suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+        ),
       ),
     );
   }
 }
 
-class _PayrollSetupRateField extends StatelessWidget {
-  final Key fieldKey;
-  final TextEditingController controller;
-
-  const _PayrollSetupRateField({
-    required this.fieldKey,
-    required this.controller,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _PayrollSetupFieldFrame(
-      label: 'Rate',
-      child: TextFormField(
-        key: fieldKey,
-        controller: controller,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        inputFormatters: <TextInputFormatter>[
-          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-        ],
-        textInputAction: TextInputAction.done,
-        validator: EmployeePayrollSetupValidators.validatePayrollRate,
-        style: _PayrollTokens.inputText,
-        decoration: _PayrollTokens.inputDecoration.copyWith(prefixText: r'$  '),
-      ),
-    );
-  }
-}
-
-class _PayrollSetupFieldFrame extends StatelessWidget {
+class _PayrollSettingsFieldFrame extends StatelessWidget {
   final String label;
   final Widget child;
 
-  const _PayrollSetupFieldFrame({required this.label, required this.child});
+  const _PayrollSettingsFieldFrame({required this.label, required this.child});
 
   @override
   Widget build(BuildContext context) {

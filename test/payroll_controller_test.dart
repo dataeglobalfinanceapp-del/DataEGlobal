@@ -5,14 +5,13 @@ import 'package:savetep/data/local/default_employee_seed_data.dart';
 import 'package:savetep/data/local/local_employee_repository.dart';
 import 'package:savetep/data/local/local_store.dart';
 import 'package:savetep/data/repositories/employee_repository.dart';
-import 'package:savetep/domain/models/employee_payroll_setup.dart';
+import 'package:savetep/domain/models/employee_payroll_setting.dart';
 import 'package:savetep/domain/services/employee_service.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_controller.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_models.dart';
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_service.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
-import 'package:savetep/services/reminder_service.dart';
 
 void main() {
   setUp(() {
@@ -20,7 +19,6 @@ void main() {
     LiabilityService.resetForTesting();
     PayrollService.resetForTesting();
     EmployeeService.resetForTesting();
-    ReminderService.resetForTesting();
   });
 
   tearDown(() {
@@ -28,65 +26,7 @@ void main() {
     LiabilityService.resetForTesting(disablePersistence: false);
     PayrollService.resetForTesting(disablePersistence: false);
     EmployeeService.resetForTesting(disablePersistence: false);
-    ReminderService.resetForTesting(disablePersistence: false);
     LocalStore.resetOverridesForTesting();
-  });
-
-  test(
-    'monthly pay period total pay follows the selected payroll date',
-    () async {
-      await LiabilityService.saveExpense(
-        checkNumber: 'PAY-1',
-        totalAmount: 100,
-        transactionDate: DateTime(2026, 6, 16),
-        category: 'Payroll',
-        payee: 'Payroll',
-        isManual: true,
-      );
-      await LiabilityService.saveExpense(
-        checkNumber: 'PAY-2',
-        totalAmount: 200,
-        transactionDate: DateTime(2026, 7, 16),
-        category: 'Payroll',
-        payee: 'Payroll',
-        isManual: true,
-      );
-
-      final PayrollController controller = PayrollController();
-      addTearDown(controller.dispose);
-
-      await controller.load();
-      controller.setSchedule(PayrollSchedule.monthly);
-      expect(controller.state.payPeriodTotalPay, 100);
-
-      controller.setPayDate(DateTime(2026, 7, 16));
-      expect(controller.state.payPeriodTotalPay, 200);
-    },
-  );
-
-  test('biweekly pay period follows the selected period begin date', () async {
-    final PayrollController controller = PayrollController();
-    addTearDown(controller.dispose);
-
-    await controller.load();
-
-    expect(
-      controller.state.payroll.biweeklyPeriodBeginDate,
-      DateTime(2026, 6, 1),
-    );
-    expect(controller.state.payroll.payPeriodStart, DateTime(2026, 6, 1));
-    expect(controller.state.payroll.payPeriodEnd, DateTime(2026, 6, 14));
-    expect(controller.state.payroll.payDate, DateTime(2026, 6, 16));
-
-    controller.setBiweeklyPeriodBeginDate(DateTime(2026, 6, 2));
-
-    expect(
-      controller.state.payroll.biweeklyPeriodBeginDate,
-      DateTime(2026, 6, 2),
-    );
-    expect(controller.state.payroll.payPeriodStart, DateTime(2026, 6, 2));
-    expect(controller.state.payroll.payPeriodEnd, DateTime(2026, 6, 15));
-    expect(controller.state.payroll.payDate, DateTime(2026, 6, 16));
   });
 
   test('pay date updates normalize today and past dates to tomorrow', () async {
@@ -262,100 +202,64 @@ void main() {
     expect(controller.state.payroll.totalPay, 237);
   });
 
-  test(
-    'missed unconfirmed payroll rolls forward with zeroed payroll fields',
-    () async {
-      final PayrollController controller = PayrollController();
-      addTearDown(controller.dispose);
-
-      await _seedPayrollEmployees();
-      await controller.load();
-      controller.setPayDate(DateTime(2026, 6, 29));
-      final firstEmployee = controller.state.payroll.employees.first;
-
-      await controller.updateEmployee(
-        firstEmployee.id,
-        rate: 20,
-        regularHours: 40,
-        overtimeHours: 10,
-        commission: 5,
-        tips: 2,
-        confirmPayroll: true,
-      );
-
-      AppClock.set(DateTime(2026, 6, 23));
-      final PayrollController reloadedController = PayrollController();
-      addTearDown(reloadedController.dispose);
-
-      await reloadedController.load();
-
-      expect(reloadedController.state.payroll.payDate, DateTime(2026, 7, 13));
-      expect(reloadedController.state.payroll.totalPay, 0);
-      expect(
-        reloadedController.state.payroll.employees.every(
-          (employee) =>
-              employee.rate == 0 &&
-              employee.regularHours == 0 &&
-              employee.overtimeHours == 0 &&
-              employee.commission == 0 &&
-              employee.tips == 0 &&
-              !employee.isPayrollConfirmed,
+  test('payroll setting updates and persists one employee only', () async {
+    EmployeeService.configureRepository(
+      _InMemoryEmployeeRepository(<EmployeeRecord>[
+        const EmployeeRecord(
+          id: 'employee-maya',
+          fullName: 'Maya Rodriguez',
+          birthday: '03/14/1992',
+          phone: '555-0148',
+          address: '214 Maple Avenue',
+          dateHire: '07/13/2026',
+          jobType: 'Hourly',
+          rate: 20,
         ),
-        isTrue,
-      );
-
-      final payrollExpenses = (await LiabilityService.loadExpenses())
-          .where((record) => record.category == 'Payroll')
-          .toList(growable: false);
-      expect(payrollExpenses, isEmpty);
-    },
-  );
-
-  test('employee payroll setup saves through controller', () async {
-    await _seedPayrollEmployees();
+        const EmployeeRecord(
+          id: 'employee-noah',
+          fullName: 'Noah Bennett',
+          birthday: '09/27/1998',
+          phone: '555-0263',
+          address: '87 Cedar Lane',
+          dateHire: '03/18/2024',
+          jobType: 'Part Time',
+          rate: 16.9,
+        ),
+      ]),
+    );
     final PayrollController controller = PayrollController();
     addTearDown(controller.dispose);
 
     await controller.load();
-    controller.setPayDate(DateTime(2026, 6, 29));
-    final PayrollEmployee employee = controller.state.payroll.employees.first;
 
-    await controller.updateEmployeePayrollSetup(
-      employee.id,
-      const EmployeePayrollSetup(
-        schedule: EmployeePayrollSchedule.biweekly,
-        weekday: EmployeePayrollWeekday.friday,
-        paidAfterDays: 3,
-        remindAfterDays: 2,
-        rate: 25,
-      ),
+    final setting = EmployeePayrollSetting(
+      schedule: EmployeePayrollSchedule.weekly,
+      endingDay: EmployeePayrollEndingDay.friday,
+      firstPeriodEndDate: DateTime(2026, 7, 17),
+      payDateSetting: EmployeePayDateSetting.sameDay,
+      processPayrollSetting: EmployeeProcessPayrollSetting.oneDayBeforePayDate,
     );
+    await controller.updateEmployeePayrollSetting('employee-maya', setting);
 
-    final PayrollEmployee updated = controller.state.payroll.employees.first;
-    expect(updated.payrollSetup?.schedule, EmployeePayrollSchedule.biweekly);
-    expect(updated.payrollSetup?.weekday, EmployeePayrollWeekday.friday);
-    expect(updated.payrollSetup?.paidAfterDays, 3);
-    expect(updated.payrollSetup?.remindAfterDays, 2);
-    expect(updated.rate, 25);
-    expect(updated.payrollAction, PayrollAction.change);
-    expect(updated.isPayrollConfirmed, isFalse);
+    final List<PayrollEmployee> employees = controller.state.payroll.employees;
+    expect(employees.first.payrollSetting, setting);
+    expect(employees.last.payrollSetting, isNot(setting));
+    expect(employees.first.isPayrollConfirmed, isFalse);
+    expect(employees.first.totalPay, 0);
 
-    final EmployeeRecord savedEmployee =
-        (await EmployeeService().loadEmployees()).first;
-    expect(
-      savedEmployee.payrollSetup?.schedule,
-      EmployeePayrollSchedule.biweekly,
-    );
-    expect(savedEmployee.rate, 25);
+    final List<EmployeeRecord> savedEmployees = await EmployeeService()
+        .loadEmployees();
+    expect(savedEmployees.first.payrollSetting, setting);
+    expect(savedEmployees.last.payrollSetting, isNull);
 
     final PayrollController reloadedController = PayrollController();
     addTearDown(reloadedController.dispose);
     await reloadedController.load();
 
-    final PayrollEmployee reloaded =
-        reloadedController.state.payroll.employees.first;
-    expect(reloaded.payrollSetup?.weekday, EmployeePayrollWeekday.friday);
-    expect(reloaded.rate, 25);
+    expect(
+      reloadedController.state.payroll.employees.first.payrollSetting,
+      setting,
+    );
   });
 }
 

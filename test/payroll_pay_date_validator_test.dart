@@ -50,14 +50,10 @@ void main() {
     final loaded = PayrollRecord.fromJson(const <String, Object?>{
       'id': 'payroll-loaded',
       'payDate': '2026-06-15T00:00:00.000',
-      'schedule': 'Bi Weekly',
-      'processDaysBefore': 7,
       'employees': <Object?>[],
     });
 
     expect(draft.payDate, DateTime(2026, 6, 16));
-    expect(draft.biweeklyPeriodBeginDate, DateTime(2026, 6, 1));
     expect(loaded.payDate, DateTime(2026, 6, 16));
-    expect(loaded.biweeklyPeriodBeginDate, DateTime(2026, 6, 1));
   });
 }

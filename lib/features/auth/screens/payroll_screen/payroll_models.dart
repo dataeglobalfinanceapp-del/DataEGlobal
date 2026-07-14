@@ -1,37 +1,7 @@
+import 'package:savetep/domain/models/employee_payroll_setting.dart';
 import 'package:savetep/services/app_clock.dart';
-import 'package:savetep/services/recurrence_schedule.dart';
-import 'package:savetep/domain/models/employee_payroll_setup.dart';
 
 import 'payroll_pay_date_validator.dart';
-import 'payroll_schedule_calculator.dart';
-
-enum PayrollSchedule {
-  biWeekly,
-  monthly;
-
-  String get label {
-    return switch (this) {
-      PayrollSchedule.biWeekly => 'Bi Weekly',
-      PayrollSchedule.monthly => 'Monthly',
-    };
-  }
-
-  String get reminderFrequency {
-    return switch (this) {
-      PayrollSchedule.biWeekly => RecurrenceSchedule.biweekly,
-      PayrollSchedule.monthly => RecurrenceSchedule.monthly,
-    };
-  }
-
-  static PayrollSchedule fromLabel(String value) {
-    final normalized = value.trim().toLowerCase().replaceAll(' ', '');
-    return switch (normalized) {
-      'biweekly' => PayrollSchedule.biWeekly,
-      'monthly' => PayrollSchedule.monthly,
-      _ => PayrollSchedule.biWeekly,
-    };
-  }
-}
 
 enum PayrollAction {
   same('Same'),
@@ -47,14 +17,6 @@ enum PayrollAction {
     return switch (this) {
       PayrollAction.vacation || PayrollAction.off => true,
       PayrollAction.same || PayrollAction.change => false,
-    };
-  }
-
-  PayrollAction get nextDefault {
-    return switch (this) {
-      PayrollAction.vacation => PayrollAction.vacation,
-      PayrollAction.off => PayrollAction.off,
-      PayrollAction.same || PayrollAction.change => PayrollAction.same,
     };
   }
 
@@ -84,7 +46,7 @@ class PayrollEmployee {
   final String dateHire;
   final String payMethod;
   final String linkW4;
-  final EmployeePayrollSetup? payrollSetup;
+  final EmployeePayrollSetting? payrollSetting;
   final PayrollAction payrollAction;
   final bool isPayrollConfirmed;
 
@@ -103,7 +65,7 @@ class PayrollEmployee {
     this.dateHire = '',
     this.payMethod = '',
     this.linkW4 = '',
-    this.payrollSetup,
+    this.payrollSetting,
     this.payrollAction = PayrollAction.same,
     this.isPayrollConfirmed = false,
   });
@@ -124,7 +86,7 @@ class PayrollEmployee {
       dateHire: _asString(json['dateHire']),
       payMethod: _asString(json['payMethod']),
       linkW4: _asString(json['linkW4']),
-      payrollSetup: employeePayrollSetupFromJson(json['payrollSetup']),
+      payrollSetting: employeePayrollSettingFromJson(json['payrollSetting']),
       payrollAction: PayrollAction.fromLabel(_asString(json['payrollAction'])),
       isPayrollConfirmed: json['isPayrollConfirmed'] == true,
     );
@@ -136,16 +98,6 @@ class PayrollEmployee {
 
   double get totalPay =>
       _roundMoney(regularPay + overtimePay + commission + tips);
-
-  PayrollEmployee get withClearedPayroll {
-    return copyWith(
-      rate: 0,
-      regularHours: 0,
-      overtimeHours: 0,
-      commission: 0,
-      tips: 0,
-    );
-  }
 
   PayrollEmployee copyWith({
     String? id,
@@ -162,8 +114,7 @@ class PayrollEmployee {
     String? dateHire,
     String? payMethod,
     String? linkW4,
-    EmployeePayrollSetup? payrollSetup,
-    bool clearPayrollSetup = false,
+    EmployeePayrollSetting? payrollSetting,
     PayrollAction? payrollAction,
     bool? isPayrollConfirmed,
   }) {
@@ -182,9 +133,7 @@ class PayrollEmployee {
       dateHire: dateHire ?? this.dateHire,
       payMethod: payMethod ?? this.payMethod,
       linkW4: linkW4 ?? this.linkW4,
-      payrollSetup: clearPayrollSetup
-          ? null
-          : payrollSetup ?? this.payrollSetup,
+      payrollSetting: payrollSetting ?? this.payrollSetting,
       payrollAction: payrollAction ?? this.payrollAction,
       isPayrollConfirmed: isPayrollConfirmed ?? this.isPayrollConfirmed,
     );
@@ -205,7 +154,7 @@ class PayrollEmployee {
     'dateHire': dateHire,
     'payMethod': payMethod,
     'linkW4': linkW4,
-    'payrollSetup': payrollSetup?.toJson(),
+    if (payrollSetting != null) 'payrollSetting': payrollSetting!.toJson(),
     'payrollAction': payrollAction.label,
     'isPayrollConfirmed': isPayrollConfirmed,
   };
@@ -214,26 +163,15 @@ class PayrollEmployee {
 class PayrollRecord {
   final String id;
   final DateTime payDate;
-  final DateTime biweeklyPeriodBeginDate;
-  final PayrollSchedule schedule;
-  final int processDaysBefore;
   final List<PayrollEmployee> employees;
   final String syncedExpenseId;
-  final String reminderSeriesId;
 
-  PayrollRecord({
+  const PayrollRecord({
     required this.id,
     required this.payDate,
-    DateTime? biweeklyPeriodBeginDate,
-    required this.schedule,
-    required this.processDaysBefore,
     required this.employees,
     this.syncedExpenseId = '',
-    this.reminderSeriesId = '',
-  }) : biweeklyPeriodBeginDate =
-           PayrollScheduleCalculator.normalizeBiweeklyPeriodBeginDate(
-             biweeklyPeriodBeginDate,
-           );
+  });
 
   factory PayrollRecord.draft({required String id, DateTime? payDate}) {
     return PayrollRecord(
@@ -241,10 +179,6 @@ class PayrollRecord {
       payDate: PayrollPayDateValidator.normalizePayDate(
         payDate ?? AppClock.now,
       ),
-      biweeklyPeriodBeginDate:
-          PayrollScheduleCalculator.defaultBiweeklyPeriodBeginDate(),
-      schedule: PayrollSchedule.biWeekly,
-      processDaysBefore: 7,
       employees: const <PayrollEmployee>[],
     );
   }
@@ -263,23 +197,10 @@ class PayrollRecord {
       payDate: PayrollPayDateValidator.normalizePayDate(
         _asDate(json['payDate']),
       ),
-      biweeklyPeriodBeginDate:
-          PayrollScheduleCalculator.normalizeBiweeklyPeriodBeginDate(
-            _asOptionalDate(json['biweeklyPeriodBeginDate']),
-          ),
-      schedule: PayrollSchedule.fromLabel(_asString(json['schedule'])),
-      processDaysBefore: _asInt(
-        json['processDaysBefore'],
-        fallback: 7,
-      ).clamp(1, 31).toInt(),
       employees: List<PayrollEmployee>.unmodifiable(employees),
       syncedExpenseId: _asString(json['syncedExpenseId']),
-      reminderSeriesId: _asString(json['reminderSeriesId']),
     );
   }
-
-  DateTime get processDate =>
-      _dateOnly(payDate).subtract(Duration(days: processDaysBefore));
 
   double get totalPay => _roundMoney(
     employees.fold<double>(
@@ -297,80 +218,33 @@ class PayrollRecord {
   bool get allEmployeesConfirmed =>
       employees.isNotEmpty && unconfirmedEmployeeCount == 0;
 
-  DateTime get payPeriodStart {
-    if (schedule == PayrollSchedule.monthly) {
-      return PayrollScheduleCalculator.calculateMonthlyPayPeriod(
-        payDate: payDate,
-      ).start;
-    }
-
-    return PayrollScheduleCalculator.calculateBiweeklyPayPeriod(
-      beginDate: biweeklyPeriodBeginDate,
-    ).start;
-  }
-
-  DateTime get payPeriodEnd {
-    if (schedule == PayrollSchedule.monthly) {
-      return PayrollScheduleCalculator.calculateMonthlyPayPeriod(
-        payDate: payDate,
-      ).end;
-    }
-
-    return PayrollScheduleCalculator.calculateBiweeklyPayPeriod(
-      beginDate: biweeklyPeriodBeginDate,
-    ).end;
-  }
-
-  String get processInstruction =>
-      'Payroll will be processed $processDaysBefore days before the payroll date.';
-
   PayrollRecord copyWith({
     String? id,
     DateTime? payDate,
-    DateTime? biweeklyPeriodBeginDate,
-    PayrollSchedule? schedule,
-    int? processDaysBefore,
     List<PayrollEmployee>? employees,
     String? syncedExpenseId,
-    String? reminderSeriesId,
   }) {
     return PayrollRecord(
       id: id ?? this.id,
       payDate: PayrollPayDateValidator.normalizePayDate(
         payDate ?? this.payDate,
       ),
-      biweeklyPeriodBeginDate:
-          PayrollScheduleCalculator.normalizeBiweeklyPeriodBeginDate(
-            biweeklyPeriodBeginDate ?? this.biweeklyPeriodBeginDate,
-          ),
-      schedule: schedule ?? this.schedule,
-      processDaysBefore: (processDaysBefore ?? this.processDaysBefore)
-          .clamp(1, 31)
-          .toInt(),
       employees: List<PayrollEmployee>.unmodifiable(
         employees ?? this.employees,
       ),
       syncedExpenseId: syncedExpenseId ?? this.syncedExpenseId,
-      reminderSeriesId: reminderSeriesId ?? this.reminderSeriesId,
     );
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
     'payDate': payDate.toIso8601String(),
-    'biweeklyPeriodBeginDate': biweeklyPeriodBeginDate.toIso8601String(),
-    'schedule': schedule.label,
-    'processDaysBefore': processDaysBefore,
     'employees': employees
         .map((PayrollEmployee employee) => employee.toJson())
         .toList(growable: false),
     'syncedExpenseId': syncedExpenseId,
-    'reminderSeriesId': reminderSeriesId,
   };
 }
-
-DateTime _dateOnly(DateTime value) =>
-    DateTime(value.year, value.month, value.day);
 
 double _roundMoney(double value) => (value * 100).roundToDouble() / 100;
 
@@ -390,17 +264,6 @@ double _asDouble(Object? value) {
   return double.tryParse(value?.toString() ?? '') ?? 0;
 }
 
-int _asInt(Object? value, {int fallback = 0}) {
-  if (value is int) return value;
-  if (value is num) return value.round();
-  return int.tryParse(value?.toString() ?? '') ?? fallback;
-}
-
 DateTime _asDate(Object? value) {
   return DateTime.tryParse(value?.toString() ?? '') ?? AppClock.now;
-}
-
-DateTime? _asOptionalDate(Object? value) {
-  final DateTime? date = DateTime.tryParse(value?.toString() ?? '');
-  return date == null ? null : _dateOnly(date);
 }

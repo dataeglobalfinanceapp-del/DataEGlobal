@@ -12,13 +12,11 @@ import 'package:savetep/features/auth/screens/payroll_screen/payroll_service.dar
 import 'package:savetep/domain/services/employee_service.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
-import 'package:savetep/services/reminder_service.dart';
 
 void main() {
   setUp(() {
     AppClock.set(DateTime(2026, 6, 15));
     LiabilityService.resetForTesting();
-    ReminderService.resetForTesting();
     PayrollService.resetForTesting();
     EmployeeService.resetForTesting();
   });
@@ -26,7 +24,6 @@ void main() {
   tearDown(() {
     AppClock.reset();
     LiabilityService.resetForTesting(disablePersistence: false);
-    ReminderService.resetForTesting(disablePersistence: false);
     PayrollService.resetForTesting(disablePersistence: false);
     EmployeeService.resetForTesting(disablePersistence: false);
   });
@@ -82,8 +79,11 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Payroll'), findsWidgets);
       expect(find.text('Employees'), findsWidgets);
-      expect(find.text('Setting payroll'), findsOneWidget);
-      expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
+      expect(find.text('Setting payroll'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('payroll.settings.open')),
+        findsOneWidget,
+      );
       expect(find.byIcon(Icons.refresh), findsNothing);
       expect(find.text('BALANCE'), findsOneWidget);
       expect(find.text('PAY DATE'), findsNothing);
@@ -99,95 +99,25 @@ void main() {
       expect(find.text('Total Expense'), findsNothing);
       expect(find.byType(SingleChildScrollView), findsNothing);
 
-      await tester.tap(find.text('6 employees still need to confirm payroll.'));
+      expect(find.text('Bi Weekly'), findsWidgets);
+      expect(find.text('Payroll Settings'), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.settings.open')),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Payroll Settings'), findsOneWidget);
-      expect(find.text('PROCESS PAYROLL DATE'), findsNothing);
-      expect(find.text('PAY DATE'), findsNothing);
-      expect(find.text('PAYROLL SCHEDULE'), findsNothing);
-      expect(find.text('PAY PERIOD'), findsNothing);
-      expect(find.text('6 employees not have payroll setup.'), findsOneWidget);
       expect(find.text('Jack Nicholson'), findsOneWidget);
-      expect(find.text('None'), findsWidgets);
+      expect(find.text('Payroll Schedule'), findsWidgets);
+      expect(find.text('Ending Day'), findsWidgets);
+      expect(find.text('First Period End Date'), findsWidgets);
+      expect(find.text('Pay Date setting'), findsWidgets);
+      expect(find.text('Process Payroll setting'), findsWidgets);
+      expect(find.text('--/--/--'), findsWidgets);
 
-      await tester.tap(find.text('6 employees not have payroll setup.'));
+      await tester.pageBack();
       await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.settings_outlined).first);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Payroll schedule'), findsOneWidget);
-      expect(find.text('Paid after X days after period end'), findsOneWidget);
-      expect(find.text('Remind X days after period end'), findsOneWidget);
-      expect(find.text('Rate'), findsOneWidget);
-      await tester.tap(
-        find.byKey(const ValueKey<String>('payroll.employeeSetup.save')),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Choose a payroll schedule'), findsOneWidget);
-
-      await tester.tap(
-        find.byKey(const ValueKey<String>('payroll.employeeSetup.schedule')),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Biweekly').last);
-      await tester.pumpAndSettle();
-      expect(find.text('Weekday'), findsOneWidget);
-      await tester.tap(
-        find.byKey(const ValueKey<String>('payroll.employeeSetup.weekday')),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Friday').last);
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(
-          const ValueKey<String>('payroll.employeeSetup.paidAfterDays'),
-        ),
-        '21',
-      );
-      await tester.enterText(
-        find.byKey(
-          const ValueKey<String>('payroll.employeeSetup.remindAfterDays'),
-        ),
-        '8',
-      );
-      await tester.tap(
-        find.byKey(const ValueKey<String>('payroll.employeeSetup.save')),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Enter 0-20'), findsOneWidget);
-      expect(find.text('Enter 0-7'), findsOneWidget);
-      await tester.enterText(
-        find.byKey(
-          const ValueKey<String>('payroll.employeeSetup.paidAfterDays'),
-        ),
-        '3',
-      );
-      await tester.enterText(
-        find.byKey(
-          const ValueKey<String>('payroll.employeeSetup.remindAfterDays'),
-        ),
-        '2',
-      );
-      await tester.enterText(
-        find.byKey(const ValueKey<String>('payroll.employeeSetup.rate')),
-        '21.25',
-      );
-      await tester.tap(
-        find.byKey(const ValueKey<String>('payroll.employeeSetup.save')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Biweekly'), findsOneWidget);
-      expect(find.text('5 employees not have payroll setup.'), findsOneWidget);
-
-      await tester.tap(find.byTooltip('Back'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Biweekly'), findsOneWidget);
-      expect(find.text('PAYROLL PERIOD'), findsOneWidget);
-      expect(find.text('05/31/26 - 06/13/26'), findsOneWidget);
 
       await tester.enterText(
         find.byKey(const ValueKey<String>('payroll.employee.0.rate')),
@@ -220,6 +150,8 @@ void main() {
         const Offset(0, -300),
       );
       await tester.pumpAndSettle();
+      expect(find.text('PAYROLL PERIOD'), findsWidgets);
+      expect(find.text('--/--/-- - --/--/--'), findsWidgets);
       expect(
         find.byKey(
           const ValueKey<String>('payroll.employee.0.action.dropdown'),

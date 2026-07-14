@@ -2,27 +2,24 @@ import 'package:flutter/foundation.dart';
 
 import 'package:savetep/data/dto/save_employee_request.dart';
 import 'package:savetep/data/repositories/employee_repository.dart';
-import 'package:savetep/domain/models/employee_payroll_setup.dart';
+import 'package:savetep/domain/models/employee_payroll_setting.dart';
 import 'package:savetep/domain/services/employee_service.dart';
 import 'package:savetep/services/liability_service.dart';
-import 'package:savetep/services/recurrence_schedule.dart';
 
 import 'payroll_models.dart';
 import 'payroll_pay_date_validator.dart';
-import 'payroll_schedule_calculator.dart';
+import 'payroll_period_calculator.dart';
 import 'payroll_service.dart';
 
 class PayrollViewState {
   final bool isLoading;
   final PayrollRecord payroll;
   final double balance;
-  final double payPeriodTotalPay;
 
   const PayrollViewState({
     required this.isLoading,
     required this.payroll,
     required this.balance,
-    required this.payPeriodTotalPay,
   });
 
   factory PayrollViewState.initial() {
@@ -30,7 +27,6 @@ class PayrollViewState {
       isLoading: true,
       payroll: PayrollRecord.draft(id: 'payroll-loading'),
       balance: 0,
-      payPeriodTotalPay: 0,
     );
   }
 }
@@ -73,41 +69,9 @@ class PayrollController extends ChangeNotifier {
     final DateTime nextPayDate = PayrollPayDateValidator.normalizePayDate(
       payDate,
     );
-    if (RecurrenceSchedule.isSameDate(_payroll.payDate, nextPayDate)) return;
+    if (_isSameDate(_payroll.payDate, nextPayDate)) return;
 
     _payroll = _payroll.copyWith(payDate: nextPayDate);
-    _rebuildState();
-    _notify();
-  }
-
-  void setSchedule(PayrollSchedule schedule) {
-    if (_payroll.schedule == schedule) return;
-
-    _payroll = _payroll.copyWith(schedule: schedule);
-    _rebuildState();
-    _notify();
-  }
-
-  void setBiweeklyPeriodBeginDate(DateTime beginDate) {
-    final DateTime nextBeginDate =
-        PayrollScheduleCalculator.normalizeBiweeklyPeriodBeginDate(beginDate);
-    if (RecurrenceSchedule.isSameDate(
-      _payroll.biweeklyPeriodBeginDate,
-      nextBeginDate,
-    )) {
-      return;
-    }
-
-    _payroll = _payroll.copyWith(biweeklyPeriodBeginDate: nextBeginDate);
-    _rebuildState();
-    _notify();
-  }
-
-  void setProcessDaysBefore(int days) {
-    final int nextDays = days.clamp(1, 31).toInt();
-    if (_payroll.processDaysBefore == nextDays) return;
-
-    _payroll = _payroll.copyWith(processDaysBefore: nextDays);
     _rebuildState();
     _notify();
   }
@@ -218,9 +182,9 @@ class PayrollController extends ChangeNotifier {
     }
   }
 
-  Future<void> updateEmployeePayrollSetup(
+  Future<void> updateEmployeePayrollSetting(
     String id,
-    EmployeePayrollSetup setup,
+    EmployeePayrollSetting setting,
   ) async {
     final int employeeIndex = _payroll.employees.indexWhere(
       (PayrollEmployee employee) => employee.id == id,
@@ -228,14 +192,10 @@ class PayrollController extends ChangeNotifier {
     if (employeeIndex == -1) return;
 
     final PayrollEmployee employee = _payroll.employees[employeeIndex];
-    final bool rateChanged = employee.rate != setup.rate;
+    if (employee.payrollSetting == setting) return;
+
     final PayrollEmployee updatedEmployee = employee.copyWith(
-      rate: setup.rate,
-      payrollSetup: setup,
-      payrollAction: rateChanged
-          ? PayrollAction.change
-          : employee.payrollAction,
-      isPayrollConfirmed: rateChanged ? false : employee.isPayrollConfirmed,
+      payrollSetting: setting,
     );
     final List<PayrollEmployee> employees = List<PayrollEmployee>.of(
       _payroll.employees,
@@ -245,13 +205,9 @@ class PayrollController extends ChangeNotifier {
     _payroll = _payroll.copyWith(employees: employees);
     _rebuildState();
     _notify();
-
     await _employeeService.saveEmployee(
       _saveEmployeeRequestFrom(updatedEmployee),
     );
-    if (rateChanged) {
-      await _saveDraftPayroll(clearPayrollExpense: true);
-    }
   }
 
   void _setLoading(bool isLoading) {
@@ -262,18 +218,11 @@ class PayrollController extends ChangeNotifier {
   }
 
   void _rebuildState() {
-    final DateTime payDate = RecurrenceSchedule.dateOnly(_payroll.payDate);
-    final DateTime payPeriodStart = RecurrenceSchedule.dateOnly(
-      _payroll.payPeriodStart,
-    );
-    final DateTime payPeriodEnd = RecurrenceSchedule.dateOnly(
-      _payroll.payPeriodEnd,
-    );
+    final DateTime payDate = _dateOnly(_payroll.payDate);
     final double totalDeposits = _deposits
         .where(
-          (DepositRecord record) => !RecurrenceSchedule.dateOnly(
-            record.transactionDate,
-          ).isAfter(payDate),
+          (DepositRecord record) =>
+              !_dateOnly(record.transactionDate).isAfter(payDate),
         )
         .fold<double>(
           0,
@@ -282,9 +231,7 @@ class PayrollController extends ChangeNotifier {
     final double totalExpensesBeforePayroll = _expenses
         .where((ExpenseRecord record) {
           if (record.id == _payroll.syncedExpenseId) return false;
-          return !RecurrenceSchedule.dateOnly(
-            record.transactionDate,
-          ).isAfter(payDate);
+          return !_dateOnly(record.transactionDate).isAfter(payDate);
         })
         .fold<double>(
           0,
@@ -295,74 +242,12 @@ class PayrollController extends ChangeNotifier {
         : 0;
     final double totalExpenses =
         totalExpensesBeforePayroll + projectedPayrollExpense;
-    final double payPeriodTotalPay = _payPeriodPayrollExpenseTotal(
-      payPeriodStart: payPeriodStart,
-      payPeriodEnd: payPeriodEnd,
-      projectedPayrollExpense: projectedPayrollExpense,
-    );
 
     _state = PayrollViewState(
       isLoading: _isLoading,
       payroll: _payroll,
       balance: totalDeposits - totalExpenses,
-      payPeriodTotalPay: payPeriodTotalPay,
     );
-  }
-
-  double _payPeriodPayrollExpenseTotal({
-    required DateTime payPeriodStart,
-    required DateTime payPeriodEnd,
-    required double projectedPayrollExpense,
-  }) {
-    bool payDateIsInSelectedPeriod(DateTime payDate) {
-      final DateTime normalizedPayDate = RecurrenceSchedule.dateOnly(payDate);
-      late final DateTime expensePeriodStart;
-      late final DateTime expensePeriodEnd;
-
-      if (_payroll.schedule == PayrollSchedule.monthly) {
-        final DateTime previousMonth = DateTime(
-          normalizedPayDate.year,
-          normalizedPayDate.month - 1,
-        );
-        expensePeriodStart = DateTime(previousMonth.year, previousMonth.month);
-        expensePeriodEnd = DateTime(
-          normalizedPayDate.year,
-          normalizedPayDate.month,
-          0,
-        );
-      } else {
-        expensePeriodEnd = normalizedPayDate.subtract(const Duration(days: 6));
-        expensePeriodStart = expensePeriodEnd.subtract(
-          const Duration(days: 13),
-        );
-      }
-
-      return RecurrenceSchedule.isSameDate(
-            expensePeriodStart,
-            payPeriodStart,
-          ) &&
-          RecurrenceSchedule.isSameDate(expensePeriodEnd, payPeriodEnd);
-    }
-
-    final double savedPayrollExpenses = _expenses
-        .where((ExpenseRecord record) {
-          if (record.category != 'Payroll') return false;
-          if (record.id == _payroll.syncedExpenseId &&
-              projectedPayrollExpense > 0) {
-            return false;
-          }
-
-          final DateTime transactionDate = RecurrenceSchedule.dateOnly(
-            record.transactionDate,
-          );
-          return payDateIsInSelectedPeriod(transactionDate);
-        })
-        .fold<double>(
-          0,
-          (double total, ExpenseRecord record) => total + record.totalAmount,
-        );
-
-    return _roundMoney(savedPayrollExpenses + projectedPayrollExpense);
   }
 
   void _notify() {
@@ -419,6 +304,11 @@ class PayrollController extends ChangeNotifier {
     EmployeeRecord record, {
     PayrollEmployee? existing,
   }) {
+    final EmployeePayrollSetting? payrollSetting =
+        record.payrollSetting ??
+        existing?.payrollSetting ??
+        PayrollPeriodCalculator.defaultSettingForDateHire(record.dateHire);
+
     return PayrollEmployee(
       id: record.id,
       name: record.fullName.trim().isEmpty
@@ -436,7 +326,7 @@ class PayrollController extends ChangeNotifier {
       dateHire: record.dateHire,
       payMethod: record.payMethod,
       linkW4: record.linkW4,
-      payrollSetup: record.payrollSetup,
+      payrollSetting: payrollSetting,
       payrollAction: existing?.payrollAction ?? PayrollAction.same,
       isPayrollConfirmed: existing?.isPayrollConfirmed ?? false,
     );
@@ -461,7 +351,7 @@ class PayrollController extends ChangeNotifier {
       rate: employee.rate,
       payMethod: employee.payMethod,
       linkW4: employee.linkW4,
-      payrollSetup: employee.payrollSetup,
+      payrollSetting: employee.payrollSetting,
     );
   }
 
@@ -472,4 +362,12 @@ class PayrollController extends ChangeNotifier {
   }
 }
 
-double _roundMoney(double value) => (value * 100).roundToDouble() / 100;
+DateTime _dateOnly(DateTime date) {
+  return DateTime(date.year, date.month, date.day);
+}
+
+bool _isSameDate(DateTime first, DateTime second) {
+  return first.year == second.year &&
+      first.month == second.month &&
+      first.day == second.day;
+}

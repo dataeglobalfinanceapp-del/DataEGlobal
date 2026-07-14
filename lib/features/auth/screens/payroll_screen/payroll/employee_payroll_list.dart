@@ -51,7 +51,6 @@ class _EmployeePayrollList extends StatelessWidget {
               ),
               index: index,
               employee: employees[index],
-              payDate: state.payroll.payDate,
               onChanged:
                   ({
                     String? name,
@@ -86,7 +85,6 @@ class _EmployeePayrollList extends StatelessWidget {
 class _PayrollEmployeeCard extends StatefulWidget {
   final int index;
   final PayrollEmployee employee;
-  final DateTime payDate;
   final Future<void> Function({
     String? name,
     double? rate,
@@ -103,7 +101,6 @@ class _PayrollEmployeeCard extends StatefulWidget {
     super.key,
     required this.index,
     required this.employee,
-    required this.payDate,
     required this.onChanged,
   });
 
@@ -207,6 +204,7 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
         previous.overtimeHours != next.overtimeHours ||
         previous.commission != next.commission ||
         previous.tips != next.tips ||
+        previous.payrollSetting != next.payrollSetting ||
         previous.payrollAction != next.payrollAction ||
         previous.isPayrollConfirmed != next.isPayrollConfirmed;
   }
@@ -349,10 +347,7 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
               Expanded(
-                child: _EmployeePayrollPeriod(
-                  setup: widget.employee.payrollSetup,
-                  payDate: widget.payDate,
-                ),
+                child: _EmployeePayrollPeriod(employee: widget.employee),
               ),
               const SizedBox(width: 12),
               _PayrollConfirmButton(index: widget.index, onConfirm: _confirm),
@@ -365,18 +360,17 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
 }
 
 class _EmployeePayrollPeriod extends StatelessWidget {
-  final EmployeePayrollSetup? setup;
-  final DateTime payDate;
+  final PayrollEmployee employee;
 
-  const _EmployeePayrollPeriod({required this.setup, required this.payDate});
+  const _EmployeePayrollPeriod({required this.employee});
 
   @override
   Widget build(BuildContext context) {
-    final PayrollPayPeriod? period = _employeePayrollPeriod(
-      setup: setup,
-      payDate: payDate,
-    );
-    if (period == null) return const SizedBox.shrink();
+    final PayrollPayPeriod? period =
+        PayrollPeriodCalculator.currentPeriodForEmployee(
+          employee,
+          asOf: AppClock.now,
+        );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,8 +378,7 @@ class _EmployeePayrollPeriod extends StatelessWidget {
         const Text('PAYROLL PERIOD', style: _PayrollTokens.cardFieldLabel),
         const SizedBox(height: 4),
         Text(
-          '${_formatPayrollPeriodDate(period.start)} - '
-          '${_formatPayrollPeriodDate(period.end)}',
+          period?.displayText ?? '--/--/-- - --/--/--',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: _PayrollTokens.payrollPeriodValue,
@@ -396,59 +389,11 @@ class _EmployeePayrollPeriod extends StatelessWidget {
 }
 
 String _employeePayrollScheduleText(PayrollEmployee employee) {
-  return employee.payrollSetup?.schedule.statusLabel ?? 'None';
-}
-
-PayrollPayPeriod? _employeePayrollPeriod({
-  required EmployeePayrollSetup? setup,
-  required DateTime payDate,
-}) {
-  if (setup == null) return null;
-
-  final DateTime periodEnd = _dateOnly(
-    payDate,
-  ).subtract(Duration(days: setup.paidAfterDays));
-  return switch (setup.schedule) {
-    EmployeePayrollSchedule.weekly => PayrollPayPeriod(
-      start: periodEnd.subtract(const Duration(days: 6)),
-      end: periodEnd,
-    ),
-    EmployeePayrollSchedule.biweekly => PayrollPayPeriod(
-      start: periodEnd.subtract(const Duration(days: 13)),
-      end: periodEnd,
-    ),
-    EmployeePayrollSchedule.biMonthly => _biMonthlyPayrollPeriod(periodEnd),
-    EmployeePayrollSchedule.monthly => _monthlyPayrollPeriod(periodEnd),
-  };
-}
-
-PayrollPayPeriod _biMonthlyPayrollPeriod(DateTime periodEnd) {
-  if (periodEnd.day <= 15) {
-    return PayrollPayPeriod(
-      start: DateTime(periodEnd.year, periodEnd.month),
-      end: DateTime(periodEnd.year, periodEnd.month, 15),
-    );
-  }
-
-  return PayrollPayPeriod(
-    start: DateTime(periodEnd.year, periodEnd.month, 16),
-    end: _monthEnd(periodEnd),
-  );
-}
-
-PayrollPayPeriod _monthlyPayrollPeriod(DateTime periodEnd) {
-  return PayrollPayPeriod(
-    start: DateTime(periodEnd.year, periodEnd.month),
-    end: _monthEnd(periodEnd),
-  );
-}
-
-DateTime _monthEnd(DateTime date) => DateTime(date.year, date.month + 1, 0);
-
-String _formatPayrollPeriodDate(DateTime date) {
-  final String year = (date.year % 100).toString().padLeft(2, '0');
-  return '${date.month.toString().padLeft(2, '0')}/'
-      '${date.day.toString().padLeft(2, '0')}/$year';
+  return employee.payrollSetting?.schedule.label ??
+      PayrollPeriodCalculator.defaultSettingForDateHire(
+        employee.dateHire,
+      )?.schedule.label ??
+      'Bi Weekly';
 }
 
 class _EmployeeInputGrid extends StatelessWidget {

@@ -1,14 +1,10 @@
 import 'dart:convert';
 
 import 'package:savetep/data/local/local_store.dart';
-import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
-import 'package:savetep/services/recurrence_schedule.dart';
-import 'package:savetep/services/reminder_service.dart';
 
 import 'payroll_models.dart';
 import 'payroll_pay_date_validator.dart';
-import 'payroll_schedule_calculator.dart';
 
 class PayrollService {
   static const String _storageKey = 'savetep_payroll_data_v1';
@@ -29,33 +25,7 @@ class PayrollService {
       return PayrollRecord.draft(id: _newId('payroll'));
     }
 
-    return _rollCurrentPayrollForwardIfNeeded();
-  }
-
-  static Future<PayrollRecord> _rollCurrentPayrollForwardIfNeeded() async {
-    var current = _latestPayrollRecord();
-    var changed = false;
-    final DateTime today = RecurrenceSchedule.dateOnly(AppClock.now);
-
-    while (today.isAfter(current.processDate)) {
-      final bool missedConfirmation = !current.allEmployeesConfirmed;
-      if (missedConfirmation) {
-        current = await _saveMissedPayrollAsZero(current);
-      } else {
-        current = await savePayroll(current);
-      }
-
-      final nextPayroll = _nextPayrollFrom(
-        current,
-        forceClearedPayroll: missedConfirmation,
-      );
-      _upsertPayroll(nextPayroll);
-      current = nextPayroll;
-      changed = true;
-    }
-
-    if (changed) await _persist();
-    return current;
+    return _latestPayrollRecord();
   }
 
   static PayrollRecord _latestPayrollRecord() {
@@ -91,23 +61,7 @@ class PayrollService {
       totalAmount: saved.totalPay,
       payDate: saved.payDate,
     );
-    final String reminderSeriesId = saved.reminderSeriesId.trim().isEmpty
-        ? _newId('payroll-reminder')
-        : saved.reminderSeriesId;
-
-    await ReminderService.syncRecurringReminderSeries(
-      seriesId: reminderSeriesId,
-      startDate: saved.processDate,
-      category: 'Payroll',
-      amount: saved.totalPay,
-      reminderCount: saved.schedule.reminderFrequency,
-      payee: 'Payroll',
-    );
-
-    saved = saved.copyWith(
-      syncedExpenseId: syncedExpenseId ?? '',
-      reminderSeriesId: reminderSeriesId,
-    );
+    saved = saved.copyWith(syncedExpenseId: syncedExpenseId ?? '');
 
     _upsertPayroll(saved);
 
@@ -141,75 +95,6 @@ class PayrollService {
     return saved;
   }
 
-  static Future<PayrollRecord> _saveMissedPayrollAsZero(
-    PayrollRecord payroll,
-  ) async {
-    final PayrollRecord clearedPayroll = payroll.copyWith(
-      employees: payroll.employees
-          .map(
-            (PayrollEmployee employee) =>
-                employee.withClearedPayroll.copyWith(isPayrollConfirmed: false),
-          )
-          .toList(growable: false),
-    );
-
-    return savePayrollDraft(clearedPayroll, clearPayrollExpense: true);
-  }
-
-  static PayrollRecord _nextPayrollFrom(
-    PayrollRecord payroll, {
-    required bool forceClearedPayroll,
-  }) {
-    final employees = payroll.employees
-        .map((PayrollEmployee employee) {
-          final PayrollAction nextAction = employee.payrollAction.nextDefault;
-          final PayrollEmployee nextEmployee = employee.copyWith(
-            payrollAction: nextAction,
-            isPayrollConfirmed: false,
-          );
-          if (forceClearedPayroll || nextAction.clearsPayroll) {
-            return nextEmployee.withClearedPayroll;
-          }
-          return nextEmployee;
-        })
-        .toList(growable: false);
-
-    return PayrollRecord(
-      id: _newId('payroll'),
-      payDate: _nextPayDate(payroll),
-      biweeklyPeriodBeginDate: _nextBiweeklyPeriodBeginDate(payroll),
-      schedule: payroll.schedule,
-      processDaysBefore: payroll.processDaysBefore,
-      employees: employees,
-    );
-  }
-
-  static DateTime _nextPayDate(PayrollRecord payroll) {
-    final payDate = RecurrenceSchedule.dateOnly(payroll.payDate);
-    return switch (payroll.schedule) {
-      PayrollSchedule.biWeekly => payDate.add(const Duration(days: 14)),
-      PayrollSchedule.monthly => _addMonthsClamped(payDate, 1),
-    };
-  }
-
-  static DateTime _nextBiweeklyPeriodBeginDate(PayrollRecord payroll) {
-    if (payroll.schedule != PayrollSchedule.biWeekly) {
-      return payroll.biweeklyPeriodBeginDate;
-    }
-
-    return payroll.biweeklyPeriodBeginDate.add(
-      const Duration(days: PayrollScheduleCalculator.biweeklyPeriodDays),
-    );
-  }
-
-  static DateTime _addMonthsClamped(DateTime date, int months) {
-    final totalMonths = date.year * 12 + date.month - 1 + months;
-    final year = totalMonths ~/ 12;
-    final month = totalMonths % 12 + 1;
-    final day = _minInt(date.day, DateTime(year, month + 1, 0).day);
-    return DateTime(year, month, day);
-  }
-
   static void _upsertPayroll(PayrollRecord payroll) {
     final PayrollRecord validPayroll = _withValidPayDate(payroll);
     final int index = _records.indexWhere(
@@ -226,7 +111,7 @@ class PayrollService {
     final DateTime validPayDate = PayrollPayDateValidator.normalizePayDate(
       payroll.payDate,
     );
-    if (RecurrenceSchedule.isSameDate(payroll.payDate, validPayDate)) {
+    if (_isSameDate(payroll.payDate, validPayDate)) {
       return payroll;
     }
 
@@ -294,14 +179,12 @@ class PayrollService {
       final PayrollRecord payroll = _records[index];
       final bool hasEmployeeData =
           payroll.employees.isNotEmpty ||
-          payroll.syncedExpenseId.trim().isNotEmpty ||
-          payroll.reminderSeriesId.trim().isNotEmpty;
+          payroll.syncedExpenseId.trim().isNotEmpty;
       if (!hasEmployeeData) continue;
 
       _records[index] = payroll.copyWith(
         employees: const <PayrollEmployee>[],
         syncedExpenseId: '',
-        reminderSeriesId: '',
       );
       changed = true;
     }
@@ -319,10 +202,14 @@ class PayrollService {
   }
 
   static String _newId(String prefix) {
-    return '$prefix-${AppClock.now.microsecondsSinceEpoch}-${_idCounter++}';
+    return '$prefix-${DateTime.now().microsecondsSinceEpoch}-${_idCounter++}';
   }
+}
 
-  static int _minInt(int a, int b) => a < b ? a : b;
+bool _isSameDate(DateTime first, DateTime second) {
+  return first.year == second.year &&
+      first.month == second.month &&
+      first.day == second.day;
 }
 
 class PayrollSnapshot {

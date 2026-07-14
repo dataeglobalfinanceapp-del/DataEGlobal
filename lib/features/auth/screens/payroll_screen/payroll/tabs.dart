@@ -2,12 +2,10 @@ part of '../payroll_screen.dart';
 
 class _PayrollTabContentConsumer extends StatelessWidget {
   final PayrollController controller;
-  final VoidCallback onOpenPayrollSettings;
   final _EmployeeChanged onEmployeeChanged;
 
   const _PayrollTabContentConsumer({
     required this.controller,
-    required this.onOpenPayrollSettings,
     required this.onEmployeeChanged,
   });
 
@@ -15,7 +13,6 @@ class _PayrollTabContentConsumer extends StatelessWidget {
   Widget build(BuildContext context) {
     return _PayrollProcessingView(
       controller: controller,
-      onOpenPayrollSettings: onOpenPayrollSettings,
       onEmployeeChanged: onEmployeeChanged,
     );
   }
@@ -141,12 +138,10 @@ class _PayrollTabButton extends StatelessWidget {
 
 class _PayrollProcessingView extends StatelessWidget {
   final PayrollController controller;
-  final VoidCallback onOpenPayrollSettings;
   final _EmployeeChanged onEmployeeChanged;
 
   const _PayrollProcessingView({
     required this.controller,
-    required this.onOpenPayrollSettings,
     required this.onEmployeeChanged,
   });
 
@@ -155,10 +150,7 @@ class _PayrollProcessingView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        _PayrollSetupCardConsumer(
-          controller: controller,
-          onOpenPayrollSettings: onOpenPayrollSettings,
-        ),
+        _PayrollSetupCardConsumer(controller: controller),
         const SizedBox(height: 18),
         _EmployeePayrollListConsumer(
           controller: controller,
@@ -171,12 +163,8 @@ class _PayrollProcessingView extends StatelessWidget {
 
 class _PayrollSetupCardConsumer extends StatefulWidget {
   final PayrollController controller;
-  final VoidCallback onOpenPayrollSettings;
 
-  const _PayrollSetupCardConsumer({
-    required this.controller,
-    required this.onOpenPayrollSettings,
-  });
+  const _PayrollSetupCardConsumer({required this.controller});
 
   @override
   State<_PayrollSetupCardConsumer> createState() =>
@@ -218,10 +206,7 @@ class _PayrollSetupCardConsumerState extends State<_PayrollSetupCardConsumer> {
 
   @override
   Widget build(BuildContext context) {
-    return _PayrollSetupCard(
-      state: _state,
-      onOpenPayrollSettings: widget.onOpenPayrollSettings,
-    );
+    return _PayrollSetupCard(state: _state);
   }
 }
 
@@ -287,7 +272,7 @@ bool _setupStateChanged(PayrollViewState previous, PayrollViewState next) {
   final PayrollRecord nextPayroll = next.payroll;
 
   return previous.balance != next.balance ||
-      previous.payPeriodTotalPay != next.payPeriodTotalPay ||
+      previousPayroll.totalPay != nextPayroll.totalPay ||
       previousPayroll.unconfirmedEmployeeCount !=
           nextPayroll.unconfirmedEmployeeCount;
 }
@@ -296,8 +281,6 @@ bool _employeeListStateChanged(
   PayrollViewState previous,
   PayrollViewState next,
 ) {
-  if (previous.payroll.payDate != next.payroll.payDate) return true;
-
   return !_samePayrollEmployees(
     previous.payroll.employees,
     next.payroll.employees,
@@ -332,21 +315,7 @@ bool _samePayrollEmployee(PayrollEmployee previous, PayrollEmployee next) {
       previous.dateHire == next.dateHire &&
       previous.payMethod == next.payMethod &&
       previous.linkW4 == next.linkW4 &&
-      _sameEmployeePayrollSetup(previous.payrollSetup, next.payrollSetup) &&
+      previous.payrollSetting == next.payrollSetting &&
       previous.payrollAction == next.payrollAction &&
       previous.isPayrollConfirmed == next.isPayrollConfirmed;
-}
-
-bool _sameEmployeePayrollSetup(
-  EmployeePayrollSetup? previous,
-  EmployeePayrollSetup? next,
-) {
-  if (identical(previous, next)) return true;
-  if (previous == null || next == null) return false;
-
-  return previous.schedule == next.schedule &&
-      previous.weekday == next.weekday &&
-      previous.paidAfterDays == next.paidAfterDays &&
-      previous.remindAfterDays == next.remindAfterDays &&
-      previous.rate == next.rate;
 }

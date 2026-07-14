@@ -2,12 +2,8 @@ part of '../payroll_screen.dart';
 
 class _PayrollSetupCard extends StatelessWidget {
   final PayrollViewState state;
-  final VoidCallback onOpenPayrollSettings;
 
-  const _PayrollSetupCard({
-    required this.state,
-    required this.onOpenPayrollSettings,
-  });
+  const _PayrollSetupCard({required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +21,7 @@ class _PayrollSetupCard extends StatelessWidget {
             children: <Widget>[
               _PayrollHeaderMetrics(
                 balance: state.balance,
-                totalPay: state.payPeriodTotalPay,
+                totalPay: payroll.totalPay,
               ),
               if (payroll.unconfirmedEmployeeCount > 0) ...<Widget>[
                 const SizedBox(height: 16),
@@ -33,7 +29,6 @@ class _PayrollSetupCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 _PayrollConfirmationCaution(
                   unconfirmedCount: payroll.unconfirmedEmployeeCount,
-                  onTap: onOpenPayrollSettings,
                 ),
               ],
             ],
@@ -46,12 +41,8 @@ class _PayrollSetupCard extends StatelessWidget {
 
 class _PayrollConfirmationCaution extends StatelessWidget {
   final int unconfirmedCount;
-  final VoidCallback onTap;
 
-  const _PayrollConfirmationCaution({
-    required this.unconfirmedCount,
-    required this.onTap,
-  });
+  const _PayrollConfirmationCaution({required this.unconfirmedCount});
 
   @override
   Widget build(BuildContext context) {
@@ -59,34 +50,30 @@ class _PayrollConfirmationCaution extends StatelessWidget {
         ? 'employee still needs'
         : 'employees still need';
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: _PayrollTokens.warningBackground,
-          borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
-          border: Border.all(color: const Color(0xFFFCD34D)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const Icon(
-              Icons.warning_amber_rounded,
-              color: _PayrollTokens.warning,
-              size: 18,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: _PayrollTokens.warningBackground,
+        borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+        border: Border.all(color: const Color(0xFFFCD34D)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: _PayrollTokens.warning,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$unconfirmedCount $employeeLabel to confirm payroll.',
+              style: _PayrollTokens.cautionText,
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                '$unconfirmedCount $employeeLabel to confirm payroll.',
-                style: _PayrollTokens.cautionText,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

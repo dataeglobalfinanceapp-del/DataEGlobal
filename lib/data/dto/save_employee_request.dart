@@ -1,4 +1,4 @@
-import 'package:savetep/domain/models/employee_payroll_setup.dart';
+import 'package:savetep/domain/models/employee_payroll_setting.dart';
 
 class SaveEmployeeRequest {
   final String id;
@@ -11,7 +11,7 @@ class SaveEmployeeRequest {
   final double rate;
   final String payMethod;
   final String linkW4;
-  final EmployeePayrollSetup? payrollSetup;
+  final EmployeePayrollSetting? payrollSetting;
 
   const SaveEmployeeRequest({
     this.id = '',
@@ -24,6 +24,6 @@ class SaveEmployeeRequest {
     required this.rate,
     this.payMethod = '',
     this.linkW4 = '',
-    this.payrollSetup,
+    this.payrollSetting,
   });
 }

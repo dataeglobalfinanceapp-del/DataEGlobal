@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:savetep/domain/models/employee_payroll_setup.dart';
 import 'package:savetep/domain/models/temporary_employee_document.dart';
 import 'package:savetep/domain/services/employee_document_capture_service.dart';
 import 'package:savetep/domain/services/employee_document_email_service.dart';
 import 'package:savetep/domain/services/employee_document_email_service_factory.dart';
+import 'package:savetep/domain/models/employee_payroll_setting.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/money_formatter.dart';
 
 import 'employee_form_data.dart';
-import 'employee_payroll_setup_validators.dart';
 import 'payroll_controller.dart';
 import 'payroll_models.dart';
-import 'payroll_schedule_calculator.dart';
+import 'payroll_period_calculator.dart';
 import 'employee_create_draft.dart';
 
 part 'payroll/tabs.dart';
 part 'payroll/employees_tab.dart';
 part 'payroll/dialogs.dart';
-part 'payroll/setup_card.dart';
 part 'payroll/settings_screen.dart';
+part 'payroll/setup_card.dart';
 part 'payroll/employee_payroll_list.dart';
 part 'payroll/helpers.dart';
 part 'payroll/tokens.dart';
@@ -104,7 +103,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
   }
 
   Future<void> _openPayrollSettings() async {
-    await Navigator.of(context).push<void>(
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (BuildContext context) =>
             _PayrollSettingsScreen(controller: _controller),
@@ -127,7 +126,13 @@ class _PayrollScreenState extends State<PayrollScreen> {
         title: const Text('Payroll', style: _PayrollTokens.appBarTitle),
         centerTitle: true,
         actions: <Widget>[
-          _PayrollSettingsAction(onPressed: _openPayrollSettings),
+          IconButton(
+            key: const ValueKey<String>('payroll.settings.open'),
+            tooltip: 'Payroll settings',
+            onPressed: _openPayrollSettings,
+            icon: const Icon(Icons.settings_outlined),
+            color: _PayrollTokens.textMuted,
+          ),
         ],
       ),
       body: ListenableBuilder(
@@ -149,7 +154,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
               if (_selectedTab == _PayrollTab.payroll)
                 _PayrollTabContentConsumer(
                   controller: _controller,
-                  onOpenPayrollSettings: _openPayrollSettings,
                   onEmployeeChanged: _controller.updateEmployee,
                 )
               else
@@ -163,46 +167,6 @@ class _PayrollScreenState extends State<PayrollScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _PayrollSettingsAction extends StatelessWidget {
-  final VoidCallback onPressed;
-
-  const _PayrollSettingsAction({required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          IconButton(
-            tooltip: 'Payroll settings',
-            icon: const Icon(
-              Icons.settings_outlined,
-              color: _PayrollTokens.textStrong,
-            ),
-            onPressed: onPressed,
-          ),
-          TextButton(
-            onPressed: onPressed,
-            style: TextButton.styleFrom(
-              foregroundColor: _PayrollTokens.textStrong,
-              minimumSize: const Size(0, 40),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: const Text(
-              'Setting payroll',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
       ),
     );
   }
