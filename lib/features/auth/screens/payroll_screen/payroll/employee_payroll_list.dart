@@ -145,10 +145,8 @@ class _PayrollEmployeeCardState extends State<_PayrollEmployeeCard> {
     }
 
     if (_payrollValuesChanged(oldWidget.employee, widget.employee)) {
+      // This also syncs payrollAction because _payrollValuesChanged includes it.
       _syncControllersFromEmployee(widget.employee);
-    }
-    if (oldWidget.employee.payrollAction != widget.employee.payrollAction) {
-      _selectedAction = widget.employee.payrollAction;
     }
   }
 

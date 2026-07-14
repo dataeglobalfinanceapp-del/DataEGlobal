@@ -10,10 +10,25 @@ class _PayrollSettingsScreen extends StatelessWidget {
       MaterialPageRoute<void>(
         builder: (BuildContext context) => _PayrollEmployeeSetupScreen(
           employee: employee,
-          onSettingChanged: controller.updateEmployeePayrollSetting,
+          onSaveSetting: controller.updateEmployeePayrollSetting,
+          findNextMissingEmployee: _findNextMissingEmployeeAfter,
         ),
       ),
     );
+  }
+
+  PayrollEmployee? _findNextMissingEmployeeAfter(String employeeId) {
+    final List<PayrollEmployee> employees = controller.state.payroll.employees;
+    final int currentIndex = employees.indexWhere(
+      (PayrollEmployee employee) => employee.id == employeeId,
+    );
+    if (currentIndex == -1) return null;
+
+    for (int index = currentIndex + 1; index < employees.length; index += 1) {
+      final PayrollEmployee employee = employees[index];
+      if (employee.payrollSetting == null) return employee;
+    }
+    return null;
   }
 
   @override
@@ -186,11 +201,13 @@ class _PayrollEmployeeSettingsListCard extends StatelessWidget {
 class _PayrollEmployeeSetupScreen extends StatefulWidget {
   final PayrollEmployee employee;
   final Future<void> Function(String id, EmployeePayrollSetting setting)
-  onSettingChanged;
+  onSaveSetting;
+  final PayrollEmployee? Function(String employeeId) findNextMissingEmployee;
 
   const _PayrollEmployeeSetupScreen({
     required this.employee,
-    required this.onSettingChanged,
+    required this.onSaveSetting,
+    required this.findNextMissingEmployee,
   });
 
   @override
@@ -202,6 +219,7 @@ class _PayrollEmployeeSetupScreenState
     extends State<_PayrollEmployeeSetupScreen> {
   late final DateTime? _dateHire;
   late EmployeePayrollSetting? _setting;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -216,9 +234,51 @@ class _PayrollEmployeeSetupScreenState
         );
   }
 
-  Future<void> _updateSetting(EmployeePayrollSetting setting) async {
+  void _updateDraft(EmployeePayrollSetting setting) {
     setState(() => _setting = setting);
-    await widget.onSettingChanged(widget.employee.id, setting);
+  }
+
+  Future<void> _save() async {
+    final EmployeePayrollSetting? setting = _setting;
+    if (setting == null || _isSaving) return;
+
+    setState(() => _isSaving = true);
+    try {
+      await widget.onSaveSetting(widget.employee.id, setting);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(const SnackBar(content: Text('Payroll setup saved')));
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  void _openNextEmployee() {
+    final PayrollEmployee? nextEmployee = widget.findNextMissingEmployee(
+      widget.employee.id,
+    );
+    if (nextEmployee == null) {
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          const SnackBar(content: Text('No more employee to setup')),
+        );
+      return;
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => _PayrollEmployeeSetupScreen(
+          employee: nextEmployee,
+          onSaveSetting: widget.onSaveSetting,
+          findNextMissingEmployee: widget.findNextMissingEmployee,
+        ),
+      ),
+    );
   }
 
   Future<void> _pickFirstPeriodEndDate() async {
@@ -238,7 +298,7 @@ class _PayrollEmployeeSetupScreenState
     if (picked == null || !mounted) return;
 
     final DateTime pickedDate = PayrollPeriodCalculator.dateOnly(picked);
-    await _updateSetting(
+    _updateDraft(
       setting.copyWith(
         firstPeriodEndDate: pickedDate,
         endingDay: EmployeePayrollEndingDay.fromDate(pickedDate),
@@ -249,7 +309,43 @@ class _PayrollEmployeeSetupScreenState
   @override
   Widget build(BuildContext context) {
     final EmployeePayrollSetting? setting = _setting;
-    final bool canEditPeriod = _dateHire != null && setting != null;
+    final DateTime? dateHire = _dateHire;
+    final bool canEditPeriod = dateHire != null && setting != null;
+    ValueChanged<EmployeePayrollSchedule>? onScheduleChanged;
+    ValueChanged<EmployeePayrollEndingDay>? onEndingDayChanged;
+    ValueChanged<EmployeePayDateSetting>? onPayDateSettingChanged;
+    ValueChanged<EmployeeProcessPayrollSetting>? onProcessPayrollSettingChanged;
+
+    if (dateHire != null && setting != null) {
+      final EmployeePayrollSetting editableSetting = setting;
+      final DateTime editableDateHire = dateHire;
+      onScheduleChanged = (EmployeePayrollSchedule schedule) {
+        _updateDraft(editableSetting.copyWith(schedule: schedule));
+      };
+      onEndingDayChanged = (EmployeePayrollEndingDay endingDay) {
+        _updateDraft(
+          editableSetting.copyWith(
+            endingDay: endingDay,
+            firstPeriodEndDate:
+                PayrollPeriodCalculator.firstPeriodEndDateForEndingDay(
+                  hireDate: editableDateHire,
+                  endingDay: endingDay,
+                ),
+          ),
+        );
+      };
+      onPayDateSettingChanged = (EmployeePayDateSetting payDateSetting) {
+        _updateDraft(editableSetting.copyWith(payDateSetting: payDateSetting));
+      };
+      onProcessPayrollSettingChanged =
+          (EmployeeProcessPayrollSetting processPayrollSetting) {
+            _updateDraft(
+              editableSetting.copyWith(
+                processPayrollSetting: processPayrollSetting,
+              ),
+            );
+          };
+    }
 
     return Scaffold(
       backgroundColor: _PayrollTokens.screenBackground,
@@ -285,47 +381,89 @@ class _PayrollEmployeeSetupScreenState
                 _PayrollSetupFormFields(
                   setting: setting,
                   enabled: canEditPeriod,
-                  onScheduleChanged: canEditPeriod
-                      ? (EmployeePayrollSchedule schedule) {
-                          _updateSetting(setting.copyWith(schedule: schedule));
-                        }
-                      : null,
-                  onEndingDayChanged: canEditPeriod
-                      ? (EmployeePayrollEndingDay endingDay) {
-                          _updateSetting(
-                            setting.copyWith(
-                              endingDay: endingDay,
-                              firstPeriodEndDate:
-                                  PayrollPeriodCalculator.firstPeriodEndDateForEndingDay(
-                                    hireDate: _dateHire,
-                                    endingDay: endingDay,
-                                  ),
-                            ),
-                          );
-                        }
-                      : null,
+                  onScheduleChanged: onScheduleChanged,
+                  onEndingDayChanged: onEndingDayChanged,
                   onFirstPeriodEndDateTap: canEditPeriod
                       ? _pickFirstPeriodEndDate
                       : null,
-                  onPayDateSettingChanged: canEditPeriod
-                      ? (EmployeePayDateSetting payDateSetting) {
-                          _updateSetting(
-                            setting.copyWith(payDateSetting: payDateSetting),
-                          );
-                        }
-                      : null,
-                  onProcessPayrollSettingChanged: canEditPeriod
-                      ? (EmployeeProcessPayrollSetting processPayrollSetting) {
-                          _updateSetting(
-                            setting.copyWith(
-                              processPayrollSetting: processPayrollSetting,
-                            ),
-                          );
-                        }
-                      : null,
+                  onPayDateSettingChanged: onPayDateSettingChanged,
+                  onProcessPayrollSettingChanged:
+                      onProcessPayrollSettingChanged,
+                ),
+                const SizedBox(height: 22),
+                _PayrollSetupActions(
+                  employeeId: widget.employee.id,
+                  canSave: canEditPeriod && !_isSaving,
+                  isSaving: _isSaving,
+                  onSave: _save,
+                  onNextEmployee: _openNextEmployee,
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PayrollSetupActions extends StatelessWidget {
+  final String employeeId;
+  final bool canSave;
+  final bool isSaving;
+  final VoidCallback onSave;
+  final VoidCallback onNextEmployee;
+
+  const _PayrollSetupActions({
+    required this.employeeId,
+    required this.canSave,
+    required this.isSaving,
+    required this.onSave,
+    required this.onNextEmployee,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 10,
+        runSpacing: 10,
+        children: <Widget>[
+          OutlinedButton(
+            key: ValueKey<String>('payroll.settings.$employeeId.nextEmployee'),
+            onPressed: onNextEmployee,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _PayrollTokens.textMuted,
+              side: const BorderSide(color: _PayrollTokens.border),
+              minimumSize: const Size(0, 46),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  _PayrollTokens.controlRadius,
+                ),
+              ),
+            ),
+            child: const Text('Next Employee'),
+          ),
+          FilledButton(
+            key: ValueKey<String>('payroll.settings.$employeeId.save'),
+            onPressed: canSave ? onSave : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: _PayrollTokens.tabSelected,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: _PayrollTokens.border,
+              disabledForegroundColor: _PayrollTokens.textMuted,
+              minimumSize: const Size(0, 46),
+              padding: const EdgeInsets.symmetric(horizontal: 22),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  _PayrollTokens.controlRadius,
+                ),
+              ),
+            ),
+            child: Text(isSaving ? 'Saving...' : 'Save'),
           ),
         ],
       ),
@@ -463,7 +601,7 @@ class _PayrollSettingsDropdownField<T> extends StatelessWidget {
   }
 }
 
-class _PayrollSettingsDateField extends StatelessWidget {
+class _PayrollSettingsDateField extends StatefulWidget {
   final String label;
   final String value;
   final bool enabled;
@@ -477,15 +615,43 @@ class _PayrollSettingsDateField extends StatelessWidget {
   });
 
   @override
+  State<_PayrollSettingsDateField> createState() =>
+      _PayrollSettingsDateFieldState();
+}
+
+class _PayrollSettingsDateFieldState extends State<_PayrollSettingsDateField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PayrollSettingsDateField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value && _controller.text != widget.value) {
+      _controller.text = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return _PayrollSettingsFieldFrame(
-      label: label,
+      label: widget.label,
       child: TextFormField(
-        key: ValueKey<String>('payroll.settings.$label'),
-        initialValue: value,
+        key: ValueKey<String>('payroll.settings.${widget.label}'),
+        controller: _controller,
         readOnly: true,
-        enabled: enabled,
-        onTap: onTap,
+        enabled: widget.enabled,
+        onTap: widget.onTap,
         style: _PayrollTokens.inputText.copyWith(fontSize: 16),
         decoration: _PayrollTokens.inputDecoration.copyWith(
           contentPadding: const EdgeInsets.symmetric(

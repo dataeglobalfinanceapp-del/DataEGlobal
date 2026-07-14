@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/data/dto/save_employee_request.dart';
+import 'package:savetep/domain/models/employee_payroll_setting.dart';
 import 'package:savetep/domain/models/temporary_employee_document.dart';
 import 'package:savetep/domain/services/employee_document_capture_service.dart';
 import 'package:savetep/domain/services/employee_document_email_service.dart';
@@ -463,6 +464,156 @@ void main() {
     },
   );
 
+  testWidgets('Payroll setup edits stay local until Save', (
+    WidgetTester tester,
+  ) async {
+    final EmployeeService employeeService = EmployeeService();
+    await employeeService.saveEmployee(
+      const SaveEmployeeRequest(
+        id: 'employee-setup-a',
+        fullName: 'Maya Rodriguez',
+        birthday: '01/08/1992',
+        phone: '555-2841',
+        address: '120 Mission Street, San Francisco, CA 94105',
+        dateHire: '03/20/2024',
+        jobType: 'Hourly',
+        rate: 20,
+      ),
+    );
+    await employeeService.saveEmployee(
+      const SaveEmployeeRequest(
+        id: 'employee-setup-b',
+        fullName: 'Jordan Lee',
+        birthday: '06/18/1990',
+        phone: '555-9274',
+        address: '88 King Street, San Francisco, CA 94107',
+        dateHire: '04/01/2024',
+        jobType: 'Hourly',
+        rate: 18,
+      ),
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: PayrollScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('payroll.settings.open')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('2 employees have not set up payroll.'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('payroll.settings.employee-setup-a.openSetup'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final Finder firstPeriodEndDateField = find.byKey(
+      const ValueKey<String>('payroll.settings.First Period End Date'),
+    );
+    expect(find.text('Maya Rodriguez'), findsOneWidget);
+    expect(_settingsDateFieldText(tester), '03/24/24');
+
+    await tester.tap(find.text('Bi Weekly').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Weekly').last);
+    await tester.pumpAndSettle();
+    expect(
+      (await employeeService.loadEmployees()).first.payrollSetting,
+      isNull,
+    );
+
+    await tester.ensureVisible(firstPeriodEndDateField);
+    await tester.pumpAndSettle();
+    await tester.tap(firstPeriodEndDateField);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find
+          .descendant(
+            of: find.byType(DatePickerDialog),
+            matching: find.text('25'),
+          )
+          .last,
+    );
+    await tester.tap(find.widgetWithText(TextButton, 'OK'));
+    await tester.pumpAndSettle();
+
+    expect(_settingsDateFieldText(tester), '03/25/24');
+    expect(
+      (await employeeService.loadEmployees()).first.payrollSetting,
+      isNull,
+    );
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('payroll.settings.employee-setup-a.save'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final savedEmployees = await employeeService.loadEmployees();
+    expect(
+      savedEmployees.first.payrollSetting?.schedule,
+      EmployeePayrollSchedule.weekly,
+    );
+    expect(
+      savedEmployees.first.payrollSetting?.firstPeriodEndDate,
+      DateTime(2024, 3, 25),
+    );
+    expect(savedEmployees.last.payrollSetting, isNull);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('1 employee has not set up payroll.'), findsOneWidget);
+    expect(find.text('Weekly'), findsOneWidget);
+    expect(find.text('None'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('payroll.settings.employee-setup-a.openSetup'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(
+        const ValueKey<String>(
+          'payroll.settings.employee-setup-a.nextEmployee',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>(
+          'payroll.settings.employee-setup-a.nextEmployee',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Jordan Lee'), findsOneWidget);
+    expect((await employeeService.loadEmployees()).last.payrollSetting, isNull);
+
+    await tester.ensureVisible(
+      find.byKey(
+        const ValueKey<String>(
+          'payroll.settings.employee-setup-b.nextEmployee',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>(
+          'payroll.settings.employee-setup-b.nextEmployee',
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('No more employee to setup'), findsOneWidget);
+  });
+
   testWidgets(
     'Add employee saves when job type birthday phone and date hire are empty',
     (WidgetTester tester) async {
@@ -893,6 +1044,15 @@ Finder _richTextWithPlainText(String text) {
   return find.byWidgetPredicate(
     (Widget widget) => widget is RichText && widget.text.toPlainText() == text,
   );
+}
+
+String _settingsDateFieldText(WidgetTester tester) {
+  final TextFormField field = tester.widget<TextFormField>(
+    find.byKey(
+      const ValueKey<String>('payroll.settings.First Period End Date'),
+    ),
+  );
+  return field.controller?.text ?? '';
 }
 
 Future<void> _seedDefaultEmployees() async {
