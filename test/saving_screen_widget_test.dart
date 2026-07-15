@@ -20,13 +20,14 @@ void main() {
     WidgetTester tester,
   ) async {
     await _saveDeposit(amount: 120000, date: DateTime(2026, 1, 1));
+    await _saveExpense(amount: 20000, date: DateTime(2026, 1, 2));
 
     await tester.pumpWidget(const MaterialApp(home: SavingScreen()));
     await tester.pumpAndSettle();
 
     expect(find.text('Saving Plan'), findsOneWidget);
-    expect(find.text('TOTAL DEPOSIT'), findsOneWidget);
-    expect(find.text(r'$120,000.00'), findsOneWidget);
+    expect(find.text('TOTAL BALANCE'), findsOneWidget);
+    expect(find.text(r'$100,000.00'), findsOneWidget);
     expect(find.text('Total Saving'), findsOneWidget);
     expect(find.text(r'$0.00'), findsOneWidget);
     expect(find.text('Saving rate 10%'), findsOneWidget);
@@ -42,6 +43,7 @@ void main() {
     await tester.tap(find.byTooltip('Confirm saving amount').first);
     await tester.pump();
 
+    expect(find.text(r'$11,500.00'), findsOneWidget);
     expect(find.text(r'$500.00'), findsNWidgets(2));
   });
 
@@ -95,17 +97,20 @@ void main() {
     await tester.tap(find.byTooltip('Confirm saving amount').first);
     await tester.pump();
 
+    expect(find.text(r'$11,000.00'), findsOneWidget);
     expect(find.text(r'$1,000.00'), findsWidgets);
 
     await tester.tap(find.text('Week'));
     await tester.pumpAndSettle();
 
+    expect(find.text(r'$11,000.00'), findsOneWidget);
     expect(_firstSavingInputText(tester), '225.81');
     expect(find.text(r'$1,000.00'), findsWidgets);
 
     await tester.tap(find.text('Day'));
     await tester.pumpAndSettle();
 
+    expect(find.text(r'$11,000.00'), findsOneWidget);
     expect(_firstSavingInputText(tester), '32.26');
     expect(find.text(r'$1,000.00'), findsWidgets);
   });
@@ -288,6 +293,17 @@ Future<void> _saveDeposit({required double amount, required DateTime date}) {
     giftCard: 0,
     other: 0,
     transactionDate: date,
+    isManual: true,
+  );
+}
+
+Future<void> _saveExpense({required double amount, required DateTime date}) {
+  return LiabilityService.saveExpense(
+    checkNumber: 'saving-expense',
+    totalAmount: amount,
+    transactionDate: date,
+    category: 'Utilities',
+    payee: 'Utilities',
     isManual: true,
   );
 }
