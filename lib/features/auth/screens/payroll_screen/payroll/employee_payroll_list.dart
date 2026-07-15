@@ -3,10 +3,12 @@ part of '../payroll_screen.dart';
 class _EmployeePayrollList extends StatelessWidget {
   final PayrollViewState state;
   final _EmployeeChanged onEmployeeChanged;
+  final PayrollEmailSender payrollEmailSender;
 
   const _EmployeePayrollList({
     required this.state,
     required this.onEmployeeChanged,
+    required this.payrollEmailSender,
   });
 
   Future<void> _handleEmployeeChanged(
@@ -33,6 +35,38 @@ class _EmployeePayrollList extends StatelessWidget {
     );
   }
 
+  Future<void> _sendPayrollReport(BuildContext context) async {
+    final String? recipientEmail = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) => const _PayrollReportEmailDialog(),
+    );
+    if (recipientEmail == null || !context.mounted) return;
+
+    try {
+      final PayrollEmailResult result =
+          await PayrollReportEmailService(
+            sender: payrollEmailSender,
+          ).sendConfirmedPayroll(
+            recipientEmail: recipientEmail,
+            employees: state.payroll.employees,
+          );
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Mock payroll email ready for ${result.recipientEmail}',
+          ),
+        ),
+      );
+    } on PayrollReportEmailException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<PayrollEmployee> employees = state.payroll.employees;
@@ -40,7 +74,9 @@ class _EmployeePayrollList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const Text('Employees', style: _PayrollTokens.sectionTitle),
+        _EmployeesPayrollHeader(
+          onSendPayroll: () => _sendPayrollReport(context),
+        ),
         const SizedBox(height: 8),
         for (int index = 0; index < employees.length; index += 1)
           Padding(
@@ -77,6 +113,94 @@ class _EmployeePayrollList extends StatelessWidget {
             ),
           ),
         _PayrollTotalFooter(totalPay: state.payroll.totalPay),
+      ],
+    );
+  }
+}
+
+class _EmployeesPayrollHeader extends StatelessWidget {
+  final VoidCallback onSendPayroll;
+
+  const _EmployeesPayrollHeader({required this.onSendPayroll});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        const Expanded(
+          child: Text('Employees', style: _PayrollTokens.sectionTitle),
+        ),
+        const SizedBox(width: 10),
+        OutlinedButton.icon(
+          key: const ValueKey<String>('payroll.sendPayroll.open'),
+          onPressed: onSendPayroll,
+          icon: const Icon(Icons.mail_outline, size: 18),
+          label: const Text('Send payroll to:'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _PayrollTokens.tabSelected,
+            side: const BorderSide(color: _PayrollTokens.border),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(_PayrollTokens.controlRadius),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PayrollReportEmailDialog extends StatefulWidget {
+  const _PayrollReportEmailDialog();
+
+  @override
+  State<_PayrollReportEmailDialog> createState() =>
+      _PayrollReportEmailDialogState();
+}
+
+class _PayrollReportEmailDialogState extends State<_PayrollReportEmailDialog> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    Navigator.of(context).pop(_emailController.text.trim());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Send payroll'),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          key: const ValueKey<String>('payroll.sendPayroll.recipient'),
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          autofillHints: const <String>[AutofillHints.email],
+          validator: EmployeeFormValidators.validateEmailAddress,
+          decoration: const InputDecoration(labelText: 'Email address'),
+          onFieldSubmitted: (_) => _submit(),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          key: const ValueKey<String>('payroll.sendPayroll.cancel'),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const ValueKey<String>('payroll.sendPayroll.send'),
+          onPressed: _submit,
+          child: const Text('Send'),
+        ),
       ],
     );
   }

@@ -13,6 +13,7 @@ import 'employee_form_data.dart';
 import 'payroll_controller.dart';
 import 'payroll_models.dart';
 import 'payroll_period_calculator.dart';
+import 'payroll_report_email_service.dart';
 import 'employee_create_draft.dart';
 
 part 'payroll/tabs.dart';
@@ -56,11 +57,13 @@ enum _PayrollTab {
 class PayrollScreen extends StatefulWidget {
   final EmployeeDocumentEmailService? employeeDocumentEmailService;
   final EmployeeDocumentCaptureService? employeeDocumentCaptureService;
+  final PayrollEmailSender? payrollEmailSender;
 
   const PayrollScreen({
     super.key,
     this.employeeDocumentEmailService,
     this.employeeDocumentCaptureService,
+    this.payrollEmailSender,
   });
 
   @override
@@ -71,6 +74,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
   late final PayrollController _controller;
   late final EmployeeDocumentEmailService _employeeDocumentEmailService;
   late final EmployeeDocumentCaptureService _employeeDocumentCaptureService;
+  late final PayrollEmailSender _payrollEmailSender;
   _PayrollTab _selectedTab = _PayrollTab.payroll;
 
   @override
@@ -83,6 +87,8 @@ class _PayrollScreenState extends State<PayrollScreen> {
     _employeeDocumentCaptureService =
         widget.employeeDocumentCaptureService ??
         ImagePickerEmployeeDocumentCaptureService();
+    _payrollEmailSender =
+        widget.payrollEmailSender ?? const MockPayrollEmailSender();
   }
 
   @override
@@ -155,6 +161,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
                 _PayrollTabContentConsumer(
                   controller: _controller,
                   onEmployeeChanged: _controller.updateEmployee,
+                  payrollEmailSender: _payrollEmailSender,
                 )
               else
                 _EmployeesTabContentConsumer(

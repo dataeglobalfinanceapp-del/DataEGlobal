@@ -3,10 +3,12 @@ part of '../payroll_screen.dart';
 class _PayrollTabContentConsumer extends StatelessWidget {
   final PayrollController controller;
   final _EmployeeChanged onEmployeeChanged;
+  final PayrollEmailSender payrollEmailSender;
 
   const _PayrollTabContentConsumer({
     required this.controller,
     required this.onEmployeeChanged,
+    required this.payrollEmailSender,
   });
 
   @override
@@ -14,6 +16,7 @@ class _PayrollTabContentConsumer extends StatelessWidget {
     return _PayrollProcessingView(
       controller: controller,
       onEmployeeChanged: onEmployeeChanged,
+      payrollEmailSender: payrollEmailSender,
     );
   }
 }
@@ -139,10 +142,12 @@ class _PayrollTabButton extends StatelessWidget {
 class _PayrollProcessingView extends StatelessWidget {
   final PayrollController controller;
   final _EmployeeChanged onEmployeeChanged;
+  final PayrollEmailSender payrollEmailSender;
 
   const _PayrollProcessingView({
     required this.controller,
     required this.onEmployeeChanged,
+    required this.payrollEmailSender,
   });
 
   @override
@@ -155,6 +160,7 @@ class _PayrollProcessingView extends StatelessWidget {
         _EmployeePayrollListConsumer(
           controller: controller,
           onEmployeeChanged: onEmployeeChanged,
+          payrollEmailSender: payrollEmailSender,
         ),
       ],
     );
@@ -213,10 +219,12 @@ class _PayrollSetupCardConsumerState extends State<_PayrollSetupCardConsumer> {
 class _EmployeePayrollListConsumer extends StatefulWidget {
   final PayrollController controller;
   final _EmployeeChanged onEmployeeChanged;
+  final PayrollEmailSender payrollEmailSender;
 
   const _EmployeePayrollListConsumer({
     required this.controller,
     required this.onEmployeeChanged,
+    required this.payrollEmailSender,
   });
 
   @override
@@ -263,6 +271,7 @@ class _EmployeePayrollListConsumerState
     return _EmployeePayrollList(
       state: _state,
       onEmployeeChanged: widget.onEmployeeChanged,
+      payrollEmailSender: widget.payrollEmailSender,
     );
   }
 }

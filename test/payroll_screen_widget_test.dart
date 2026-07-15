@@ -80,6 +80,7 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Payroll'), findsWidgets);
       expect(find.text('Employees'), findsWidgets);
+      expect(find.text('Send payroll to:'), findsOneWidget);
       expect(find.text('Setting payroll'), findsNothing);
       expect(
         find.byKey(const ValueKey<String>('payroll.settings.open')),
@@ -102,6 +103,27 @@ void main() {
 
       expect(find.text('None'), findsWidgets);
       expect(find.text('Payroll Settings'), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.sendPayroll.open')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Send payroll'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('payroll.sendPayroll.recipient')),
+        'not-an-email',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.sendPayroll.send')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enter a valid email address'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('payroll.sendPayroll.cancel')),
+      );
+      await tester.pumpAndSettle();
 
       await tester.tap(
         find.byKey(const ValueKey<String>('payroll.settings.open')),
