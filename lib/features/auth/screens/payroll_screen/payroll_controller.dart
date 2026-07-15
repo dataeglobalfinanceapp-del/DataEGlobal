@@ -8,6 +8,7 @@ import 'package:savetep/services/liability_service.dart';
 
 import 'payroll_models.dart';
 import 'payroll_pay_date_validator.dart';
+import 'payroll_reminder_service.dart';
 import 'payroll_service.dart';
 
 class PayrollViewState {
@@ -59,6 +60,9 @@ class PayrollController extends ChangeNotifier {
     );
     _deposits = List<DepositRecord>.unmodifiable(deposits);
     _expenses = List<ExpenseRecord>.unmodifiable(expenses);
+    await PayrollReminderService.syncEmployees(_payroll.employees);
+    if (_isDisposed) return;
+
     _isLoading = false;
     _rebuildState();
     _notify();
@@ -207,6 +211,7 @@ class PayrollController extends ChangeNotifier {
     await _employeeService.saveEmployee(
       _saveEmployeeRequestFrom(updatedEmployee),
     );
+    await PayrollReminderService.syncEmployee(updatedEmployee);
   }
 
   void _setLoading(bool isLoading) {

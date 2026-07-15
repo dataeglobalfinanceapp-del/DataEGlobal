@@ -12,6 +12,7 @@ import 'package:savetep/features/auth/screens/payroll_screen/payroll_models.dart
 import 'package:savetep/features/auth/screens/payroll_screen/payroll_service.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
+import 'package:savetep/services/reminder_service.dart';
 
 void main() {
   setUp(() {
@@ -19,6 +20,7 @@ void main() {
     LiabilityService.resetForTesting();
     PayrollService.resetForTesting();
     EmployeeService.resetForTesting();
+    ReminderService.resetForTesting();
   });
 
   tearDown(() {
@@ -26,6 +28,7 @@ void main() {
     LiabilityService.resetForTesting(disablePersistence: false);
     PayrollService.resetForTesting(disablePersistence: false);
     EmployeeService.resetForTesting(disablePersistence: false);
+    ReminderService.resetForTesting(disablePersistence: false);
     LocalStore.resetOverridesForTesting();
   });
 
@@ -253,6 +256,16 @@ void main() {
         .loadEmployees();
     expect(savedEmployees.first.payrollSetting, setting);
     expect(savedEmployees.last.payrollSetting, isNull);
+
+    final List<ReminderRecord> reminders =
+        await ReminderService.loadReminders();
+    expect(reminders.first.payee, 'Do payroll for Maya Rodriguez');
+    expect(reminders.first.category, 'Payroll');
+    expect(reminders.first.date, DateTime(2026, 7, 18));
+    expect(
+      reminders.map((ReminderRecord record) => record.payee).toSet(),
+      <String>{'Do payroll for Maya Rodriguez'},
+    );
 
     final PayrollController reloadedController = PayrollController();
     addTearDown(reloadedController.dispose);

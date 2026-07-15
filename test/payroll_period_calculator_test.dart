@@ -29,6 +29,28 @@ void main() {
     },
   );
 
+  test('saved first period end date anchors bi weekly periods', () {
+    final setting = EmployeePayrollSetting(
+      schedule: EmployeePayrollSchedule.biWeekly,
+      endingDay: EmployeePayrollEndingDay.sunday,
+      firstPeriodEndDate: DateTime(2026, 7, 19),
+    );
+
+    final firstPeriod = PayrollPeriodCalculator.currentPeriod(
+      dateHire: '07/06/26',
+      setting: setting,
+      asOf: DateTime(2026, 7, 15),
+    );
+    final nextPeriod = PayrollPeriodCalculator.currentPeriod(
+      dateHire: '07/06/26',
+      setting: setting,
+      asOf: DateTime(2026, 7, 20),
+    );
+
+    expect(firstPeriod?.displayText, '07/06/26 - 07/19/26');
+    expect(nextPeriod?.displayText, '07/20/26 - 08/02/26');
+  });
+
   test('weekly periods advance by seven days on the selected ending day', () {
     final setting = EmployeePayrollSetting(
       schedule: EmployeePayrollSchedule.weekly,
@@ -115,5 +137,28 @@ void main() {
         );
 
     expect(firstPeriodEnd, DateTime(2026, 2, 28));
+  });
+
+  test('period end dates for year use configured payroll schedule', () {
+    final setting = EmployeePayrollSetting(
+      schedule: EmployeePayrollSchedule.semiMonthly,
+      firstSemiMonthlyEndingDay: 10,
+      secondSemiMonthlyEndingDay: 25,
+      firstPeriodEndDate: DateTime(2026, 7, 25),
+    );
+
+    final dates = PayrollPeriodCalculator.periodEndDatesForYear(
+      dateHire: '07/13/2026',
+      setting: setting,
+      year: 2026,
+    );
+
+    expect(dates.take(5).map(PayrollPeriodCalculator.formatShortDate), <String>[
+      '07/25/26',
+      '08/10/26',
+      '08/25/26',
+      '09/10/26',
+      '09/25/26',
+    ]);
   });
 }

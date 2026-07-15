@@ -136,11 +136,11 @@ class PayrollPeriodCalculator {
       return PayrollPayPeriod(start: hireDate, end: firstPeriodEnd);
     }
 
-    DateTime start = firstPeriodEnd.add(const Duration(days: 1));
+    DateTime start = _addCalendarDays(firstPeriodEnd, 1);
     DateTime? end = nextPeriodEndAfter(firstPeriodEnd, setting);
     int guard = 0;
     while (end != null && activeDate.isAfter(end) && guard < 2400) {
-      start = end.add(const Duration(days: 1));
+      start = _addCalendarDays(end, 1);
       end = nextPeriodEndAfter(end, setting);
       guard += 1;
     }
@@ -149,11 +149,52 @@ class PayrollPeriodCalculator {
     return PayrollPayPeriod(start: start, end: end);
   }
 
+  static List<DateTime> periodEndDatesForYear({
+    required String dateHire,
+    required EmployeePayrollSetting? setting,
+    required int year,
+  }) {
+    final DateTime? hireDate = parseEmployeeDate(dateHire);
+    if (hireDate == null ||
+        setting == null ||
+        setting.schedule == EmployeePayrollSchedule.none) {
+      return const <DateTime>[];
+    }
+
+    DateTime? periodEnd = calculatedFirstPeriodEndDate(
+      hireDate: hireDate,
+      setting: setting,
+    );
+    if (periodEnd == null || periodEnd.isBefore(hireDate)) {
+      return const <DateTime>[];
+    }
+
+    final DateTime yearEnd = DateTime(year, 12, 31);
+    final List<DateTime> dates = <DateTime>[];
+    int guard = 0;
+    while (periodEnd != null && !periodEnd.isAfter(yearEnd) && guard < 2400) {
+      if (periodEnd.year == year) {
+        dates.add(periodEnd);
+      }
+      periodEnd = nextPeriodEndAfter(periodEnd, setting);
+      guard += 1;
+    }
+
+    return List<DateTime>.unmodifiable(dates);
+  }
+
   static DateTime? calculatedFirstPeriodEndDate({
     required DateTime hireDate,
     required EmployeePayrollSetting setting,
   }) {
     final DateTime start = _dateOnly(hireDate);
+    final DateTime configuredFirstPeriodEnd = _dateOnly(
+      setting.firstPeriodEndDate,
+    );
+    if (!configuredFirstPeriodEnd.isBefore(start)) {
+      return configuredFirstPeriodEnd;
+    }
+
     if (setting.schedule.usesWeekdayEndingDay) {
       final EmployeePayrollEndingDay? endingDay = setting.endingDay;
       if (endingDay == null) return null;
@@ -198,7 +239,7 @@ class PayrollPeriodCalculator {
     if (setting.schedule.usesWeekdayEndingDay) {
       final int? days = setting.schedule.periodLengthDays;
       if (days == null) return null;
-      return end.add(Duration(days: days));
+      return _addCalendarDays(end, days);
     }
 
     if (setting.schedule.usesMonthlyEndingDay) {
@@ -238,7 +279,7 @@ class PayrollPeriodCalculator {
   }) {
     final DateTime start = _dateOnly(hireDate);
     final int daysUntilEndingDay = (endingDay.weekday - start.weekday) % 7;
-    return start.add(Duration(days: daysUntilEndingDay));
+    return _addCalendarDays(start, daysUntilEndingDay);
   }
 
   static DateTime firstPeriodEndDateForMonthlyEndingDay({
@@ -304,6 +345,10 @@ class PayrollPeriodCalculator {
 
   static DateTime dateOnly(DateTime value) => _dateOnly(value);
 
+  static DateTime addCalendarDays(DateTime value, int days) {
+    return _addCalendarDays(value, days);
+  }
+
   static bool _isValidMonthDay(int? day) {
     return day != null && day >= 1 && day <= 31;
   }
@@ -348,5 +393,10 @@ class PayrollPeriodCalculator {
 
   static DateTime _dateOnly(DateTime value) {
     return DateTime(value.year, value.month, value.day);
+  }
+
+  static DateTime _addCalendarDays(DateTime value, int days) {
+    final DateTime date = _dateOnly(value);
+    return DateTime(date.year, date.month, date.day + days);
   }
 }

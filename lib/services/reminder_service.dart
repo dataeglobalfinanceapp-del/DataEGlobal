@@ -11,6 +11,8 @@ enum ReminderDeleteScope { single, series }
 enum ReminderEditScope { single, series }
 
 class ReminderService {
+  static const String payrollReminderSource = 'payroll';
+
   static ReminderRepository _repository = const LocalReminderRepository();
 
   static final List<ReminderRecord> _reminders = [];
@@ -116,6 +118,76 @@ class ReminderService {
       upToYear: _maxInt(now.year, series.startDate.year),
     );
     _deleteRemindersBeforeCurrentMonth(now);
+    await _persist();
+  }
+
+  static Future<void> syncPayrollReminderSeries({
+    required String seriesId,
+    required Iterable<DateTime> reminderDates,
+    required String title,
+    required String frequency,
+    required double amount,
+  }) async {
+    final String normalizedSeriesId = seriesId.trim();
+    if (normalizedSeriesId.isEmpty) return;
+
+    final DateTime now = AppClock.now;
+    final DateTime today = _dateOnly(now);
+    await _ensureLoaded();
+
+    final Map<String, DateTime> desiredDates = <String, DateTime>{};
+    for (final DateTime date in reminderDates) {
+      final DateTime reminderDate = _dateOnly(date);
+      if (reminderDate.isBefore(today)) continue;
+      desiredDates[_occurrenceKey(normalizedSeriesId, reminderDate)] =
+          reminderDate;
+    }
+
+    _series.remove(normalizedSeriesId);
+    _reminders.removeWhere((ReminderRecord record) {
+      return record.isPayrollReminder &&
+          record.recurringSeriesId == normalizedSeriesId &&
+          !_dateOnly(record.date).isBefore(today);
+    });
+
+    final List<MapEntry<String, DateTime>> occurrences =
+        desiredDates.entries.toList()..sort((
+          MapEntry<String, DateTime> left,
+          MapEntry<String, DateTime> right,
+        ) {
+          return left.value.compareTo(right.value);
+        });
+
+    final String payee = title.trim().isEmpty ? 'Do payroll' : title.trim();
+    for (final MapEntry<String, DateTime> occurrence in occurrences) {
+      if (_deletedRecurringKeys.contains(occurrence.key)) continue;
+      if (_reminders.any(
+        (ReminderRecord record) =>
+            record.recurringOccurrenceKey == occurrence.key,
+      )) {
+        continue;
+      }
+
+      _reminders.add(
+        ReminderRecord(
+          id: _newId(
+            'reminder-$normalizedSeriesId-${occurrence.value.year}-'
+            '${occurrence.value.month}-${occurrence.value.day}',
+          ),
+          date: occurrence.value,
+          category: 'Payroll',
+          amount: amount < 0 ? 0 : amount,
+          reminderCount: frequency,
+          payee: payee,
+          alertEnabled: true,
+          createdAt: now,
+          recurringSeriesId: normalizedSeriesId,
+          recurringOccurrenceKey: occurrence.key,
+          source: payrollReminderSource,
+        ),
+      );
+    }
+
     await _persist();
   }
 
@@ -258,6 +330,7 @@ class ReminderService {
 
     for (var i = 0; i < _reminders.length; i++) {
       final record = _reminders[i];
+      if (record.isPayrollReminder) continue;
       if (!RecurrenceSchedule.isRecurringFrequency(record.reminderCount)) {
         continue;
       }
@@ -318,6 +391,11 @@ class ReminderService {
     var changed = false;
 
     for (final ReminderRecord record in _reminders) {
+      if (record.isPayrollReminder) {
+        active.add(record);
+        continue;
+      }
+
       if (!_dateOnly(record.date).isBefore(currentMonthStart)) {
         active.add(record);
         continue;
@@ -397,7 +475,8 @@ class ReminderService {
     ReminderRecord record, {
     required int year,
   }) {
-    if (!record.isRecurring ||
+    if (record.isPayrollReminder ||
+        !record.isRecurring ||
         !RecurrenceSchedule.isRecurringFrequency(record.reminderCount)) {
       return 0;
     }
@@ -525,6 +604,7 @@ class ReminderRecord {
   final DateTime createdAt;
   final String recurringSeriesId;
   final String recurringOccurrenceKey;
+  final String source;
 
   const ReminderRecord({
     required this.id,
@@ -537,6 +617,7 @@ class ReminderRecord {
     required this.createdAt,
     this.recurringSeriesId = '',
     this.recurringOccurrenceKey = '',
+    this.source = '',
   });
 
   factory ReminderRecord.fromJson(Map<dynamic, dynamic> json) {
@@ -553,10 +634,13 @@ class ReminderRecord {
       createdAt: _asDate(json['createdAt']),
       recurringSeriesId: seriesId,
       recurringOccurrenceKey: _asString(json['recurringOccurrenceKey']),
+      source: _asString(json['source']),
     );
   }
 
   bool get isRecurring => recurringSeriesId.isNotEmpty;
+
+  bool get isPayrollReminder => source == ReminderService.payrollReminderSource;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -569,6 +653,7 @@ class ReminderRecord {
     'createdAt': createdAt.toIso8601String(),
     'recurringSeriesId': recurringSeriesId,
     'recurringOccurrenceKey': recurringOccurrenceKey,
+    if (source.isNotEmpty) 'source': source,
   };
 
   ReminderRecord copyWith({
@@ -580,6 +665,7 @@ class ReminderRecord {
     bool? alertEnabled,
     String? recurringSeriesId,
     String? recurringOccurrenceKey,
+    String? source,
   }) {
     return ReminderRecord(
       id: id,
@@ -593,6 +679,7 @@ class ReminderRecord {
       recurringSeriesId: recurringSeriesId ?? this.recurringSeriesId,
       recurringOccurrenceKey:
           recurringOccurrenceKey ?? this.recurringOccurrenceKey,
+      source: source ?? this.source,
     );
   }
 }
