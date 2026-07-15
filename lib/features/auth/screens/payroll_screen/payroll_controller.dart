@@ -7,6 +7,7 @@ import 'package:savetep/domain/services/employee_service.dart';
 import 'package:savetep/services/liability_service.dart';
 
 import 'payroll_models.dart';
+import 'payroll_expense_service.dart';
 import 'payroll_pay_date_validator.dart';
 import 'payroll_reminder_service.dart';
 import 'payroll_service.dart';
@@ -178,10 +179,13 @@ class PayrollController extends ChangeNotifier {
     await _employeeService.saveEmployee(
       _saveEmployeeRequestFrom(updatedEmployee),
     );
+    if (shouldConfirmPayroll) {
+      await PayrollExpenseService.syncConfirmedEmployee(updatedEmployee);
+    }
     if (payrollStateChanged && _payroll.allEmployeesConfirmed) {
       await _saveConfirmedPayroll();
     } else if (payrollStateChanged) {
-      await _saveDraftPayroll(clearPayrollExpense: true);
+      await _saveDraftPayroll();
     }
   }
 
@@ -212,6 +216,16 @@ class PayrollController extends ChangeNotifier {
       _saveEmployeeRequestFrom(updatedEmployee),
     );
     await PayrollReminderService.syncEmployee(updatedEmployee);
+    if (updatedEmployee.isPayrollConfirmed) {
+      await PayrollExpenseService.syncConfirmedEmployee(updatedEmployee);
+      final List<ExpenseRecord> expenses =
+          await LiabilityService.loadExpenses();
+      if (_isDisposed) return;
+
+      _expenses = List<ExpenseRecord>.unmodifiable(expenses);
+      _rebuildState();
+      _notify();
+    }
   }
 
   void _setLoading(bool isLoading) {
@@ -241,9 +255,12 @@ class PayrollController extends ChangeNotifier {
           0,
           (double total, ExpenseRecord record) => total + record.totalAmount,
         );
-    final double projectedPayrollExpense = _payroll.totalPay > 0
-        ? _payroll.totalPay
-        : 0;
+    final double projectedPayrollExpense = _payroll.employees
+        .where((PayrollEmployee employee) => !employee.isPayrollConfirmed)
+        .fold<double>(
+          0,
+          (double total, PayrollEmployee employee) => total + employee.totalPay,
+        );
     final double totalExpenses =
         totalExpensesBeforePayroll + projectedPayrollExpense;
 
@@ -274,10 +291,9 @@ class PayrollController extends ChangeNotifier {
     _notify();
   }
 
-  Future<void> _saveDraftPayroll({required bool clearPayrollExpense}) async {
+  Future<void> _saveDraftPayroll() async {
     final PayrollRecord savedPayroll = await PayrollService.savePayrollDraft(
       _payroll,
-      clearPayrollExpense: clearPayrollExpense,
     );
     final List<DepositRecord> deposits = await LiabilityService.loadDeposits();
     final List<ExpenseRecord> expenses = await LiabilityService.loadExpenses();

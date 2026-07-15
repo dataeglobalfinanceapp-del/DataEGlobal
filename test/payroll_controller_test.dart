@@ -80,14 +80,14 @@ void main() {
   );
 
   test(
-    'confirming all employee payrolls syncs expense and persists values',
+    'confirming employee payroll syncs one employee period expense',
     () async {
+      AppClock.set(DateTime(2026, 6, 21));
       final PayrollController controller = PayrollController();
       addTearDown(controller.dispose);
 
       await _seedPayrollEmployees();
       await controller.load();
-      controller.setPayDate(DateTime(2026, 6, 29));
       final firstEmployee = controller.state.payroll.employees.first;
 
       await controller.updateEmployee(
@@ -103,7 +103,12 @@ void main() {
       var payrollExpenses = (await LiabilityService.loadExpenses())
           .where((record) => record.category == 'Payroll')
           .toList(growable: false);
-      expect(payrollExpenses, isEmpty);
+      expect(payrollExpenses, hasLength(1));
+      expect(payrollExpenses.single.checkNumber, contains('employee-alex'));
+      expect(payrollExpenses.single.payee, 'Payroll - Alex Morgan');
+      expect(payrollExpenses.single.totalAmount, 1107);
+      expect(payrollExpenses.single.transactionDate, DateTime(2026, 6, 21));
+      final String payrollExpenseId = payrollExpenses.single.id;
 
       for (final employee in controller.state.payroll.employees.skip(1)) {
         await controller.updateEmployee(employee.id, confirmPayroll: true);
@@ -114,7 +119,7 @@ void main() {
           .toList(growable: false);
       expect(payrollExpenses, hasLength(1));
       expect(payrollExpenses.single.totalAmount, 1107);
-      expect(payrollExpenses.single.transactionDate, DateTime(2026, 6, 29));
+      expect(payrollExpenses.single.id, payrollExpenseId);
 
       await controller.updateEmployee(
         firstEmployee.id,
@@ -130,6 +135,7 @@ void main() {
           .where((record) => record.category == 'Payroll')
           .toList(growable: false);
       expect(payrollExpenses, hasLength(1));
+      expect(payrollExpenses.single.id, payrollExpenseId);
       expect(payrollExpenses.single.totalAmount, 1108);
 
       final PayrollController reloadedController = PayrollController();
@@ -321,7 +327,7 @@ class _InMemoryEmployeeRepository implements EmployeeRepository {
 Future<void> _seedPayrollEmployees() async {
   final EmployeeService service = EmployeeService();
   await service.saveEmployee(
-    const SaveEmployeeRequest(
+    SaveEmployeeRequest(
       id: 'employee-alex',
       fullName: 'Alex Morgan',
       birthday: '04/22/1988',
@@ -330,10 +336,15 @@ Future<void> _seedPayrollEmployees() async {
       dateHire: '06/01/2025',
       jobType: 'Hourly',
       rate: 20,
+      payrollSetting: EmployeePayrollSetting(
+        schedule: EmployeePayrollSchedule.weekly,
+        endingDay: EmployeePayrollEndingDay.sunday,
+        firstPeriodEndDate: DateTime(2025, 6, 8),
+      ),
     ),
   );
   await service.saveEmployee(
-    const SaveEmployeeRequest(
+    SaveEmployeeRequest(
       id: 'employee-jordan',
       fullName: 'Jordan Lee',
       birthday: '11/08/1991',
@@ -342,6 +353,11 @@ Future<void> _seedPayrollEmployees() async {
       dateHire: '06/01/2025',
       jobType: 'Hourly',
       rate: 18,
+      payrollSetting: EmployeePayrollSetting(
+        schedule: EmployeePayrollSchedule.weekly,
+        endingDay: EmployeePayrollEndingDay.sunday,
+        firstPeriodEndDate: DateTime(2025, 6, 8),
+      ),
     ),
   );
 }

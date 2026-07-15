@@ -78,6 +78,9 @@ class AwsTransactionRepository implements TransactionRepository {
     return TransactionSnapshot(
       deposits: _mapListFrom(decoded['deposits']),
       expenses: _mapListFrom(decoded['expenses']),
+      scheduledPayrollExpenses: _mapListFrom(
+        decoded['scheduledPayrollExpenses'],
+      ),
       liabilities: _mapListFrom(decoded['liabilities']),
       defaultBudgetSeedVersion: _asInt(decoded['defaultBudgetSeedVersion']),
       defaultBudgetSeedMonth: _asInt(decoded['defaultBudgetSeedMonthKey']),

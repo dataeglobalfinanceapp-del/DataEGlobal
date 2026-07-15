@@ -39,84 +39,58 @@ void main() {
     },
   );
 
-  test('saving payroll syncs one payroll expense', () async {
-    await LiabilityService.saveDeposit(
-      orderNumber: 'DEP-1',
-      totalAmount: 5000,
-      creditDeposit: 5000,
-      cash: 0,
-      giftCard: 0,
-      other: 0,
-      transactionDate: DateTime(2026, 6, 1),
-      isManual: true,
-    );
-    await LiabilityService.saveExpense(
-      checkNumber: 'EXP-1',
-      totalAmount: 500,
-      transactionDate: DateTime(2026, 6, 10),
-      category: 'Utilities',
-      payee: 'Utilities',
-      isManual: true,
-    );
+  test(
+    'saving payroll persists without syncing an aggregate expense',
+    () async {
+      final saved = await PayrollService.savePayroll(
+        PayrollRecord(
+          id: 'payroll-test',
+          payDate: DateTime(2026, 6, 20),
+          employees: const <PayrollEmployee>[
+            PayrollEmployee(
+              id: 'employee-1',
+              name: 'Alex',
+              rate: 20,
+              regularHours: 40,
+              overtimeHours: 10,
+              commission: 50,
+              tips: 25,
+            ),
+          ],
+        ),
+      );
 
-    final saved = await PayrollService.savePayroll(
-      PayrollRecord(
-        id: 'payroll-test',
-        payDate: DateTime(2026, 6, 20),
-        employees: const <PayrollEmployee>[
-          PayrollEmployee(
-            id: 'employee-1',
-            name: 'Alex',
-            rate: 20,
-            regularHours: 40,
-            overtimeHours: 10,
-            commission: 50,
-            tips: 25,
-          ),
-        ],
-      ),
-    );
+      expect(saved.syncedExpenseId, isEmpty);
 
-    expect(saved.syncedExpenseId, isNotEmpty);
+      final expenses = await LiabilityService.loadExpenses();
+      final payrollExpenses = expenses
+          .where((record) => record.category == 'Payroll')
+          .toList(growable: false);
 
-    final expenses = await LiabilityService.loadExpenses();
-    final payrollExpenses = expenses
-        .where((record) => record.category == 'Payroll')
-        .toList(growable: false);
+      expect(payrollExpenses, isEmpty);
 
-    expect(payrollExpenses, hasLength(1));
-    expect(payrollExpenses.single.id, saved.syncedExpenseId);
-    expect(payrollExpenses.single.checkNumber, 'PAYROLL-payroll-test');
-    expect(payrollExpenses.single.totalAmount, 1175);
-    expect(_dateKey(payrollExpenses.single.transactionDate), '2026-06-20');
+      final updated = await PayrollService.savePayroll(
+        saved.copyWith(
+          payDate: DateTime(2026, 6, 21),
+          employees: const <PayrollEmployee>[
+            PayrollEmployee(
+              id: 'employee-1',
+              name: 'Alex',
+              rate: 25,
+              regularHours: 40,
+            ),
+          ],
+        ),
+      );
 
-    final updated = await PayrollService.savePayroll(
-      saved.copyWith(
-        payDate: DateTime(2026, 6, 21),
-        employees: const <PayrollEmployee>[
-          PayrollEmployee(
-            id: 'employee-1',
-            name: 'Alex',
-            rate: 25,
-            regularHours: 40,
-          ),
-        ],
-      ),
-    );
-
-    final updatedExpenses = await LiabilityService.loadExpenses();
-    final updatedPayrollExpenses = updatedExpenses
-        .where((record) => record.category == 'Payroll')
-        .toList(growable: false);
-    expect(updatedPayrollExpenses, hasLength(1));
-    expect(updatedPayrollExpenses.single.id, saved.syncedExpenseId);
-    expect(updatedPayrollExpenses.single.id, updated.syncedExpenseId);
-    expect(updatedPayrollExpenses.single.totalAmount, 1000);
-    expect(
-      _dateKey(updatedPayrollExpenses.single.transactionDate),
-      '2026-06-21',
-    );
-  });
+      final updatedExpenses = await LiabilityService.loadExpenses();
+      final payrollExpensesAfterUpdate = updatedExpenses
+          .where((record) => record.category == 'Payroll')
+          .toList(growable: false);
+      expect(updated.syncedExpenseId, isEmpty);
+      expect(payrollExpensesAfterUpdate, isEmpty);
+    },
+  );
 
   test('saving a draft normalizes invalid pay dates before storage', () async {
     final saved = await PayrollService.savePayrollDraft(
@@ -186,10 +160,4 @@ void main() {
       expect(reloaded.employees.single.name, 'New Employee');
     },
   );
-}
-
-String _dateKey(DateTime date) {
-  return '${date.year}-'
-      '${date.month.toString().padLeft(2, '0')}-'
-      '${date.day.toString().padLeft(2, '0')}';
 }

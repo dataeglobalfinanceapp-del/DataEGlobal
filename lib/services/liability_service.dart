@@ -159,9 +159,141 @@ class LiabilityService {
     return syncedExpense.id;
   }
 
+  static Future<String?> syncEmployeePayrollExpense({
+    required String expenseId,
+    required double totalAmount,
+    required DateTime transactionDate,
+    required String payee,
+  }) async {
+    final String normalizedExpenseId = expenseId.trim();
+    if (normalizedExpenseId.isEmpty) return null;
+
+    final state = await _loadPreparedState();
+    final DateTime expenseDate = RecurrenceSchedule.dateOnly(transactionDate);
+    final DateTime today = RecurrenceSchedule.dateOnly(AppClock.now);
+    final int activeIndex = _payrollExpenseIndexById(
+      state.expenses,
+      normalizedExpenseId,
+    );
+    final int scheduledIndex = _payrollExpenseIndexById(
+      state.scheduledPayrollExpenses,
+      normalizedExpenseId,
+    );
+
+    if (totalAmount <= 0) {
+      if (activeIndex != -1) {
+        final ExpenseRecord removed = state.expenses.removeAt(activeIndex);
+        _removeExpenseLiabilities(state, <ExpenseRecord>[removed]);
+      }
+      if (scheduledIndex != -1) {
+        state.scheduledPayrollExpenses.removeAt(scheduledIndex);
+      }
+      await _saveState(state);
+      _notifyDataChanged();
+      return null;
+    }
+
+    final ExpenseRecord payrollExpense = ExpenseRecord(
+      id: normalizedExpenseId,
+      checkNumber: normalizedExpenseId,
+      totalAmount: totalAmount,
+      transactionDate: expenseDate,
+      category: 'Payroll',
+      payee: payee.trim().isEmpty ? 'Payroll' : payee.trim(),
+      isManual: true,
+    );
+
+    if (expenseDate.isAfter(today)) {
+      if (activeIndex != -1) {
+        final ExpenseRecord removed = state.expenses.removeAt(activeIndex);
+        _removeExpenseLiabilities(state, <ExpenseRecord>[removed]);
+      }
+      _upsertPayrollExpense(state.scheduledPayrollExpenses, payrollExpense);
+      await _saveState(state);
+      _notifyDataChanged();
+      return payrollExpense.id;
+    }
+
+    if (scheduledIndex != -1) {
+      state.scheduledPayrollExpenses.removeAt(scheduledIndex);
+    }
+    _upsertActivePayrollExpense(state, payrollExpense);
+
+    await _saveState(state);
+    _notifyDataChanged();
+    return payrollExpense.id;
+  }
+
   static void _addExpense(_TransactionState state, ExpenseRecord expense) {
     state.expenses.add(expense);
     _addExpenseLiability(state, expense);
+  }
+
+  static bool _activateDueScheduledPayrollExpenses(
+    _TransactionState state,
+    DateTime now,
+  ) {
+    final DateTime today = RecurrenceSchedule.dateOnly(now);
+    final List<ExpenseRecord> futureScheduled = <ExpenseRecord>[];
+    var changed = false;
+
+    for (final ExpenseRecord expense in state.scheduledPayrollExpenses) {
+      final DateTime expenseDate = RecurrenceSchedule.dateOnly(
+        expense.transactionDate,
+      );
+      if (expenseDate.isAfter(today)) {
+        futureScheduled.add(expense);
+        continue;
+      }
+
+      _upsertActivePayrollExpense(state, expense);
+      changed = true;
+    }
+
+    if (!changed) return false;
+
+    state.scheduledPayrollExpenses
+      ..clear()
+      ..addAll(futureScheduled);
+    return true;
+  }
+
+  static void _upsertActivePayrollExpense(
+    _TransactionState state,
+    ExpenseRecord expense,
+  ) {
+    final int index = _payrollExpenseIndexById(state.expenses, expense.id);
+    if (index == -1) {
+      _addExpense(state, expense);
+      return;
+    }
+
+    final ExpenseRecord oldExpense = state.expenses[index];
+    _removeExpenseLiabilities(state, <ExpenseRecord>[oldExpense]);
+    state.expenses[index] = expense;
+    _addExpenseLiability(state, expense);
+  }
+
+  static void _upsertPayrollExpense(
+    List<ExpenseRecord> expenses,
+    ExpenseRecord expense,
+  ) {
+    final int index = _payrollExpenseIndexById(expenses, expense.id);
+    if (index == -1) {
+      expenses.add(expense);
+    } else {
+      expenses[index] = expense;
+    }
+  }
+
+  static int _payrollExpenseIndexById(
+    List<ExpenseRecord> expenses,
+    String expenseId,
+  ) {
+    return expenses.indexWhere(
+      (ExpenseRecord record) =>
+          record.id == expenseId || record.checkNumber == expenseId,
+    );
   }
 
   static void _addExpenseLiability(
@@ -738,7 +870,11 @@ class LiabilityService {
     for (final expense in syncedExpenses) {
       _addExpense(state, expense);
     }
-    return seeded || syncedExpenses.isNotEmpty;
+    final activatedPayrollExpenses = _activateDueScheduledPayrollExpenses(
+      state,
+      createdAt,
+    );
+    return seeded || syncedExpenses.isNotEmpty || activatedPayrollExpenses;
   }
 
   static bool _seedDefaultBudgetDataIfNeeded(
@@ -1204,6 +1340,7 @@ class LiabilityService {
 class _TransactionState {
   final List<DepositRecord> deposits;
   final List<ExpenseRecord> expenses;
+  final List<ExpenseRecord> scheduledPayrollExpenses;
   final List<LiabilityRecord> liabilities;
   int defaultBudgetSeedVersion;
   int defaultBudgetSeedMonth;
@@ -1211,6 +1348,7 @@ class _TransactionState {
   _TransactionState({
     required this.deposits,
     required this.expenses,
+    required this.scheduledPayrollExpenses,
     required this.liabilities,
     required this.defaultBudgetSeedVersion,
     required this.defaultBudgetSeedMonth,
@@ -1221,6 +1359,9 @@ class _TransactionState {
       return _TransactionState(
         deposits: snapshot.deposits.map(DepositRecord.fromJson).toList(),
         expenses: snapshot.expenses.map(ExpenseRecord.fromJson).toList(),
+        scheduledPayrollExpenses: snapshot.scheduledPayrollExpenses
+            .map(ExpenseRecord.fromJson)
+            .toList(),
         liabilities: snapshot.liabilities
             .map(LiabilityRecord.fromJson)
             .toList(),
@@ -1236,6 +1377,7 @@ class _TransactionState {
     return _TransactionState(
       deposits: <DepositRecord>[],
       expenses: <ExpenseRecord>[],
+      scheduledPayrollExpenses: <ExpenseRecord>[],
       liabilities: <LiabilityRecord>[],
       defaultBudgetSeedVersion: 0,
       defaultBudgetSeedMonth: 0,
@@ -1246,6 +1388,9 @@ class _TransactionState {
     return TransactionSnapshot(
       deposits: deposits.map((record) => record.toJson()),
       expenses: expenses.map((record) => record.toJson()),
+      scheduledPayrollExpenses: scheduledPayrollExpenses.map(
+        (record) => record.toJson(),
+      ),
       liabilities: liabilities.map((record) => record.toJson()),
       defaultBudgetSeedVersion: defaultBudgetSeedVersion,
       defaultBudgetSeedMonth: defaultBudgetSeedMonth,

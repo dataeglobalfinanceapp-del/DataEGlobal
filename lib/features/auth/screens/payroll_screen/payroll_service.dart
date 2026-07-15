@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:savetep/data/local/local_store.dart';
-import 'package:savetep/services/liability_service.dart';
 
 import 'payroll_models.dart';
 import 'payroll_pay_date_validator.dart';
@@ -53,15 +52,7 @@ class PayrollService {
     PayrollRecord saved = payroll.id.trim().isEmpty
         ? payroll.copyWith(id: _newId('payroll'))
         : payroll;
-    saved = _withValidPayDate(saved);
-
-    final String? syncedExpenseId = await LiabilityService.syncPayrollExpense(
-      payrollId: saved.id,
-      existingExpenseId: saved.syncedExpenseId,
-      totalAmount: saved.totalPay,
-      payDate: saved.payDate,
-    );
-    saved = saved.copyWith(syncedExpenseId: syncedExpenseId ?? '');
+    saved = _withValidPayDate(saved).copyWith(syncedExpenseId: '');
 
     _upsertPayroll(saved);
 
@@ -69,26 +60,13 @@ class PayrollService {
     return saved;
   }
 
-  static Future<PayrollRecord> savePayrollDraft(
-    PayrollRecord payroll, {
-    bool clearPayrollExpense = false,
-  }) async {
+  static Future<PayrollRecord> savePayrollDraft(PayrollRecord payroll) async {
     await _ensureLoaded();
 
     PayrollRecord saved = payroll.id.trim().isEmpty
         ? payroll.copyWith(id: _newId('payroll'))
         : payroll;
-    saved = _withValidPayDate(saved);
-
-    if (clearPayrollExpense && saved.syncedExpenseId.trim().isNotEmpty) {
-      await LiabilityService.syncPayrollExpense(
-        payrollId: saved.id,
-        existingExpenseId: saved.syncedExpenseId,
-        totalAmount: 0,
-        payDate: saved.payDate,
-      );
-      saved = saved.copyWith(syncedExpenseId: '');
-    }
+    saved = _withValidPayDate(saved).copyWith(syncedExpenseId: '');
 
     _upsertPayroll(saved);
     await _persist();

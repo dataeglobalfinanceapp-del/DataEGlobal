@@ -13,6 +13,7 @@ class LocalTransactionRepository implements TransactionRepository {
   final bool disablePersistenceForTesting;
   final List<DepositRecord> _deposits = [];
   final List<ExpenseRecord> _expenses = [];
+  final List<ExpenseRecord> _scheduledPayrollExpenses = [];
   final List<LiabilityRecord> _liabilities = [];
 
   int _defaultBudgetSeedVersion = 0;
@@ -164,6 +165,9 @@ class LocalTransactionRepository implements TransactionRepository {
     return TransactionSnapshot(
       deposits: _deposits.map((record) => record.toJson()),
       expenses: _expenses.map((record) => record.toJson()),
+      scheduledPayrollExpenses: _scheduledPayrollExpenses.map(
+        (record) => record.toJson(),
+      ),
       liabilities: _liabilities.map((record) => record.toJson()),
       defaultBudgetSeedVersion: _defaultBudgetSeedVersion,
       defaultBudgetSeedMonth: _defaultBudgetSeedMonth,
@@ -196,6 +200,9 @@ class LocalTransactionRepository implements TransactionRepository {
         TransactionSnapshot(
           deposits: _mapListFrom(decoded['deposits']),
           expenses: _mapListFrom(decoded['expenses']),
+          scheduledPayrollExpenses: _mapListFrom(
+            decoded['scheduledPayrollExpenses'],
+          ),
           liabilities: _mapListFrom(decoded['liabilities']),
           defaultBudgetSeedVersion: _asInt(decoded['defaultBudgetSeedVersion']),
           defaultBudgetSeedMonth: _asInt(decoded['defaultBudgetSeedMonthKey']),
@@ -215,6 +222,9 @@ class LocalTransactionRepository implements TransactionRepository {
     _expenses
       ..clear()
       ..addAll(snapshot.expenses.map(ExpenseRecord.fromJson));
+    _scheduledPayrollExpenses
+      ..clear()
+      ..addAll(snapshot.scheduledPayrollExpenses.map(ExpenseRecord.fromJson));
     _liabilities
       ..clear()
       ..addAll(snapshot.liabilities.map(LiabilityRecord.fromJson));
@@ -231,6 +241,9 @@ class LocalTransactionRepository implements TransactionRepository {
         TransactionSnapshot(
           deposits: _deposits.map((record) => record.toJson()),
           expenses: _expenses.map((record) => record.toJson()),
+          scheduledPayrollExpenses: _scheduledPayrollExpenses.map(
+            (record) => record.toJson(),
+          ),
           liabilities: _liabilities.map((record) => record.toJson()),
           defaultBudgetSeedVersion: _defaultBudgetSeedVersion,
           defaultBudgetSeedMonth: _defaultBudgetSeedMonth,

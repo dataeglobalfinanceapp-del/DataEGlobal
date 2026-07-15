@@ -6,6 +6,7 @@ import 'package:savetep/services/liability_service.dart';
 class TransactionSnapshot {
   final List<Map<String, dynamic>> deposits;
   final List<Map<String, dynamic>> expenses;
+  final List<Map<String, dynamic>> scheduledPayrollExpenses;
   final List<Map<String, dynamic>> liabilities;
   final int defaultBudgetSeedVersion;
   final int defaultBudgetSeedMonth;
@@ -13,16 +14,19 @@ class TransactionSnapshot {
   TransactionSnapshot({
     required Iterable<Map<String, dynamic>> deposits,
     required Iterable<Map<String, dynamic>> expenses,
+    required Iterable<Map<String, dynamic>> scheduledPayrollExpenses,
     required Iterable<Map<String, dynamic>> liabilities,
     required this.defaultBudgetSeedVersion,
     required this.defaultBudgetSeedMonth,
   }) : deposits = _immutableMapList(deposits),
        expenses = _immutableMapList(expenses),
+       scheduledPayrollExpenses = _immutableMapList(scheduledPayrollExpenses),
        liabilities = _immutableMapList(liabilities);
 
   TransactionSnapshot.empty()
     : deposits = const [],
       expenses = const [],
+      scheduledPayrollExpenses = const [],
       liabilities = const [],
       defaultBudgetSeedVersion = 0,
       defaultBudgetSeedMonth = 0;
@@ -31,6 +35,7 @@ class TransactionSnapshot {
     return {
       'deposits': deposits,
       'expenses': expenses,
+      'scheduledPayrollExpenses': scheduledPayrollExpenses,
       'liabilities': liabilities,
       'defaultBudgetSeedVersion': defaultBudgetSeedVersion,
       'defaultBudgetSeedMonthKey': defaultBudgetSeedMonth,
