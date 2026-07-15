@@ -60,16 +60,34 @@ void main() {
             schedule: EmployeePayrollSchedule.biWeekly,
             endingDay: EmployeePayrollEndingDay.sunday,
             firstPeriodEndDate: DateTime(2026, 6, 21),
+            paidAfterPeriodEndDays: 3,
+            remindAfterPeriodEndDays: 2,
           ),
         ),
       );
 
       expect(updated.phone, '555-4400');
       expect(updated.payrollSetting?.firstPeriodEndDate, DateTime(2026, 6, 21));
+      expect(updated.payrollSetting?.paidAfterPeriodEndDays, 3);
+      expect(updated.payrollSetting?.remindAfterPeriodEndDays, 2);
       expect((await service.loadEmployees()).single.phone, '555-4400');
       expect(
         (await service.loadEmployees()).single.payrollSetting?.schedule,
         EmployeePayrollSchedule.biWeekly,
+      );
+      expect(
+        (await service.loadEmployees())
+            .single
+            .payrollSetting
+            ?.paidAfterPeriodEndDays,
+        3,
+      );
+      expect(
+        (await service.loadEmployees())
+            .single
+            .payrollSetting
+            ?.remindAfterPeriodEndDays,
+        2,
       );
 
       expect(await service.deleteEmployee(saved.id), isTrue);

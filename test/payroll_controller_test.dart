@@ -238,6 +238,8 @@ void main() {
       firstPeriodEndDate: DateTime(2026, 7, 17),
       payDateSetting: EmployeePayDateSetting.sameDay,
       processPayrollSetting: EmployeeProcessPayrollSetting.oneDayBeforePayDate,
+      paidAfterPeriodEndDays: 4,
+      remindAfterPeriodEndDays: 1,
     );
     await controller.updateEmployeePayrollSetting('employee-maya', setting);
 

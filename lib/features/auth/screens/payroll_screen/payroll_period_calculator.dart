@@ -36,6 +36,8 @@ class PayrollPeriodCalculator {
     final EmployeeProcessPayrollSetting processPayrollSetting =
         base?.processPayrollSetting ??
         EmployeeProcessPayrollSetting.manualReview;
+    final int paidAfterPeriodEndDays = base?.paidAfterPeriodEndDays ?? 0;
+    final int remindAfterPeriodEndDays = base?.remindAfterPeriodEndDays ?? 0;
 
     if (schedule.usesWeekdayEndingDay) {
       final EmployeePayrollEndingDay endingDay =
@@ -49,6 +51,8 @@ class PayrollPeriodCalculator {
         ),
         payDateSetting: payDateSetting,
         processPayrollSetting: processPayrollSetting,
+        paidAfterPeriodEndDays: paidAfterPeriodEndDays,
+        remindAfterPeriodEndDays: remindAfterPeriodEndDays,
       );
     }
 
@@ -65,6 +69,8 @@ class PayrollPeriodCalculator {
         ),
         payDateSetting: payDateSetting,
         processPayrollSetting: processPayrollSetting,
+        paidAfterPeriodEndDays: paidAfterPeriodEndDays,
+        remindAfterPeriodEndDays: remindAfterPeriodEndDays,
       );
     }
 
@@ -89,6 +95,8 @@ class PayrollPeriodCalculator {
       ),
       payDateSetting: payDateSetting,
       processPayrollSetting: processPayrollSetting,
+      paidAfterPeriodEndDays: paidAfterPeriodEndDays,
+      remindAfterPeriodEndDays: remindAfterPeriodEndDays,
     );
   }
 

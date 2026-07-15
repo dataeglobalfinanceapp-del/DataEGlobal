@@ -114,8 +114,8 @@ void main() {
       expect(find.text('Payroll Schedule'), findsNothing);
       expect(find.text('Ending Day'), findsNothing);
       expect(find.text('First Period End Date'), findsNothing);
-      expect(find.text('Pay Date setting'), findsNothing);
-      expect(find.text('Process Payroll setting'), findsNothing);
+      expect(find.text('Paid after X days after period end'), findsNothing);
+      expect(find.text('Remind X days after period end'), findsNothing);
 
       await tester.tap(
         find.byKey(
@@ -132,8 +132,8 @@ void main() {
       expect(find.text('Payroll Schedule'), findsOneWidget);
       expect(find.text('Ending Day'), findsOneWidget);
       expect(find.text('First Period End Date'), findsOneWidget);
-      expect(find.text('Pay Date setting'), findsOneWidget);
-      expect(find.text('Process Payroll setting'), findsOneWidget);
+      expect(find.text('Paid after X days after period end'), findsOneWidget);
+      expect(find.text('Remind X days after period end'), findsOneWidget);
       expect(find.text('--/--/--'), findsOneWidget);
 
       await tester.pageBack();
@@ -538,6 +538,28 @@ void main() {
       isNull,
     );
 
+    await tester.enterText(
+      find.byKey(
+        const ValueKey<String>(
+          'payroll.settings.Paid after X days after period end',
+        ),
+      ),
+      '3',
+    );
+    await tester.enterText(
+      find.byKey(
+        const ValueKey<String>(
+          'payroll.settings.Remind X days after period end',
+        ),
+      ),
+      '2',
+    );
+    await tester.pumpAndSettle();
+    expect(
+      (await employeeService.loadEmployees()).first.payrollSetting,
+      isNull,
+    );
+
     await tester.ensureVisible(firstPeriodEndDateField);
     await tester.pumpAndSettle();
     expect(_settingsDateFieldText(tester), '03/25/24');
@@ -563,6 +585,8 @@ void main() {
       savedEmployees.first.payrollSetting?.firstPeriodEndDate,
       DateTime(2024, 3, 25),
     );
+    expect(savedEmployees.first.payrollSetting?.paidAfterPeriodEndDays, 3);
+    expect(savedEmployees.first.payrollSetting?.remindAfterPeriodEndDays, 2);
     expect(savedEmployees.last.payrollSetting, isNull);
 
     await tester.pageBack();

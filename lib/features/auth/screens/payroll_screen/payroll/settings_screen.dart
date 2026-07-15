@@ -361,8 +361,8 @@ class _PayrollEmployeeSetupScreenState
     ValueChanged<int>? onMonthlyEndingDayChanged;
     ValueChanged<int>? onFirstSemiMonthlyEndingDayChanged;
     ValueChanged<int>? onSecondSemiMonthlyEndingDayChanged;
-    ValueChanged<EmployeePayDateSetting>? onPayDateSettingChanged;
-    ValueChanged<EmployeeProcessPayrollSetting>? onProcessPayrollSettingChanged;
+    ValueChanged<int>? onPaidAfterPeriodEndDaysChanged;
+    ValueChanged<int>? onRemindAfterPeriodEndDaysChanged;
 
     if (dateHire != null) {
       onScheduleChanged = (EmployeePayrollSchedule schedule) {
@@ -443,17 +443,12 @@ class _PayrollEmployeeSetupScreenState
           ),
         );
       };
-      onPayDateSettingChanged = (EmployeePayDateSetting payDateSetting) {
-        _updateDraft(editableSetting.copyWith(payDateSetting: payDateSetting));
+      onPaidAfterPeriodEndDaysChanged = (int days) {
+        _updateDraft(editableSetting.copyWith(paidAfterPeriodEndDays: days));
       };
-      onProcessPayrollSettingChanged =
-          (EmployeeProcessPayrollSetting processPayrollSetting) {
-            _updateDraft(
-              editableSetting.copyWith(
-                processPayrollSetting: processPayrollSetting,
-              ),
-            );
-          };
+      onRemindAfterPeriodEndDaysChanged = (int days) {
+        _updateDraft(editableSetting.copyWith(remindAfterPeriodEndDays: days));
+      };
     }
 
     return Scaffold(
@@ -503,9 +498,10 @@ class _PayrollEmployeeSetupScreenState
                   onFirstPeriodEndDateTap: canEditPeriod
                       ? _pickFirstPeriodEndDate
                       : null,
-                  onPayDateSettingChanged: onPayDateSettingChanged,
-                  onProcessPayrollSettingChanged:
-                      onProcessPayrollSettingChanged,
+                  onPaidAfterPeriodEndDaysChanged:
+                      onPaidAfterPeriodEndDaysChanged,
+                  onRemindAfterPeriodEndDaysChanged:
+                      onRemindAfterPeriodEndDaysChanged,
                 ),
                 const SizedBox(height: 22),
                 _PayrollSetupActions(
@@ -601,9 +597,8 @@ class _PayrollSetupFormFields extends StatelessWidget {
   final ValueChanged<int>? onFirstSemiMonthlyEndingDayChanged;
   final ValueChanged<int>? onSecondSemiMonthlyEndingDayChanged;
   final VoidCallback? onFirstPeriodEndDateTap;
-  final ValueChanged<EmployeePayDateSetting>? onPayDateSettingChanged;
-  final ValueChanged<EmployeeProcessPayrollSetting>?
-  onProcessPayrollSettingChanged;
+  final ValueChanged<int>? onPaidAfterPeriodEndDaysChanged;
+  final ValueChanged<int>? onRemindAfterPeriodEndDaysChanged;
 
   const _PayrollSetupFormFields({
     required this.setting,
@@ -617,8 +612,8 @@ class _PayrollSetupFormFields extends StatelessWidget {
     required this.onFirstSemiMonthlyEndingDayChanged,
     required this.onSecondSemiMonthlyEndingDayChanged,
     required this.onFirstPeriodEndDateTap,
-    required this.onPayDateSettingChanged,
-    required this.onProcessPayrollSettingChanged,
+    required this.onPaidAfterPeriodEndDaysChanged,
+    required this.onRemindAfterPeriodEndDaysChanged,
   });
 
   @override
@@ -659,24 +654,18 @@ class _PayrollSetupFormFields extends StatelessWidget {
           onTap: enabled ? onFirstPeriodEndDateTap : null,
         ),
         const SizedBox(height: 16),
-        _PayrollSettingsDropdownField<EmployeePayDateSetting>(
-          label: 'Pay Date setting',
-          value:
-              currentSetting?.payDateSetting ??
-              EmployeePayDateSetting.afterPeriodEnd,
-          options: EmployeePayDateSetting.values,
-          optionLabel: (EmployeePayDateSetting value) => value.label,
-          onChanged: enabled ? onPayDateSettingChanged : null,
+        _PayrollSettingsNumberField(
+          label: 'Paid after X days after period end',
+          value: currentSetting?.paidAfterPeriodEndDays ?? 0,
+          enabled: enabled,
+          onChanged: enabled ? onPaidAfterPeriodEndDaysChanged : null,
         ),
         const SizedBox(height: 16),
-        _PayrollSettingsDropdownField<EmployeeProcessPayrollSetting>(
-          label: 'Process Payroll setting',
-          value:
-              currentSetting?.processPayrollSetting ??
-              EmployeeProcessPayrollSetting.manualReview,
-          options: EmployeeProcessPayrollSetting.values,
-          optionLabel: (EmployeeProcessPayrollSetting value) => value.label,
-          onChanged: enabled ? onProcessPayrollSettingChanged : null,
+        _PayrollSettingsNumberField(
+          label: 'Remind X days after period end',
+          value: currentSetting?.remindAfterPeriodEndDays ?? 0,
+          enabled: enabled,
+          onChanged: enabled ? onRemindAfterPeriodEndDaysChanged : null,
         ),
       ],
     );
@@ -784,6 +773,81 @@ class _PayrollSettingsStaticField extends StatelessWidget {
         initialValue: value,
         readOnly: true,
         enabled: false,
+        style: _PayrollTokens.inputText.copyWith(fontSize: 16),
+        decoration: _PayrollTokens.inputDecoration.copyWith(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PayrollSettingsNumberField extends StatefulWidget {
+  final String label;
+  final int value;
+  final bool enabled;
+  final ValueChanged<int>? onChanged;
+
+  const _PayrollSettingsNumberField({
+    required this.label,
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  @override
+  State<_PayrollSettingsNumberField> createState() =>
+      _PayrollSettingsNumberFieldState();
+}
+
+class _PayrollSettingsNumberFieldState
+    extends State<_PayrollSettingsNumberField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value.toString());
+  }
+
+  @override
+  void didUpdateWidget(covariant _PayrollSettingsNumberField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final String valueText = widget.value.toString();
+    if (widget.value != oldWidget.value && _controller.text != valueText) {
+      _controller.text = valueText;
+      _controller.selection = TextSelection.collapsed(
+        offset: _controller.text.length,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleChanged(String value) {
+    widget.onChanged?.call(int.tryParse(value) ?? 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _PayrollSettingsFieldFrame(
+      label: widget.label,
+      child: TextFormField(
+        key: ValueKey<String>('payroll.settings.${widget.label}'),
+        controller: _controller,
+        enabled: widget.enabled,
+        keyboardType: TextInputType.number,
+        inputFormatters: <TextInputFormatter>[
+          FilteringTextInputFormatter.digitsOnly,
+        ],
+        onChanged: widget.enabled ? _handleChanged : null,
         style: _PayrollTokens.inputText.copyWith(fontSize: 16),
         decoration: _PayrollTokens.inputDecoration.copyWith(
           contentPadding: const EdgeInsets.symmetric(

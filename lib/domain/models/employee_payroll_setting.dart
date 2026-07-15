@@ -7,6 +7,8 @@ class EmployeePayrollSetting {
   final DateTime firstPeriodEndDate;
   final EmployeePayDateSetting payDateSetting;
   final EmployeeProcessPayrollSetting processPayrollSetting;
+  final int paidAfterPeriodEndDays;
+  final int remindAfterPeriodEndDays;
 
   const EmployeePayrollSetting({
     required this.schedule,
@@ -17,6 +19,8 @@ class EmployeePayrollSetting {
     this.secondSemiMonthlyEndingDay,
     this.payDateSetting = EmployeePayDateSetting.afterPeriodEnd,
     this.processPayrollSetting = EmployeeProcessPayrollSetting.manualReview,
+    this.paidAfterPeriodEndDays = 0,
+    this.remindAfterPeriodEndDays = 0,
   });
 
   factory EmployeePayrollSetting.fromJson(Map<dynamic, dynamic> json) {
@@ -32,6 +36,10 @@ class EmployeePayrollSetting {
       payDateSetting: EmployeePayDateSetting.fromValue(json['payDateSetting']),
       processPayrollSetting: EmployeeProcessPayrollSetting.fromValue(
         json['processPayrollSetting'],
+      ),
+      paidAfterPeriodEndDays: _asNonNegativeInt(json['paidAfterPeriodEndDays']),
+      remindAfterPeriodEndDays: _asNonNegativeInt(
+        json['remindAfterPeriodEndDays'],
       ),
     );
   }
@@ -49,6 +57,8 @@ class EmployeePayrollSetting {
     DateTime? firstPeriodEndDate,
     EmployeePayDateSetting? payDateSetting,
     EmployeeProcessPayrollSetting? processPayrollSetting,
+    int? paidAfterPeriodEndDays,
+    int? remindAfterPeriodEndDays,
   }) {
     return EmployeePayrollSetting(
       schedule: schedule ?? this.schedule,
@@ -66,6 +76,12 @@ class EmployeePayrollSetting {
       payDateSetting: payDateSetting ?? this.payDateSetting,
       processPayrollSetting:
           processPayrollSetting ?? this.processPayrollSetting,
+      paidAfterPeriodEndDays: _clampNonNegativeInt(
+        paidAfterPeriodEndDays ?? this.paidAfterPeriodEndDays,
+      ),
+      remindAfterPeriodEndDays: _clampNonNegativeInt(
+        remindAfterPeriodEndDays ?? this.remindAfterPeriodEndDays,
+      ),
     );
   }
 
@@ -81,6 +97,8 @@ class EmployeePayrollSetting {
       'firstPeriodEndDate': firstPeriodEndDate.toIso8601String(),
       'payDateSetting': payDateSetting.name,
       'processPayrollSetting': processPayrollSetting.name,
+      'paidAfterPeriodEndDays': paidAfterPeriodEndDays,
+      'remindAfterPeriodEndDays': remindAfterPeriodEndDays,
     };
   }
 
@@ -94,7 +112,9 @@ class EmployeePayrollSetting {
         other.secondSemiMonthlyEndingDay == secondSemiMonthlyEndingDay &&
         other.firstPeriodEndDate == firstPeriodEndDate &&
         other.payDateSetting == payDateSetting &&
-        other.processPayrollSetting == processPayrollSetting;
+        other.processPayrollSetting == processPayrollSetting &&
+        other.paidAfterPeriodEndDays == paidAfterPeriodEndDays &&
+        other.remindAfterPeriodEndDays == remindAfterPeriodEndDays;
   }
 
   @override
@@ -107,6 +127,8 @@ class EmployeePayrollSetting {
     firstPeriodEndDate,
     payDateSetting,
     processPayrollSetting,
+    paidAfterPeriodEndDays,
+    remindAfterPeriodEndDays,
   );
 }
 
@@ -279,4 +301,13 @@ int? _asMonthDay(Object? value) {
   final int? day = int.tryParse(value.toString());
   if (day == null || day < 1 || day > 31) return null;
   return day;
+}
+
+int _asNonNegativeInt(Object? value) {
+  final int? parsed = int.tryParse(value?.toString() ?? '');
+  return _clampNonNegativeInt(parsed ?? 0);
+}
+
+int _clampNonNegativeInt(int value) {
+  return value < 0 ? 0 : value;
 }
