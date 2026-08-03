@@ -27,6 +27,7 @@ class ScannedExpenseData {
   final DateTime transactionDate;
   final ExpenseCategory category;
   final String payee;
+  final String? cardLast4;
   final XFile? receiptImage;
 
   const ScannedExpenseData({
@@ -35,6 +36,7 @@ class ScannedExpenseData {
     required this.transactionDate,
     this.category = ExpenseCategory.utilities,
     this.payee = '',
+    this.cardLast4,
     this.receiptImage,
   });
 
@@ -44,6 +46,7 @@ class ScannedExpenseData {
     DateTime? transactionDate,
     ExpenseCategory? category,
     String? payee,
+    String? cardLast4,
     XFile? receiptImage,
   }) {
     return ScannedExpenseData(
@@ -52,6 +55,7 @@ class ScannedExpenseData {
       transactionDate: transactionDate ?? this.transactionDate,
       category: category ?? this.category,
       payee: payee ?? this.payee,
+      cardLast4: cardLast4 ?? this.cardLast4,
       receiptImage: receiptImage ?? this.receiptImage,
     );
   }

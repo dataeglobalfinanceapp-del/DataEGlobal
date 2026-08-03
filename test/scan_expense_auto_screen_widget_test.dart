@@ -32,6 +32,7 @@ void main() {
     expect(find.text('TRANSACTION:'), findsOneWidget);
     expect(find.text('CATEGORY:'), findsOneWidget);
     expect(find.text('PAYEE:'), findsOneWidget);
+    expect(find.text('CARD LAST 4:'), findsOneWidget);
     expect(find.text('RECURRING EXPENSE'), findsOneWidget);
     expect(find.text('Confirm'), findsOneWidget);
     expect(find.text('ADD TO REMINDERS'), findsNothing);
@@ -39,6 +40,11 @@ void main() {
     await tester.enterText(find.byType(TextField).at(0), 'E-100');
     await tester.enterText(find.byType(TextField).at(1), '150.25');
     await tester.enterText(find.byType(TextField).at(2), 'Power Co');
+    final Finder cardLast4Field = find.byKey(
+      const ValueKey<String>('expense.cardLast4'),
+    );
+    await tester.enterText(cardLast4Field, '12345');
+    expect(tester.widget<TextField>(cardLast4Field).controller?.text, '1234');
     await tester.tap(find.text('Confirm'));
     await tester.pumpAndSettle();
 

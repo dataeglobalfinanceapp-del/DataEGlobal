@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
+import 'package:savetep/core/config/dev_backend_config.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/money_formatter.dart';
@@ -31,6 +34,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   late TextEditingController _checkNumberController;
   late TextEditingController _totalAmountController;
   late TextEditingController _payeeController;
+  late TextEditingController _cardLast4Controller;
 
   @override
   void initState() {
@@ -40,6 +44,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
     _checkNumberController = TextEditingController();
     _totalAmountController = TextEditingController();
     _payeeController = TextEditingController();
+    _cardLast4Controller = TextEditingController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_startAutomaticExtraction());
     });
@@ -50,6 +55,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
     _checkNumberController.dispose();
     _totalAmountController.dispose();
     _payeeController.dispose();
+    _cardLast4Controller.dispose();
     super.dispose();
   }
 
@@ -126,15 +132,131 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   }
 
   Future<ScannedExpenseData> _extractExpenseData(XFile picked) async {
-    await Future.delayed(const Duration(seconds: 2));
-    return ScannedExpenseData(
-      checkNumber: '5306',
-      totalAmount: 120.00,
-      transactionDate: DateTime(2026, 2, 25),
-      category: ExpenseCategory.utilities,
-      payee: 'Dulce Estilo Shop',
-      receiptImage: picked,
-    );
+    try {
+      final bytes = await picked.readAsBytes();
+      final baseUrl = devBackendBaseUrl.endsWith('/')
+          ? devBackendBaseUrl.substring(0, devBackendBaseUrl.length - 1)
+          : devBackendBaseUrl;
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/textract/analyze'),
+      );
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'image',
+          bytes,
+          filename: picked.name,
+          contentType: _imageMediaType(picked),
+        ),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+          'Receipt analysis failed with status ${response.statusCode}.',
+        );
+      }
+
+      final decoded = jsonDecode(response.body);
+      debugPrint('[ScanExpense] Raw Textract response: ${jsonEncode(decoded)}');
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException(
+          'Receipt analysis returned an invalid response.',
+        );
+      }
+
+      final vendorName = _optionalResponseString(decoded, 'vendorName');
+      final payee = _optionalResponseString(decoded, 'payee');
+      final cardLast4 = _optionalResponseString(decoded, 'cardLast4');
+      if (cardLast4 != null && !RegExp(r'^\d{4}$').hasMatch(cardLast4)) {
+        throw const FormatException('Invalid card last-four value.');
+      }
+
+      return ScannedExpenseData(
+        checkNumber:
+            _optionalResponseString(decoded, 'checkNumber')?.trim() ?? '',
+        totalAmount: _parseResponseAmount(decoded['total']),
+        transactionDate: _parseResponseDate(
+          _optionalResponseString(decoded, 'transactionDate'),
+        ),
+        category: ExpenseCategory.utilities,
+        payee: (payee ?? vendorName ?? '').trim(),
+        cardLast4: cardLast4,
+        receiptImage: picked,
+      );
+    } catch (_) {
+      rethrow;
+    }
+  }
+
+  http.MediaType _imageMediaType(XFile picked) {
+    final mimeType = picked.mimeType?.toLowerCase();
+    if (mimeType == 'image/png' || picked.name.toLowerCase().endsWith('.png')) {
+      return http.MediaType('image', 'png');
+    }
+    if (mimeType == null ||
+        mimeType == 'image/jpeg' ||
+        mimeType == 'image/jpg' ||
+        picked.name.toLowerCase().endsWith('.jpg') ||
+        picked.name.toLowerCase().endsWith('.jpeg')) {
+      return http.MediaType('image', 'jpeg');
+    }
+
+    throw UnsupportedError('Only JPEG and PNG receipt images are supported.');
+  }
+
+  String? _optionalResponseString(Map<String, dynamic> response, String key) {
+    final value = response[key];
+    if (value == null) return null;
+    if (value is String) return value;
+    throw FormatException('Invalid $key value in receipt analysis response.');
+  }
+
+  double _parseResponseAmount(Object? value) {
+    if (value == null) return 0;
+    if (value is num) return value.toDouble();
+    if (value is! String) {
+      throw const FormatException(
+        'Invalid total value in receipt analysis response.',
+      );
+    }
+
+    final normalized = value
+        .replaceAll(RegExp(r'[^0-9,.\-]'), '')
+        .replaceAll(',', '');
+    final amount = double.tryParse(normalized);
+    if (amount == null) {
+      throw FormatException('Unable to parse receipt total: $value');
+    }
+    return amount;
+  }
+
+  DateTime _parseResponseDate(String? value) {
+    if (value == null || value.trim().isEmpty) return AppClock.now;
+
+    final trimmed = value.trim();
+    final isoDate = DateTime.tryParse(trimmed);
+    if (isoDate != null) {
+      return DateTime(isoDate.year, isoDate.month, isoDate.day);
+    }
+
+    final match = RegExp(
+      r'^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2}|\d{4})$',
+    ).firstMatch(trimmed);
+    if (match == null) {
+      throw FormatException('Unable to parse receipt date: $value');
+    }
+
+    final month = int.parse(match.group(1)!);
+    final day = int.parse(match.group(2)!);
+    var year = int.parse(match.group(3)!);
+    if (year < 100) year += 2000;
+    final parsed = DateTime(year, month, day);
+    if (parsed.year != year || parsed.month != month || parsed.day != day) {
+      throw FormatException('Unable to parse receipt date: $value');
+    }
+    return parsed;
   }
 
   void _syncControllers(ScannedExpenseData data) {
@@ -143,6 +265,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
         ? data.totalAmount.toStringAsFixed(2)
         : '';
     _payeeController.text = data.payee;
+    _cardLast4Controller.text = data.cardLast4 ?? '';
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -217,10 +340,15 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   // ── Confirm & Save ────────────────────────────────────────────────────────
 
   Future<void> _confirm() async {
-    final updatedData = _data.copyWith(
+    final cardLast4 = _cardLast4Controller.text.trim();
+    final updatedData = ScannedExpenseData(
       checkNumber: _checkNumberController.text.trim(),
       totalAmount: parseMoney(_totalAmountController.text),
+      transactionDate: _data.transactionDate,
+      category: _data.category,
       payee: _payeeController.text.trim(),
+      cardLast4: cardLast4.isEmpty ? null : cardLast4,
+      receiptImage: _data.receiptImage,
     );
 
     setState(() => _isSaving = true);
@@ -554,6 +682,47 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
                                 width: 200,
                                 child: TextField(
                                   controller: _payeeController,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF1A2340),
+                                  ),
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    border: InputBorder.none,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                        const SizedBox(height: 12),
+                        // CARD LAST 4
+                        InfoRow(
+                          label: 'CARD LAST 4:',
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.credit_card_outlined,
+                                size: 20,
+                                color: Color(0xFF4A90D9),
+                              ),
+                              const SizedBox(width: 6),
+                              SizedBox(
+                                width: 200,
+                                child: TextField(
+                                  key: const ValueKey<String>(
+                                    'expense.cardLast4',
+                                  ),
+                                  controller: _cardLast4Controller,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(4),
+                                  ],
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
