@@ -79,20 +79,28 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
       builder: (_) => const CameraPermissionDialog(),
     );
     if (!mounted) return;
+    debugPrint('[ScanExpense] Camera permission rationale choice: $choice.');
     if (choice == 'while' || choice == 'once') {
       await _pickImage(ImageSource.camera);
+    } else {
+      debugPrint(
+        '[ScanExpense] Camera capture was not started because permission was declined.',
+      );
     }
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    debugPrint('[ScanExpense] Starting camera capture.');
     setState(() => _isScanning = true);
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(source: source, imageQuality: 85);
       if (picked == null) {
+        debugPrint('[ScanExpense] Camera capture was cancelled.');
         if (mounted) setState(() => _isScanning = false);
         return;
       }
+      debugPrint('[ScanExpense] Image captured; reading image data.');
       final bytes = await picked.readAsBytes();
       final extractedData = await _extractExpenseData(picked);
       if (!mounted) return;
@@ -104,12 +112,15 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
         _recurringStartDate = extractedData.transactionDate;
       });
       _syncControllers(extractedData);
-    } catch (e) {
+      debugPrint('[ScanExpense] Scan extraction completed successfully.');
+    } catch (error, stackTrace) {
+      debugPrint('[ScanExpense] Camera capture or extraction failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
       if (mounted) {
         setState(() => _isScanning = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to capture image: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to capture image: $error')),
+        );
       }
     }
   }

@@ -96,20 +96,28 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
       builder: (_) => const DepositCameraPermissionDialog(),
     );
     if (!mounted) return;
+    debugPrint('[ScanDeposit] Camera permission rationale choice: $choice.');
     if (choice == 'while' || choice == 'once') {
       await _pickImage(ImageSource.camera);
+    } else {
+      debugPrint(
+        '[ScanDeposit] Camera capture was not started because permission was declined.',
+      );
     }
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    debugPrint('[ScanDeposit] Starting camera capture.');
     setState(() => _isScanning = true);
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(source: source, imageQuality: 85);
       if (picked == null) {
+        debugPrint('[ScanDeposit] Camera capture was cancelled.');
         if (mounted) setState(() => _isScanning = false);
         return;
       }
+      debugPrint('[ScanDeposit] Image captured; reading image data.');
       final bytes = await picked.readAsBytes();
       final extractedData = await _extractDepositData(picked);
       if (!mounted) return;
@@ -121,12 +129,15 @@ class _ScanDepositAutoScreenState extends State<ScanDepositAutoScreen> {
         _data = extractedData;
       });
       _syncControllers(extractedData);
-    } catch (e) {
+      debugPrint('[ScanDeposit] Scan extraction completed successfully.');
+    } catch (error, stackTrace) {
+      debugPrint('[ScanDeposit] Camera capture or extraction failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
       if (mounted) {
         setState(() => _isScanning = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to capture image: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to capture image: $error')),
+        );
       }
     }
   }
