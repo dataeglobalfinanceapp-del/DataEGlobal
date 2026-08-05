@@ -38,6 +38,47 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('HomeScreen lets an expanded budget editor grow in the page', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(426.7, 796);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const categories = <String>[
+      'Payroll',
+      'Rent',
+      'Fuel',
+      'Utilities',
+      'Insurance',
+      'Shopping',
+      'Equipment',
+      'Other',
+    ];
+    for (var index = 0; index < categories.length; index++) {
+      await LiabilityService.saveExpense(
+        checkNumber: 'EDIT-$index',
+        totalAmount: 10 + index.toDouble(),
+        transactionDate: DateTime(2026, 6, 14),
+        category: categories[index],
+        payee: categories[index],
+        isManual: true,
+      );
+    }
+
+    await _pumpHomeScreen(tester);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byTooltip('Edit targets'));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TextFormField), findsNWidgets(categories.length));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('HomeScreen shows estimated tax at year end in balance summary', (
     WidgetTester tester,
   ) async {

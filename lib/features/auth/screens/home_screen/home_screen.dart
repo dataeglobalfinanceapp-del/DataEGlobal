@@ -647,8 +647,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Center(
                     child: SizedBox(
                       width: metrics.contentWidth,
-                      height: metrics.contentHeight(featureCount),
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SizedBox(height: metrics.topPadding),
@@ -674,7 +674,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           SizedBox(height: metrics.sectionGap),
                           _buildBudgetSection(metrics, featureCount),
                           SizedBox(height: metrics.sectionGap),
-                          Expanded(
+                          SizedBox(
+                            height: metrics.actionGridHeight(featureCount),
                             child: GridView(
                               padding: EdgeInsets.zero,
                               primary: false,
@@ -742,17 +743,13 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return SizedBox(
-      width: double.infinity,
-      height: sectionHeight,
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: SizedBox(
-          width: metrics.contentWidth,
-          child: BudgetDonutChart(
-            data: _budgetData,
-            periodKey: _selectedPeriod.label,
-          ),
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: sectionHeight),
+      child: SizedBox(
+        width: metrics.contentWidth,
+        child: BudgetDonutChart(
+          data: _budgetData,
+          periodKey: _selectedPeriod.label,
         ),
       ),
     );

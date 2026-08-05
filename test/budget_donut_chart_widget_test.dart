@@ -96,4 +96,70 @@ void main() {
     expect(find.text('Available'), findsOneWidget);
     expect(find.text('13% utilized'), findsOneWidget);
   });
+
+  testWidgets('BudgetDonutChart grows past the home section minimum', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(426.7, 796);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const data = BudgetData(
+      deposit: 1000,
+      expense: 800,
+      total: 1000,
+      surplusPercent: 20,
+      utilizationPercent: 80,
+      categories: [
+        BudgetCategory(label: 'Payroll', percentage: 20, color: Colors.teal),
+        BudgetCategory(label: 'Rent', percentage: 18, color: Colors.green),
+        BudgetCategory(label: 'Fuel', percentage: 16, color: Colors.amber),
+        BudgetCategory(
+          label: 'Utilities',
+          percentage: 14,
+          color: Colors.blueGrey,
+        ),
+        BudgetCategory(label: 'Insurance', percentage: 12, color: Colors.blue),
+        BudgetCategory(label: 'Shopping', percentage: 10, color: Colors.cyan),
+        BudgetCategory(
+          label: 'Equipment',
+          percentage: 6,
+          color: Colors.lightGreen,
+        ),
+        BudgetCategory(label: 'Other', percentage: 4, color: Colors.grey),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: 437.7),
+                child: SizedBox(
+                  width: 410.7,
+                  child: BudgetDonutChart(data: data),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final collapsedHeight = tester
+        .getSize(find.byType(BudgetDonutChart))
+        .height;
+
+    await tester.tap(find.byTooltip('Edit targets'));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    final editingHeight = tester.getSize(find.byType(BudgetDonutChart)).height;
+    expect(editingHeight, greaterThan(collapsedHeight));
+  });
 }
