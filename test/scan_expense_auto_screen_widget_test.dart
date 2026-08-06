@@ -27,9 +27,11 @@ void main() {
 
     expect(find.text('EXPENSE DATA'), findsOneWidget);
     expect(find.text('EDITABLE'), findsOneWidget);
-    expect(find.text('CHECK NUMBER:'), findsOneWidget);
+    expect(find.text('CHECK NUMBER:'), findsNothing);
     expect(find.text('TOTAL AMOUNT'), findsOneWidget);
+    expect(find.text('TIPS & GRATUITY'), findsOneWidget);
     expect(find.text('TRANSACTION:'), findsOneWidget);
+    expect(find.text('TIME:'), findsNothing);
     expect(find.text('CATEGORY:'), findsOneWidget);
     expect(find.text('PAYEE:'), findsOneWidget);
     expect(find.text('CARD LAST 4:'), findsOneWidget);
@@ -37,9 +39,18 @@ void main() {
     expect(find.text('Confirm'), findsOneWidget);
     expect(find.text('ADD TO REMINDERS'), findsNothing);
 
-    await tester.enterText(find.byType(TextField).at(0), 'E-100');
-    await tester.enterText(find.byType(TextField).at(1), '150.25');
-    await tester.enterText(find.byType(TextField).at(2), 'Power Co');
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('expense.totalAmount')),
+      '150.25',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('expense.tipsGratuity')),
+      '5.25',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('expense.payee')),
+      'Power Co',
+    );
     final Finder cardLast4Field = find.byKey(
       const ValueKey<String>('expense.cardLast4'),
     );
@@ -48,12 +59,20 @@ void main() {
     await tester.tap(find.text('Confirm'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Review Expense'), findsOneWidget);
+    expect(find.text('TIPS & GRATUITY'), findsWidgets);
+    expect(find.text(r'$5.25'), findsOneWidget);
+    expect(find.text('CHECK NUMBER'), findsNothing);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Save'));
+    await tester.pumpAndSettle();
+
     final List<ExpenseRecord> expenses = await LiabilityService.loadExpenses();
     expect(expenses, hasLength(1));
-    expect(expenses.single.checkNumber, 'E-100');
+    expect(expenses.single.checkNumber, isEmpty);
     expect(expenses.single.totalAmount, 150.25);
+    expect(expenses.single.tipsGratuity, 5.25);
     expect(expenses.single.transactionDate, DateTime(2026, 7, 8));
-    expect(expenses.single.category, 'Utilities');
+    expect(expenses.single.category, 'Energy');
     expect(expenses.single.payee, 'Power Co');
     expect(expenses.single.isManual, isFalse);
 
@@ -68,8 +87,18 @@ void main() {
     AppClock.set(DateTime(2026, 6, 15));
     await _pumpAutoExpenseScreen(tester);
 
-    await tester.enterText(find.byType(TextField).at(1), '150.00');
-    await tester.enterText(find.byType(TextField).at(2), 'Power Co');
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('expense.totalAmount')),
+      '150.00',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('expense.tipsGratuity')),
+      '4.00',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('expense.payee')),
+      'Power Co',
+    );
 
     expect(find.text('ADD TO REMINDERS'), findsNothing);
 
@@ -84,6 +113,8 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Save'));
     await tester.pumpAndSettle();
 
     final List<ReminderRecord> reminders =
@@ -114,11 +145,16 @@ void main() {
       <String>['Biweekly'],
     );
     expect(expenses.single.isManual, isFalse);
+    expect(expenses.single.tipsGratuity, 4);
 
     AppClock.set(DateTime(2026, 6, 29));
     expenses = await LiabilityService.loadExpenses();
 
     expect(_expenseDateKeys(expenses), <String>['2026-06-15', '2026-06-29']);
+    expect(
+      expenses.map((ExpenseRecord record) => record.tipsGratuity).toSet(),
+      <double>{4},
+    );
   });
 
   test('recurring expense reminder uses selected future start date', () async {

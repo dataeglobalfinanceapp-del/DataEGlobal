@@ -68,6 +68,7 @@ class LocalTransactionRepository implements TransactionRepository {
       id: _newId('expense'),
       checkNumber: request.checkNumber,
       totalAmount: request.totalAmount,
+      tipsGratuity: request.tipsGratuity,
       transactionDate: request.transactionDate,
       category: request.category,
       payee: request.payee,

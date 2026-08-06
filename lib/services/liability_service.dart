@@ -62,6 +62,7 @@ class LiabilityService {
   static Future<void> saveExpense({
     required String checkNumber,
     required double totalAmount,
+    double tipsGratuity = 0,
     required DateTime transactionDate,
     required String category,
     required String payee,
@@ -78,7 +79,11 @@ class LiabilityService {
             SaveFutureExpense.createInitialRecurringExpense(
               checkNumber: checkNumber,
               totalAmount: totalAmount,
-              startDate: recurringStartDate ?? transactionDate,
+              tipsGratuity: tipsGratuity,
+              startDate: _replaceDatePreservingTime(
+                recurringStartDate ?? transactionDate,
+                transactionDate,
+              ),
               category: category,
               payee: payee,
               isManual: isManual,
@@ -92,6 +97,7 @@ class LiabilityService {
               id: _newId('expense'),
               checkNumber: checkNumber,
               totalAmount: totalAmount,
+              tipsGratuity: tipsGratuity,
               transactionDate: transactionDate,
               category: category,
               payee: payee,
@@ -1162,6 +1168,7 @@ class LiabilityService {
     return SaveExpenseRequest(
       checkNumber: expense.checkNumber,
       totalAmount: expense.totalAmount,
+      tipsGratuity: expense.tipsGratuity,
       transactionDate: expense.transactionDate,
       category: expense.category,
       payee: expense.payee,
@@ -1187,9 +1194,21 @@ class LiabilityService {
 
   static Color _categoryColor(String category) {
     return switch (category) {
+      'Energy' => const Color(0xFFF59E0B),
       'Payroll' => const Color(0xFF2563EB),
       'Rent' => const Color(0xFF3B82F6),
       'Insurance' => const Color(0xFF60A5FA),
+      'Business licenses and permits' => const Color(0xFF7C3AED),
+      'Food' => const Color(0xFFF97316),
+      'Restaurant supplies' => const Color(0xFF0D9488),
+      'Advertising and promotion' => const Color(0xFFDB2777),
+      'software' => const Color(0xFF4F46E5),
+      'pest control' => const Color(0xFF65A30D),
+      'Internet' => const Color(0xFF0891B2),
+      'Maintenance' => const Color(0xFF475569),
+      'Office Supplies' => const Color(0xFF9333EA),
+      'Meal, entertainment' => const Color(0xFFEA580C),
+      'Automobile, Fuel' => const Color(0xFFEF4444),
       'Consumable Supplies' => const Color(0xFF93C5FD),
       'Utilities' => const Color(0xFFBFDBFE),
       'Fuel' => const Color(0xFFEF4444),
@@ -1338,6 +1357,7 @@ class ExpenseRecord {
   final String id;
   final String checkNumber;
   final double totalAmount;
+  final double tipsGratuity;
   final DateTime transactionDate;
   final String category;
   final String payee;
@@ -1351,6 +1371,7 @@ class ExpenseRecord {
     required this.id,
     required this.checkNumber,
     required this.totalAmount,
+    this.tipsGratuity = 0,
     required this.transactionDate,
     required this.category,
     required this.payee,
@@ -1367,6 +1388,7 @@ class ExpenseRecord {
       id: _asString(json['id'], fallback: _fallbackId('expense')),
       checkNumber: _asString(json['checkNumber']),
       totalAmount: _asDouble(json['totalAmount']),
+      tipsGratuity: _asDouble(json['tipsGratuity']),
       transactionDate: _asDate(json['transactionDate']),
       category: _asString(json['category'], fallback: 'Other'),
       payee: _asString(json['payee']),
@@ -1392,6 +1414,7 @@ class ExpenseRecord {
 
   ExpenseRecord copyWith({
     double? totalAmount,
+    double? tipsGratuity,
     int? recurringEndMonthKey,
     String? recurringFrequency,
   }) {
@@ -1399,6 +1422,7 @@ class ExpenseRecord {
       id: id,
       checkNumber: checkNumber,
       totalAmount: totalAmount ?? this.totalAmount,
+      tipsGratuity: tipsGratuity ?? this.tipsGratuity,
       transactionDate: transactionDate,
       category: category,
       payee: payee,
@@ -1414,6 +1438,7 @@ class ExpenseRecord {
     'id': id,
     'checkNumber': checkNumber,
     'totalAmount': totalAmount,
+    'tipsGratuity': tipsGratuity,
     'transactionDate': transactionDate.toIso8601String(),
     'category': category,
     'payee': payee,
@@ -1530,4 +1555,15 @@ int _asInt(Object? value) {
 
 DateTime _asDate(Object? value) {
   return DateTime.tryParse(value?.toString() ?? '') ?? AppClock.now;
+}
+
+DateTime _replaceDatePreservingTime(DateTime date, DateTime timeSource) {
+  return DateTime(
+    date.year,
+    date.month,
+    date.day,
+    timeSource.hour,
+    timeSource.minute,
+    timeSource.second,
+  );
 }

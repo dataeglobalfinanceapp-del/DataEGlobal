@@ -1,16 +1,18 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
-import 'package:savetep/core/config/dev_backend_config.dart';
+import 'package:savetep/features/auth/screens/scan_screen/mindee/mindee_analysis_models.dart';
+import 'package:savetep/features/auth/screens/scan_screen/mindee/mindee_mapping.dart';
+import 'package:savetep/features/auth/screens/scan_screen/mindee/mindee_providers.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/money_formatter.dart';
 import 'package:savetep/services/recurring_expense_reminder_service.dart';
+import 'mindee_expense_fields.dart';
 import 'scan_expense_screen.dart';
 
 class ScanExpenseAutoScreen extends StatefulWidget {
@@ -26,13 +28,14 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   bool _hasExtractedData = false;
   bool _isSaving = false;
   bool _isRecurringExpense = false;
+  CancellationToken? _activeCancellationToken;
   ExpenseScheduleFrequency _recurringFrequency =
       ExpenseScheduleFrequency.monthly;
 
   late ScannedExpenseData _data;
   late DateTime _recurringStartDate;
-  late TextEditingController _checkNumberController;
   late TextEditingController _totalAmountController;
+  late TextEditingController _tipsGratuityController;
   late TextEditingController _payeeController;
   late TextEditingController _cardLast4Controller;
 
@@ -41,8 +44,8 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
     super.initState();
     _data = ScannedExpenseData(transactionDate: AppClock.now);
     _recurringStartDate = _data.transactionDate;
-    _checkNumberController = TextEditingController();
     _totalAmountController = TextEditingController();
+    _tipsGratuityController = TextEditingController();
     _payeeController = TextEditingController();
     _cardLast4Controller = TextEditingController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -52,8 +55,9 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
 
   @override
   void dispose() {
-    _checkNumberController.dispose();
+    _activeCancellationToken?.cancel();
     _totalAmountController.dispose();
+    _tipsGratuityController.dispose();
     _payeeController.dispose();
     _cardLast4Controller.dispose();
     super.dispose();
@@ -62,6 +66,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   // ── Setup ─────────────────────────────────────────────────────────────────
 
   Future<void> _startAutomaticExtraction() async {
+    _activeCancellationToken?.cancel();
     final emptyData = ScannedExpenseData(transactionDate: AppClock.now);
     setState(() {
       _scannedImageBytes = null;
@@ -96,8 +101,10 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    if (_isScanning) return;
     debugPrint('[ScanExpense] Starting camera capture.');
     setState(() => _isScanning = true);
+    CancellationToken? requestToken;
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(source: source, imageQuality: 85);
@@ -108,10 +115,35 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
       }
       debugPrint('[ScanExpense] Image captured; reading image data.');
       final bytes = await picked.readAsBytes();
-      final extractedData = await _extractExpenseData(picked);
       if (!mounted) return;
+
+      _activeCancellationToken?.cancel();
+      requestToken = CancellationToken();
+      _activeCancellationToken = requestToken;
+      final currentCategory = _data.category;
+      final pendingData = ScannedExpenseData(
+        transactionDate: AppClock.now,
+        category: currentCategory,
+        receiptImage: picked,
+      );
       setState(() {
         _scannedImageBytes = bytes;
+        _hasExtractedData = false;
+        _data = pendingData;
+        _recurringStartDate = pendingData.transactionDate;
+      });
+      _syncControllers(pendingData);
+
+      final extractedData = await _extractExpenseData(
+        picked,
+        cancellationToken: requestToken,
+        currentCategory: currentCategory,
+      );
+      requestToken.throwIfCancelled();
+      if (!mounted || !identical(_activeCancellationToken, requestToken)) {
+        return;
+      }
+      setState(() {
         _isScanning = false;
         _hasExtractedData = true;
         _data = extractedData;
@@ -119,150 +151,64 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
       });
       _syncControllers(extractedData);
       debugPrint('[ScanExpense] Scan extraction completed successfully.');
+    } on MindeeRequestCancelledException {
+      return;
     } catch (error, stackTrace) {
-      debugPrint('[ScanExpense] Camera capture or extraction failed: $error');
+      debugPrint('[ScanExpense] Mindee analysis failed: $error');
       debugPrintStack(stackTrace: stackTrace);
-      if (mounted) {
-        setState(() => _isScanning = false);
+      if (mounted &&
+          (requestToken == null ||
+              identical(_activeCancellationToken, requestToken))) {
+        setState(() {
+          _isScanning = false;
+          _hasExtractedData = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to capture image: $error')),
+          const SnackBar(
+            content: Text(
+              'Unable to analyze this image. Check your connection and try again.',
+            ),
+          ),
         );
       }
+    } finally {
+      if (requestToken != null &&
+          identical(_activeCancellationToken, requestToken)) {
+        _activeCancellationToken = null;
+      }
     }
   }
 
-  Future<ScannedExpenseData> _extractExpenseData(XFile picked) async {
-    try {
-      final bytes = await picked.readAsBytes();
-      final baseUrl = devBackendBaseUrl.endsWith('/')
-          ? devBackendBaseUrl.substring(0, devBackendBaseUrl.length - 1)
-          : devBackendBaseUrl;
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$baseUrl/textract/analyze'),
-      );
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'image',
-          bytes,
-          filename: picked.name,
-          contentType: _imageMediaType(picked),
-        ),
-      );
-
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception(
-          'Receipt analysis failed with status ${response.statusCode}.',
+  Future<ScannedExpenseData> _extractExpenseData(
+    XFile picked, {
+    required CancellationToken cancellationToken,
+    required ExpenseCategory currentCategory,
+  }) async {
+    final container = ProviderScope.containerOf(context, listen: false);
+    final result = await container
+        .read(documentAnalysisServiceProvider)
+        .analyze(
+          image: picked,
+          type: ScanTransactionType.expense,
+          cancellationToken: cancellationToken,
         );
-      }
-
-      final decoded = jsonDecode(response.body);
-      debugPrint('[ScanExpense] Raw Textract response: ${jsonEncode(decoded)}');
-      if (decoded is! Map<String, dynamic>) {
-        throw const FormatException(
-          'Receipt analysis returned an invalid response.',
+    cancellationToken.throwIfCancelled();
+    return container
+        .read(expenseMindeeMapperProvider)
+        .map(
+          result: result,
+          image: picked,
+          fallbackDate: AppClock.now,
+          currentCategory: currentCategory,
         );
-      }
-
-      final vendorName = _optionalResponseString(decoded, 'vendorName');
-      final payee = _optionalResponseString(decoded, 'payee');
-      final cardLast4 = _optionalResponseString(decoded, 'cardLast4');
-      if (cardLast4 != null && !RegExp(r'^\d{4}$').hasMatch(cardLast4)) {
-        throw const FormatException('Invalid card last-four value.');
-      }
-
-      return ScannedExpenseData(
-        checkNumber:
-            _optionalResponseString(decoded, 'checkNumber')?.trim() ?? '',
-        totalAmount: _parseResponseAmount(decoded['total']),
-        transactionDate: _parseResponseDate(
-          _optionalResponseString(decoded, 'transactionDate'),
-        ),
-        category: ExpenseCategory.utilities,
-        payee: (payee ?? vendorName ?? '').trim(),
-        cardLast4: cardLast4,
-        receiptImage: picked,
-      );
-    } catch (_) {
-      rethrow;
-    }
-  }
-
-  http.MediaType _imageMediaType(XFile picked) {
-    final mimeType = picked.mimeType?.toLowerCase();
-    if (mimeType == 'image/png' || picked.name.toLowerCase().endsWith('.png')) {
-      return http.MediaType('image', 'png');
-    }
-    if (mimeType == null ||
-        mimeType == 'image/jpeg' ||
-        mimeType == 'image/jpg' ||
-        picked.name.toLowerCase().endsWith('.jpg') ||
-        picked.name.toLowerCase().endsWith('.jpeg')) {
-      return http.MediaType('image', 'jpeg');
-    }
-
-    throw UnsupportedError('Only JPEG and PNG receipt images are supported.');
-  }
-
-  String? _optionalResponseString(Map<String, dynamic> response, String key) {
-    final value = response[key];
-    if (value == null) return null;
-    if (value is String) return value;
-    throw FormatException('Invalid $key value in receipt analysis response.');
-  }
-
-  double _parseResponseAmount(Object? value) {
-    if (value == null) return 0;
-    if (value is num) return value.toDouble();
-    if (value is! String) {
-      throw const FormatException(
-        'Invalid total value in receipt analysis response.',
-      );
-    }
-
-    final normalized = value
-        .replaceAll(RegExp(r'[^0-9,.\-]'), '')
-        .replaceAll(',', '');
-    final amount = double.tryParse(normalized);
-    if (amount == null) {
-      throw FormatException('Unable to parse receipt total: $value');
-    }
-    return amount;
-  }
-
-  DateTime _parseResponseDate(String? value) {
-    if (value == null || value.trim().isEmpty) return AppClock.now;
-
-    final trimmed = value.trim();
-    final isoDate = DateTime.tryParse(trimmed);
-    if (isoDate != null) {
-      return DateTime(isoDate.year, isoDate.month, isoDate.day);
-    }
-
-    final match = RegExp(
-      r'^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2}|\d{4})$',
-    ).firstMatch(trimmed);
-    if (match == null) {
-      throw FormatException('Unable to parse receipt date: $value');
-    }
-
-    final month = int.parse(match.group(1)!);
-    final day = int.parse(match.group(2)!);
-    var year = int.parse(match.group(3)!);
-    if (year < 100) year += 2000;
-    final parsed = DateTime(year, month, day);
-    if (parsed.year != year || parsed.month != month || parsed.day != day) {
-      throw FormatException('Unable to parse receipt date: $value');
-    }
-    return parsed;
   }
 
   void _syncControllers(ScannedExpenseData data) {
-    _checkNumberController.text = data.checkNumber;
     _totalAmountController.text = data.totalAmount > 0
         ? data.totalAmount.toStringAsFixed(2)
+        : '';
+    _tipsGratuityController.text = data.tipsGratuity > 0
+        ? data.tipsGratuity.toStringAsFixed(2)
         : '';
     _payeeController.text = data.payee;
     _cardLast4Controller.text = data.cardLast4 ?? '';
@@ -277,6 +223,8 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
       builder: (_) => const DeleteConfirmDialog(),
     );
     if (confirmed == true && mounted) {
+      _activeCancellationToken?.cancel();
+      _activeCancellationToken = null;
       final emptyData = ScannedExpenseData(transactionDate: AppClock.now);
       setState(() {
         _scannedImageBytes = null;
@@ -301,10 +249,11 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
       lastDate: AppClock.now,
     );
     if (picked != null && mounted) {
+      final updatedDate = replaceDateOnly(_data.transactionDate, picked);
       setState(() {
-        _data = _data.copyWith(transactionDate: picked);
+        _data = _data.copyWith(transactionDate: updatedDate);
         if (!_isRecurringExpense) {
-          _recurringStartDate = picked;
+          _recurringStartDate = updatedDate;
         }
       });
     }
@@ -340,23 +289,39 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   // ── Confirm & Save ────────────────────────────────────────────────────────
 
   Future<void> _confirm() async {
-    final cardLast4 = _cardLast4Controller.text.trim();
-    final updatedData = ScannedExpenseData(
-      checkNumber: _checkNumberController.text.trim(),
+    final String? cardLast4;
+    try {
+      cardLast4 = normalizeOptionalCardLast4(_cardLast4Controller.text);
+    } on MindeeFieldParseException {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Card last four must contain exactly four digits.'),
+        ),
+      );
+      return;
+    }
+    final updatedData = _data.copyWith(
       totalAmount: parseMoney(_totalAmountController.text),
-      transactionDate: _data.transactionDate,
-      category: _data.category,
+      tipsGratuity: parseMoney(_tipsGratuityController.text),
       payee: _payeeController.text.trim(),
-      cardLast4: cardLast4.isEmpty ? null : cardLast4,
-      receiptImage: _data.receiptImage,
+      cardLast4: cardLast4,
+      clearCardLast4: cardLast4 == null,
     );
+
+    final shouldSave = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (_) => ExpenseReviewDialog(data: updatedData),
+    );
+    if (shouldSave != true || !mounted) return;
 
     setState(() => _isSaving = true);
     try {
       if (_isRecurringExpense) {
         await RecurringExpenseReminderService.saveRecurringExpenseWithReminder(
-          checkNumber: updatedData.checkNumber,
+          checkNumber: '',
           totalAmount: updatedData.totalAmount,
+          tipsGratuity: updatedData.tipsGratuity,
           transactionDate: updatedData.transactionDate,
           startDate: _recurringStartDate,
           category: updatedData.category.label,
@@ -366,8 +331,9 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
         );
       } else {
         await LiabilityService.saveExpense(
-          checkNumber: updatedData.checkNumber,
+          checkNumber: '',
           totalAmount: updatedData.totalAmount,
+          tipsGratuity: updatedData.tipsGratuity,
           transactionDate: updatedData.transactionDate,
           category: updatedData.category.label,
           payee: updatedData.payee,
@@ -421,8 +387,8 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.bolt_outlined, color: Colors.black87),
-            onPressed: _showCameraPermissionDialog,
-            tooltip: 'Scan check',
+            onPressed: _isScanning ? null : _showCameraPermissionDialog,
+            tooltip: 'Scan receipt',
           ),
         ],
       ),
@@ -438,7 +404,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
                   vertical: 10,
                 ),
                 child: Text(
-                  'Check: ${_data.checkNumber}  |  Amount: ${formatMoney(_data.totalAmount)}',
+                  'Payee: ${_data.payee.isEmpty ? '-' : _data.payee}  |  Amount: ${formatMoney(_data.totalAmount)}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF888888),
@@ -468,11 +434,10 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        // CHECK NUMBER
                         Row(
                           children: [
                             const Text(
-                              'CHECK NUMBER:',
+                              'EXPENSE DETAILS',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -481,33 +446,6 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
                               ),
                             ),
                             const Spacer(),
-                            const Icon(
-                              Icons.receipt_long_outlined,
-                              size: 20,
-                              color: Color(0xFF888888),
-                            ),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 60,
-                              child: TextField(
-                                controller: _checkNumberController,
-                                textAlign: TextAlign.center,
-                                keyboardType: TextInputType.number,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 6,
-                                  ),
-                                  border: InputBorder.none,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
                             GestureDetector(
                               onTap: _confirmDelete,
                               child: Container(
@@ -532,62 +470,12 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
                         Row(
                           children: [
                             Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: const Color(0xFFD0D0D0),
-                                  ),
-                                  borderRadius: BorderRadius.circular(8),
+                              child: _ExpenseCurrencyField(
+                                fieldKey: const ValueKey<String>(
+                                  'expense.totalAmount',
                                 ),
-                                padding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  6,
-                                  12,
-                                  8,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'TOTAL AMOUNT',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.5,
-                                        color: Color(0xFF888888),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    TextField(
-                                      controller: _totalAmountController,
-                                      keyboardType:
-                                          const TextInputType.numberWithOptions(
-                                            decimal: true,
-                                          ),
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.allow(
-                                          RegExp(r'^\d*\.?\d{0,2}'),
-                                        ),
-                                      ],
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF1A2340),
-                                      ),
-                                      decoration: const InputDecoration(
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.zero,
-                                        border: InputBorder.none,
-                                        prefixText: r'$',
-                                        prefixStyle: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF1A2340),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                label: 'TOTAL AMOUNT',
+                                controller: _totalAmountController,
                               ),
                             ),
                             if (_scannedImageBytes != null) ...[
@@ -603,6 +491,14 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
                               ),
                             ],
                           ],
+                        ),
+                        const SizedBox(height: 12),
+                        _ExpenseCurrencyField(
+                          fieldKey: const ValueKey<String>(
+                            'expense.tipsGratuity',
+                          ),
+                          label: 'TIPS & GRATUITY',
+                          controller: _tipsGratuityController,
                         ),
                         const SizedBox(height: 12),
                         // TRANSACTION DATE
@@ -681,6 +577,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
                               SizedBox(
                                 width: 200,
                                 child: TextField(
+                                  key: const ValueKey<String>('expense.payee'),
                                   controller: _payeeController,
                                   style: const TextStyle(
                                     fontSize: 14,
@@ -775,7 +672,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: _isSaving ? null : _confirm,
+              onPressed: _isSaving || _isScanning ? null : _confirm,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A2340),
                 foregroundColor: Colors.white,
@@ -876,10 +773,72 @@ class _AutoEntryStatusBadge extends StatelessWidget {
   }
 }
 
+class _ExpenseCurrencyField extends StatelessWidget {
+  final Key fieldKey;
+  final String label;
+  final TextEditingController controller;
+
+  const _ExpenseCurrencyField({
+    required this.fieldKey,
+    required this.label,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFD0D0D0)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: Color(0xFF888888),
+            ),
+          ),
+          const SizedBox(height: 2),
+          TextField(
+            key: fieldKey,
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+            ],
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1A2340),
+            ),
+            decoration: const InputDecoration(
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+              border: InputBorder.none,
+              prefixText: r'$',
+              prefixStyle: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1A2340),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ScannerArea extends StatelessWidget {
   final Uint8List? imageBytes;
   final bool isScanning;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const _ScannerArea({
     required this.imageBytes,
     required this.isScanning,
@@ -893,21 +852,7 @@ class _ScannerArea extends StatelessWidget {
       height: 180,
       child: ColoredBox(
         color: Colors.white,
-        child: isScanning
-            ? const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: Color(0xFF1A2340)),
-                    SizedBox(height: 12),
-                    Text(
-                      'Scanning check...',
-                      style: TextStyle(color: Colors.black54, fontSize: 14),
-                    ),
-                  ],
-                ),
-              )
-            : imageBytes != null
+        child: imageBytes != null
             ? SizedBox(
                 width: double.infinity,
                 height: 180,
@@ -920,6 +865,39 @@ class _ScannerArea extends StatelessWidget {
                       child: ColoredBox(
                         color: Colors.black.withValues(alpha: 0.08),
                       ),
+                    ),
+                    if (isScanning)
+                      const Positioned.fill(
+                        child: ColoredBox(
+                          color: Color(0x66000000),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(color: Colors.white),
+                                SizedBox(height: 12),
+                                Text(
+                                  'Extracting data...',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              )
+            : isScanning
+            ? const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Color(0xFF1A2340)),
+                    SizedBox(height: 12),
+                    Text(
+                      'Scanning receipt...',
+                      style: TextStyle(color: Colors.black54, fontSize: 14),
                     ),
                   ],
                 ),
@@ -944,7 +922,7 @@ class _ScannerArea extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      'Tap to scan check',
+                      'Tap to scan receipt',
                       style: TextStyle(fontSize: 14, color: Color(0xFF888888)),
                     ),
                   ],

@@ -101,7 +101,8 @@ void main() {
     expect(tester.takeException(), isNull);
 
     expect(find.text('EXPENSE DATA'), findsOneWidget);
-    expect(find.text('CHECK NUMBER:'), findsOneWidget);
+    expect(find.text('CHECK NUMBER:'), findsNothing);
+    expect(find.text('TIPS & GRATUITY'), findsOneWidget);
     expect(find.text('Enter Manually'), findsNothing);
     expect(find.text('Extract Automatically'), findsNothing);
   });

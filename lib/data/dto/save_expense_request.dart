@@ -1,6 +1,7 @@
 class SaveExpenseRequest {
   final String checkNumber;
   final double totalAmount;
+  final double tipsGratuity;
   final DateTime transactionDate;
   final String category;
   final String payee;
@@ -13,6 +14,7 @@ class SaveExpenseRequest {
   const SaveExpenseRequest({
     required this.checkNumber,
     required this.totalAmount,
+    this.tipsGratuity = 0,
     required this.transactionDate,
     required this.category,
     required this.payee,
@@ -26,6 +28,7 @@ class SaveExpenseRequest {
   Map<String, dynamic> toJson() => {
     'checkNumber': checkNumber,
     'totalAmount': totalAmount,
+    'tipsGratuity': tipsGratuity,
     'transactionDate': transactionDate.toIso8601String(),
     'category': category,
     'payee': payee,

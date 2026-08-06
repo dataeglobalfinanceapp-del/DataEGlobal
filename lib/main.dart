@@ -1,9 +1,10 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'amplify_outputs.dart';
 import 'features/auth/screens/login_screen/confirm_reset_screen.dart';
 import 'features/auth/screens/login_screen/login_screen.dart';
@@ -15,6 +16,7 @@ import 'features/auth/screens/login_screen/splash_screen.dart';
 import 'features/auth/screens/scan_screen/scan.dart';
 import 'features/auth/screens/scan_screen/deposit_screen/scan_deposit_choice.dart';
 import 'features/auth/screens/scan_screen/expense_screen/scan_expense_auto_screen.dart';
+import 'features/auth/screens/scan_screen/mindee/mindee_config.dart';
 import 'features/auth/screens/transaction_screen/transaction_screen.dart';
 import 'features/auth/screens/liabilities_screen/liabilities_screen.dart';
 import 'features/auth/screens/saving_screen/saving_screen.dart';
@@ -30,11 +32,40 @@ final GlobalKey<NavigatorState> _appNavigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
+    if (kDebugMode) MindeeConfig.validate();
     await _configureAmplify();
     runApp(const ProviderScope(child: SaveTepApp()));
+  } on StateError catch (e) {
+    runApp(
+      ProviderScope(child: _StartupConfigurationErrorApp(message: e.message)),
+    );
   } on AmplifyException catch (e) {
     runApp(
       ProviderScope(child: _AmplifyConfigurationErrorApp(message: e.message)),
+    );
+  }
+}
+
+class _StartupConfigurationErrorApp extends StatelessWidget {
+  final String message;
+
+  const _StartupConfigurationErrorApp({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Local Mindee configuration error: $message',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

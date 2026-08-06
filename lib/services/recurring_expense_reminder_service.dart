@@ -11,6 +11,7 @@ class RecurringExpenseReminderService {
   static Future<void> saveRecurringExpenseWithReminder({
     required String checkNumber,
     required double totalAmount,
+    double tipsGratuity = 0,
     required DateTime transactionDate,
     required DateTime startDate,
     required String category,
@@ -22,6 +23,7 @@ class RecurringExpenseReminderService {
     await LiabilityService.saveExpense(
       checkNumber: checkNumber,
       totalAmount: totalAmount,
+      tipsGratuity: tipsGratuity,
       transactionDate: transactionDate,
       category: category,
       payee: payee,

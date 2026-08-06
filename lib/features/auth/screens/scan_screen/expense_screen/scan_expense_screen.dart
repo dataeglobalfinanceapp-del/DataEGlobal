@@ -1,20 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:savetep/services/money_formatter.dart';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Models
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum ExpenseCategory {
-  utilities('Utilities', Icons.lightbulb_outline),
+  energy('Energy', Icons.electric_bolt_outlined),
   loanObligation('Loan Obligation', Icons.account_balance_outlined),
   payroll('Payroll', Icons.people_outline),
-  equipment('Equipment', Icons.precision_manufacturing_outlined),
-  cogs('COGS', Icons.inventory_2_outlined),
+  businessLicensesAndPermits(
+    'Business licenses and permits',
+    Icons.business_center_outlined,
+  ),
+  food('Food', Icons.restaurant_outlined),
+  restaurantSupplies('Restaurant supplies', Icons.inventory_2_outlined),
+  advertisingAndPromotion('Advertising and promotion', Icons.campaign_outlined),
+  software('software', Icons.computer_outlined),
+  pestControl('pest control', Icons.pest_control_outlined),
+  internet('Internet', Icons.wifi),
+  maintenance('Maintenance', Icons.build_outlined),
   insurance('Insurance', Icons.shield_outlined),
-  consumableSupplies('Consumable Supplies', Icons.shopping_bag_outlined),
-  fuel('Fuel', Icons.local_gas_station_outlined),
-  rent('Rent', Icons.home_outlined);
+  rent('Rent', Icons.home_outlined),
+  officeSupplies('Office Supplies', Icons.edit_note_outlined),
+  mealEntertainment('Meal, entertainment', Icons.local_dining),
+  automobileFuel('Automobile, Fuel', Icons.local_gas_station_outlined);
 
   const ExpenseCategory(this.label, this.icon);
   final String label;
@@ -22,8 +34,8 @@ enum ExpenseCategory {
 }
 
 class ScannedExpenseData {
-  final String checkNumber;
   final double totalAmount;
+  final double tipsGratuity;
   final DateTime transactionDate;
   final ExpenseCategory category;
   final String payee;
@@ -31,31 +43,32 @@ class ScannedExpenseData {
   final XFile? receiptImage;
 
   const ScannedExpenseData({
-    this.checkNumber = '',
     this.totalAmount = 0,
+    this.tipsGratuity = 0,
     required this.transactionDate,
-    this.category = ExpenseCategory.utilities,
+    this.category = ExpenseCategory.energy,
     this.payee = '',
     this.cardLast4,
     this.receiptImage,
   });
 
   ScannedExpenseData copyWith({
-    String? checkNumber,
     double? totalAmount,
+    double? tipsGratuity,
     DateTime? transactionDate,
     ExpenseCategory? category,
     String? payee,
     String? cardLast4,
+    bool clearCardLast4 = false,
     XFile? receiptImage,
   }) {
     return ScannedExpenseData(
-      checkNumber: checkNumber ?? this.checkNumber,
       totalAmount: totalAmount ?? this.totalAmount,
+      tipsGratuity: tipsGratuity ?? this.tipsGratuity,
       transactionDate: transactionDate ?? this.transactionDate,
       category: category ?? this.category,
       payee: payee ?? this.payee,
-      cardLast4: cardLast4 ?? this.cardLast4,
+      cardLast4: clearCardLast4 ? null : cardLast4 ?? this.cardLast4,
       receiptImage: receiptImage ?? this.receiptImage,
     );
   }
@@ -556,6 +569,170 @@ class _PermissionOption extends StatelessWidget {
             fontWeight: FontWeight.w500,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class ExpenseReviewDialog extends StatelessWidget {
+  final ScannedExpenseData data;
+
+  const ExpenseReviewDialog({super.key, required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE0F2FE),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.fact_check_outlined,
+                color: Color(0xFF1A2340),
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Review Expense',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Make sure everything is correct before saving.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF666666),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 18),
+            ExpenseReviewRow(
+              label: 'Transaction Date',
+              value: formatExpenseDate(data.transactionDate),
+            ),
+            ExpenseReviewRow(
+              label: 'Total Amount',
+              value: formatMoney(data.totalAmount),
+              isEmphasis: true,
+            ),
+            ExpenseReviewRow(
+              label: 'Tips & Gratuity',
+              value: formatMoney(data.tipsGratuity),
+            ),
+            const Divider(height: 22, color: Color(0xFFE5E7EB)),
+            ExpenseReviewRow(label: 'Category', value: data.category.label),
+            ExpenseReviewRow(label: 'Payee', value: data.payee),
+            ExpenseReviewRow(label: 'Card Last 4', value: data.cardLast4 ?? ''),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFD0D0D0)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Edit',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A2340),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Save',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ExpenseReviewRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool isEmphasis;
+
+  const ExpenseReviewRow({
+    super.key,
+    required this.label,
+    required this.value,
+    this.isEmphasis = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label.toUpperCase(),
+              style: const TextStyle(
+                color: Color(0xFF6B7280),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value.isEmpty ? '-' : value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: isEmphasis
+                    ? const Color(0xFF1A2340)
+                    : const Color(0xFF111827),
+                fontSize: isEmphasis ? 18 : 14,
+                fontWeight: isEmphasis ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

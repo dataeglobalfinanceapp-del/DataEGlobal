@@ -6,6 +6,7 @@ class SaveFutureExpense {
   static ExpenseRecord createInitialRecurringExpense({
     required String checkNumber,
     required double totalAmount,
+    double tipsGratuity = 0,
     required DateTime startDate,
     required String category,
     required String payee,
@@ -14,7 +15,7 @@ class SaveFutureExpense {
     required String Function(String prefix) idGenerator,
     String recurringSeriesId = '',
   }) {
-    final transactionDate = RecurrenceSchedule.dateOnly(startDate);
+    final transactionDate = startDate;
     final seriesId = recurringSeriesId.isEmpty
         ? idGenerator('recurring-expense')
         : recurringSeriesId;
@@ -23,6 +24,7 @@ class SaveFutureExpense {
       id: idGenerator('expense-${_dateToken(transactionDate)}'),
       checkNumber: checkNumber,
       totalAmount: totalAmount,
+      tipsGratuity: tipsGratuity,
       transactionDate: transactionDate,
       category: category,
       payee: payee,
@@ -36,6 +38,7 @@ class SaveFutureExpense {
   static List<ExpenseRecord> createDueRecurringExpenses({
     required String checkNumber,
     required double totalAmount,
+    double tipsGratuity = 0,
     required DateTime startDate,
     required String category,
     required String payee,
@@ -60,7 +63,8 @@ class SaveFutureExpense {
           id: idGenerator('expense-${_dateToken(dates[index])}'),
           checkNumber: checkNumber,
           totalAmount: totalAmount,
-          transactionDate: dates[index],
+          tipsGratuity: tipsGratuity,
+          transactionDate: _replaceDatePreservingTime(dates[index], startDate),
           category: category,
           payee: payee,
           isManual: isManual,
@@ -169,7 +173,11 @@ class SaveFutureExpense {
       ),
       checkNumber: template.checkNumber,
       totalAmount: template.totalAmount,
-      transactionDate: date,
+      tipsGratuity: template.tipsGratuity,
+      transactionDate: _replaceDatePreservingTime(
+        date,
+        template.transactionDate,
+      ),
       category: template.category,
       payee: template.payee,
       isManual: template.isManual,

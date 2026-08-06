@@ -61,8 +61,8 @@ class ScannedDepositData {
 // Shared widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
-class DepositDuplicateWarning extends StatelessWidget {
-  const DepositDuplicateWarning({super.key});
+class DepositAmountReviewWarning extends StatelessWidget {
+  const DepositAmountReviewWarning({super.key});
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -74,7 +74,7 @@ class DepositDuplicateWarning extends StatelessWidget {
         border: Border.all(color: const Color(0xFFFCA5A5)),
       ),
       child: const Text(
-        'This data already exists in the system (created at 13:00 on 03/20/2026). Do you want to add it again?',
+        'The extracted total does not match the payment breakdown. Review the payment amounts before saving.',
         style: TextStyle(color: Color(0xFFEF4444), fontSize: 13, height: 1.5),
       ),
     );
@@ -91,6 +91,7 @@ class DepositDataCard extends StatelessWidget {
   final TextEditingController otherController;
   final DateTime transactionDate;
   final Uint8List? receiptImageBytes;
+  final bool allowTotalEditing;
   final VoidCallback onDeleteTap;
   final VoidCallback onDateTap;
 
@@ -105,6 +106,7 @@ class DepositDataCard extends StatelessWidget {
     required this.otherController,
     required this.transactionDate,
     required this.receiptImageBytes,
+    this.allowTotalEditing = false,
     required this.onDeleteTap,
     required this.onDateTap,
   });
@@ -189,6 +191,7 @@ class DepositDataCard extends StatelessWidget {
                   label: 'TOTAL AMOUNT',
                   controller: totalAmountController,
                   thumbnailBytes: receiptImageBytes,
+                  isEditable: allowTotalEditing,
                 ),
               ),
               const SizedBox(width: 12),
@@ -294,11 +297,45 @@ class _TotalAmountDisplay extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final Uint8List? thumbnailBytes;
+  final bool isEditable;
   const _TotalAmountDisplay({
     required this.label,
     required this.controller,
     this.thumbnailBytes,
+    this.isEditable = false,
   });
+
+  Future<void> _editTotal(BuildContext context) async {
+    final editController = TextEditingController(text: controller.text);
+    final updated = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit total amount'),
+        content: TextField(
+          key: const ValueKey('deposit.totalAmount'),
+          controller: editController,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+          ],
+          decoration: const InputDecoration(prefixText: r'$'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, editController.text),
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+    editController.dispose();
+    if (updated != null) controller.text = updated;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -342,6 +379,17 @@ class _TotalAmountDisplay extends StatelessWidget {
                     );
                   },
                 ),
+                if (isEditable)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      key: const ValueKey('deposit.editTotalAmount'),
+                      onPressed: () => _editTotal(context),
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      tooltip: 'Edit total amount',
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
               ],
             ),
           ),

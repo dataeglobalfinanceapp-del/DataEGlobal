@@ -70,7 +70,8 @@ void main() {
     await LiabilityService.saveExpense(
       checkNumber: '107',
       totalAmount: 240,
-      transactionDate: DateTime(2026, 6, 15),
+      tipsGratuity: 5,
+      transactionDate: DateTime(2026, 6, 15, 14, 35),
       category: 'Utilities',
       payee: 'Power Co',
       isManual: true,
@@ -82,6 +83,8 @@ void main() {
     var expenses = await LiabilityService.loadExpenses();
 
     expect(_dateKeys(expenses), ['2026-07-01']);
+    expect(expenses.single.transactionDate, DateTime(2026, 7, 1, 14, 35));
+    expect(expenses.single.tipsGratuity, 5);
 
     final juneBudget = await LiabilityService.loadBudgetData(
       startDate: DateTime(2026, 6, 1),
@@ -94,6 +97,14 @@ void main() {
     expenses = await LiabilityService.loadExpenses();
 
     expect(_dateKeys(expenses), ['2026-07-01', '2026-08-01']);
+    expect(
+      expenses.map((ExpenseRecord record) => record.transactionDate.hour),
+      everyElement(14),
+    );
+    expect(
+      expenses.map((ExpenseRecord record) => record.tipsGratuity),
+      everyElement(5),
+    );
   });
 
   test(
@@ -185,6 +196,43 @@ void main() {
 
     expect(deposits.single.cardLastFour, '9876');
     expect(deposits.single.toJson()['cardLastFour'], '9876');
+  });
+
+  test('expense tips and combined timestamp survive persistence', () async {
+    final transactionDate = DateTime(2026, 8, 6, 14, 35);
+
+    await LiabilityService.saveExpense(
+      checkNumber: '',
+      totalAmount: 125.75,
+      tipsGratuity: 5,
+      transactionDate: transactionDate,
+      category: 'Fuel',
+      payee: 'City Fuel',
+      isManual: false,
+    );
+
+    final expense = (await LiabilityService.loadExpenses()).single;
+
+    expect(expense.totalAmount, 125.75);
+    expect(expense.tipsGratuity, 5);
+    expect(expense.transactionDate, transactionDate);
+    expect(expense.toJson()['tipsGratuity'], 5);
+    expect(expense.toJson()['transactionDate'], '2026-08-06T14:35:00.000');
+  });
+
+  test('legacy date-only expenses load at midnight with zero tips', () {
+    final expense = ExpenseRecord.fromJson(<String, dynamic>{
+      'id': 'legacy-expense',
+      'checkNumber': '101',
+      'totalAmount': 42,
+      'transactionDate': '2026-08-06',
+      'category': 'Utilities',
+      'payee': 'Power Co',
+      'isManual': true,
+    });
+
+    expect(expense.transactionDate, DateTime(2026, 8, 6));
+    expect(expense.tipsGratuity, 0);
   });
 
   test('default budget seed uses the created month', () async {
