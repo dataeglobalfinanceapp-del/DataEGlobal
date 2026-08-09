@@ -4,7 +4,11 @@ import '../../services/auth_service.dart';
 import 'auth_form_validators.dart';
 
 typedef SignUpRequest =
-    Future<SignUpAttempt> Function(String email, String password);
+    Future<SignUpAttempt> Function({
+      required String email,
+      required String password,
+      required String fullName,
+    });
 
 class SignUpFormState {
   final bool isLoading;
@@ -137,6 +141,7 @@ class SignUpController extends ChangeNotifier {
   SignUpFormState get state => _state;
 
   String get email => emailController.text.trim();
+  String get fullName => nameController.text.trim();
 
   bool validate() {
     final String name = nameController.text.trim();
@@ -197,8 +202,9 @@ class SignUpController extends ChangeNotifier {
     _setState(_state.copyWith(isLoading: true, errors: const <String>[]));
     try {
       return await _signUp(
-        emailController.text.trim(),
-        passwordController.text,
+        email: email,
+        password: passwordController.text,
+        fullName: fullName,
       );
     } on Exception catch (error) {
       _setState(_state.copyWith(errors: <String>[error.toString()]));

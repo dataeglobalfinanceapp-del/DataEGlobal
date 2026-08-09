@@ -156,11 +156,14 @@ class _SaveTepAppState extends State<SaveTepApp> {
             if (arguments is ConfirmSignUpArguments) {
               return ConfirmSignUpScreen(
                 email: arguments.email,
+                fullName: arguments.fullName,
                 codeDelivery: arguments.codeDelivery,
               );
             }
             return ConfirmSignUpScreen(email: arguments as String);
           },
+          UserSettingsRoutes.businessSetup: (context) =>
+              const BusinessManagementScreen(isSetupFlow: true),
           '/forgot-password': (context) => const ForgotPasswordScreen(),
           '/confirm-reset': (context) {
             final email = ModalRoute.of(context)!.settings.arguments as String;

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:savetep/providers/auth_provider.dart';
+import 'package:savetep/providers/business_profile_provider.dart';
 
 import 'user_settings_routes.dart';
 import 'widgets/user_settings_menu_item.dart';
 
-class UserSettingsScreen extends StatelessWidget {
+class UserSettingsScreen extends ConsumerWidget {
   const UserSettingsScreen({super.key});
 
   static const List<_UserSettingsMenuDestination> _destinations = [
@@ -52,7 +56,7 @@ class UserSettingsScreen extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
@@ -112,6 +116,28 @@ class UserSettingsScreen extends StatelessWidget {
                     ),
                 ],
               ),
+            ),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: () async {
+                try {
+                  await ref.read(authStateProvider.notifier).signOut();
+                  ref.invalidate(businessProfileProvider);
+                  if (!context.mounted) return;
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/login',
+                    (route) => false,
+                  );
+                } on Object catch (error) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not sign out: $error')),
+                  );
+                }
+              },
+              icon: const Icon(Icons.logout),
+              label: const Text('Sign Out'),
             ),
           ],
         ),

@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:savetep/providers/business_profile_provider.dart';
 
 import '../../services/auth_service.dart';
 import '../../widgets/auth_widgets.dart';
 import 'login_controller.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   final LoginController? controller;
 
   const LoginScreen({super.key, this.controller});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   late LoginController _controller;
   late bool _ownsController;
+  bool _authenticationComplete = false;
+  bool _routingProfile = false;
 
   @override
   void initState() {
@@ -49,10 +54,31 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
-    final bool signedIn = await _controller.submit();
-    if (!mounted || !signedIn) return;
+    if (_routingProfile) return;
 
-    Navigator.pushReplacementNamed(context, '/home');
+    if (!_authenticationComplete) {
+      final signedIn = await _controller.submit();
+      if (!mounted || !signedIn) return;
+      _authenticationComplete = true;
+    }
+
+    setState(() => _routingProfile = true);
+    try {
+      ref.invalidate(businessProfileProvider);
+      final profile = await ref.read(businessProfileProvider.future);
+      if (!mounted) return;
+
+      Navigator.pushReplacementNamed(
+        context,
+        profile.setupCompleted ? '/home' : '/business-setup',
+      );
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() => _routingProfile = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load business setup: $error')),
+      );
+    }
   }
 
   @override
@@ -73,6 +99,8 @@ class _LoginScreenState extends State<LoginScreen> {
               _LoginForm(
                 controller: _controller,
                 state: state,
+                isRoutingProfile: _routingProfile,
+                authenticationComplete: _authenticationComplete,
                 onSubmit: _submit,
                 onForgotPassword: () =>
                     Navigator.pushNamed(context, '/forgot-password'),
@@ -90,6 +118,8 @@ class _LoginScreenState extends State<LoginScreen> {
 class _LoginForm extends StatelessWidget {
   final LoginController controller;
   final LoginFormState state;
+  final bool isRoutingProfile;
+  final bool authenticationComplete;
   final VoidCallback onSubmit;
   final VoidCallback onForgotPassword;
   final VoidCallback onSignUp;
@@ -97,6 +127,8 @@ class _LoginForm extends StatelessWidget {
   const _LoginForm({
     required this.controller,
     required this.state,
+    required this.isRoutingProfile,
+    required this.authenticationComplete,
     required this.onSubmit,
     required this.onForgotPassword,
     required this.onSignUp,
@@ -140,8 +172,8 @@ class _LoginForm extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           AuthPrimaryButton(
-            label: 'Login',
-            isLoading: state.isLoading,
+            label: authenticationComplete ? 'Continue' : 'Login',
+            isLoading: state.isLoading || isRoutingProfile,
             onPressed: onSubmit,
           ),
           const SizedBox(height: 20),

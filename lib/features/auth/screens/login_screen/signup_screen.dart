@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/account_profile_service.dart';
 import '../../widgets/auth_widgets.dart';
+import 'business_name_onboarding_screen.dart';
 import 'confirm_signup_screen.dart';
 import 'signup_controller.dart';
 
@@ -52,13 +54,43 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Future<void> _submit() async {
     final SignUpAttempt? signUp = await _controller.submit();
-    if (!mounted || signUp == null || !signUp.needsConfirmation) return;
+    if (!mounted || signUp == null) return;
+
+    try {
+      await AccountProfileService.stageNewAccount(
+        email: _controller.email,
+        fullName: _controller.fullName,
+      );
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Account created, but profile setup could not be prepared: $error',
+          ),
+        ),
+      );
+    }
+
+    if (!mounted) return;
+    if (!signUp.needsConfirmation) {
+      Navigator.pushReplacementNamed(
+        context,
+        '/business-name-onboarding',
+        arguments: BusinessNameOnboardingArguments(
+          email: _controller.email,
+          fullName: _controller.fullName,
+        ),
+      );
+      return;
+    }
 
     Navigator.pushNamed(
       context,
       '/confirm-signup',
       arguments: ConfirmSignUpArguments(
         email: _controller.email,
+        fullName: _controller.fullName,
         codeDelivery: signUp.codeDelivery,
       ),
     );

@@ -4,12 +4,16 @@ class UserSettingDetailScaffold extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color accentColor;
+  final Widget? child;
+  final bool showBackButton;
 
   const UserSettingDetailScaffold({
     super.key,
     required this.title,
     required this.icon,
     required this.accentColor,
+    this.child,
+    this.showBackButton = true,
   });
 
   @override
@@ -19,10 +23,13 @@ class UserSettingDetailScaffold extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
+        leading: showBackButton
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
         title: Text(
           title,
           style: const TextStyle(
@@ -35,22 +42,24 @@ class UserSettingDetailScaffold extends StatelessWidget {
       ),
       body: SafeArea(
         child: Center(
-          child: Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x14000000),
-                  blurRadius: 18,
-                  offset: Offset(0, 8),
+          child:
+              child ??
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x14000000),
+                      blurRadius: 18,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Icon(icon, color: accentColor, size: 42),
-          ),
+                child: Icon(icon, color: accentColor, size: 42),
+              ),
         ),
       ),
     );

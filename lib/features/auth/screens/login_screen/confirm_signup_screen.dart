@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/auth_widgets.dart';
+import 'business_name_onboarding_screen.dart';
 
 class ConfirmSignUpArguments {
   final String email;
+  final String fullName;
   final CodeDeliveryInfo? codeDelivery;
 
-  const ConfirmSignUpArguments({required this.email, this.codeDelivery});
+  const ConfirmSignUpArguments({
+    required this.email,
+    required this.fullName,
+    this.codeDelivery,
+  });
 }
 
 class ConfirmSignUpScreen extends StatefulWidget {
   final String email;
+  final String fullName;
   final CodeDeliveryInfo? codeDelivery;
 
   const ConfirmSignUpScreen({
     super.key,
     required this.email,
+    this.fullName = '',
     this.codeDelivery,
   });
 
@@ -43,7 +51,14 @@ class _ConfirmSignUpScreenState extends State<ConfirmSignUpScreen> {
       );
       if (!mounted) return;
       if (complete) {
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushReplacementNamed(
+          context,
+          '/business-name-onboarding',
+          arguments: BusinessNameOnboardingArguments(
+            email: widget.email,
+            fullName: widget.fullName,
+          ),
+        );
       }
     } on Exception catch (e) {
       if (!mounted) return;

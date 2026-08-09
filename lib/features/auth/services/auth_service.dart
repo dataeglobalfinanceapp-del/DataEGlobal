@@ -28,13 +28,20 @@ class AuthService {
     return Amplify.Auth.fetchAuthSession();
   }
 
-  static Future<SignUpAttempt> signUp(String email, String password) async {
+  static Future<SignUpAttempt> signUp({
+    required String email,
+    required String password,
+    required String fullName,
+  }) async {
     try {
       final result = await Amplify.Auth.signUp(
         username: email,
         password: password,
         options: SignUpOptions(
-          userAttributes: {AuthUserAttributeKey.email: email},
+          userAttributes: {
+            AuthUserAttributeKey.email: email,
+            AuthUserAttributeKey.name: fullName,
+          },
         ),
       );
       final delivery = CodeDeliveryInfo.fromAuth(

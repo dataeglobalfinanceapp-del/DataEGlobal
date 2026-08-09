@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:savetep/providers/business_profile_provider.dart';
+
 import '../../services/auth_service.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
+  String? _errorMessage;
+  bool _checking = false;
+
   @override
   void initState() {
     super.initState();
@@ -20,6 +27,12 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuth() async {
+    if (_checking) return;
+    setState(() {
+      _checking = true;
+      _errorMessage = null;
+    });
+
     bool signedIn;
     try {
       signedIn = await AuthService.isSignedIn();
@@ -28,15 +41,50 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     if (!mounted) return;
-    if (signedIn) {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
+    if (!signedIn) {
       Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
+
+    try {
+      ref.invalidate(businessProfileProvider);
+      final profile = await ref.read(businessProfileProvider.future);
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(
+        context,
+        profile.setupCompleted ? '/home' : '/business-setup',
+      );
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _checking = false;
+        _errorMessage = 'Could not load business setup: $error';
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    final errorMessage = _errorMessage;
+    return Scaffold(
+      body: Center(
+        child: errorMessage == null
+            ? const CircularProgressIndicator()
+            : Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(errorMessage, textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: _checkAuth,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+      ),
+    );
   }
 }

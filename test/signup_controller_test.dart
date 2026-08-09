@@ -6,8 +6,12 @@ void main() {
   group('SignUpController', () {
     test('validate reports required fields, password policy, and terms', () {
       final SignUpController controller = SignUpController(
-        signUp: (_, _) async =>
-            const SignUpAttempt(needsConfirmation: true, codeDelivery: null),
+        signUp:
+            ({required email, required password, required fullName}) async =>
+                const SignUpAttempt(
+                  needsConfirmation: true,
+                  codeDelivery: null,
+                ),
       );
       addTearDown(controller.dispose);
 
@@ -49,15 +53,22 @@ void main() {
     test('submit sends trimmed email for a valid form', () async {
       String? submittedEmail;
       String? submittedPassword;
+      String? submittedFullName;
       final SignUpController controller = SignUpController(
-        signUp: (String email, String password) async {
-          submittedEmail = email;
-          submittedPassword = password;
-          return const SignUpAttempt(
-            needsConfirmation: true,
-            codeDelivery: null,
-          );
-        },
+        signUp:
+            ({
+              required String email,
+              required String password,
+              required String fullName,
+            }) async {
+              submittedEmail = email;
+              submittedPassword = password;
+              submittedFullName = fullName;
+              return const SignUpAttempt(
+                needsConfirmation: true,
+                codeDelivery: null,
+              );
+            },
       );
       addTearDown(controller.dispose);
 
@@ -74,6 +85,7 @@ void main() {
       expect(result?.needsConfirmation, isTrue);
       expect(submittedEmail, 'sunny@example.com');
       expect(submittedPassword, 'Password1!');
+      expect(submittedFullName, 'Sunny');
       expect(controller.state.countryCode, '+1');
       expect(controller.state.errors, isEmpty);
     });

@@ -1,5 +1,6 @@
 class UserSettingsRoutes {
   static const settings = '/user-settings';
+  static const businessSetup = '/business-setup';
   static const businessManagement = '/user-settings/business-management';
   static const enterpriseCodeId = '/user-settings/enterprise-code-id';
   static const changePassword = '/user-settings/change-password';

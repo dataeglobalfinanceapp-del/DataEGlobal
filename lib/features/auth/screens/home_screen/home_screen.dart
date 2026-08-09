@@ -2,12 +2,16 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:savetep/core/customer_service_contact.dart';
+import 'package:savetep/features/auth/models/business_profile.dart';
 import 'package:savetep/features/auth/models/budget_data.dart';
 import 'package:savetep/features/auth/screens/user_setting/user_settings_routes.dart';
 import 'package:savetep/features/auth/screens/user_setting/widgets/user_logo_menu_button.dart';
-import 'package:savetep/features/auth/services/auth_service.dart';
+import 'package:savetep/providers/business_profile_provider.dart';
 import 'package:savetep/services/app_clock.dart';
+import 'package:savetep/services/customer_service_launcher.dart';
 import 'package:savetep/services/liability_service.dart';
 
 import 'budget_donut_chart.dart';
@@ -16,6 +20,7 @@ class _HomeLayoutTokens {
   const _HomeLayoutTokens._();
 
   static const double appBarHeight = 56;
+  static const double headerActionsWidth = 96;
   static const double _referenceContentHeight = 700;
 
   static _HomeLayoutMetrics fromConstraints(
@@ -465,14 +470,14 @@ const List<String> _monthNames = <String>[
   'December',
 ];
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   _HomePeriodType _selectedPeriod = _HomePeriodType.week;
   late int _selectedMonth;
   late int _selectedQuarter;
@@ -596,32 +601,85 @@ class _HomeScreenState extends State<HomeScreen> {
     unawaited(_loadBudgetData());
   }
 
+  Future<void> _showCustomerService() async {
+    final shouldCall = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Customer Service'),
+        content: const Text(CustomerServiceContact.displayPhone),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Call'),
+          ),
+        ],
+      ),
+    );
+    if (shouldCall != true || !mounted) return;
+
+    final opened = await const CustomerServiceLauncher().call();
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the phone dialer.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final profile = ref.watch(businessProfileProvider);
+    final displayName = profile.when(
+      data: (profile) => profile.displayName,
+      loading: () => BusinessProfile.fallbackDisplayName,
+      error: (_, _) => BusinessProfile.fallbackDisplayName,
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5ED),
       appBar: AppBar(
         toolbarHeight: _HomeLayoutTokens.appBarHeight,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
-        leadingWidth: 56,
-        leading: UserLogoMenuButton(
-          size: 36,
-          onPressed: () =>
-              Navigator.pushNamed(context, UserSettingsRoutes.settings),
+        leadingWidth: _HomeLayoutTokens.headerActionsWidth,
+        leading: Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(
+            width: _HomeLayoutTokens.appBarHeight,
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Image.asset(
+                'assets/images/save_tep_logo.png',
+                key: const ValueKey('home.appLogo'),
+                fit: BoxFit.contain,
+                semanticLabel: 'SaveTep logo',
+              ),
+            ),
+          ),
         ),
-        title: const Text(
-          'SaveTep',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        centerTitle: true,
+        title: Text(
+          displayName,
+          key: const ValueKey('home.businessDisplayName'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, size: 24),
-            onPressed: () async {
-              await AuthService.signOut();
-              if (!context.mounted) return;
-              Navigator.pushReplacementNamed(context, '/login');
-            },
+            key: const ValueKey('home.customerServiceButton'),
+            tooltip: 'Customer Service',
+            onPressed: _showCustomerService,
+            icon: const Icon(Icons.support_agent_outlined),
+          ),
+          UserLogoMenuButton(
+            size: 36,
+            onPressed: () =>
+                Navigator.pushNamed(context, UserSettingsRoutes.settings),
           ),
         ],
       ),

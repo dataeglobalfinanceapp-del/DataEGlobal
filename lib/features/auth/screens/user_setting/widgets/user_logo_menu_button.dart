@@ -13,12 +13,12 @@ class UserLogoMenuButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Center(
         child: Tooltip(
-          message: 'User settings',
+          message: 'Account',
           child: Semantics(
-            label: 'Open user settings',
+            label: 'Open Account Settings',
             button: true,
             child: Material(
               color: Colors.transparent,

@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:savetep/core/customer_service_contact.dart';
+import 'package:savetep/features/auth/models/account_profile.dart';
 import 'package:savetep/features/auth/screens/home_screen/home_screen.dart';
+import 'package:savetep/features/auth/screens/user_setting/user_setting_screens.dart';
+import 'package:savetep/features/auth/services/account_profile_service.dart';
+import 'package:savetep/features/auth/widgets/business_name_prompt_dialog.dart';
+import 'package:savetep/providers/account_profile_provider.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 
@@ -36,6 +43,140 @@ void main() {
     expect(_actionGridDelegate(tester).crossAxisCount, 4);
     _expectBudgetCardsAlignedWithDateRange(tester);
     await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('Home header shows profile, service, Account, and the app logo', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpHomeScreen(
+      tester,
+      profile: const AccountProfile(
+        fullName: 'Sunny Nguyen',
+        businessName: 'Sunny Nails',
+        businessNameOnboardingCompleted: true,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('home.appLogo')), findsOneWidget);
+    expect(find.text('Sunny Nails'), findsOneWidget);
+    expect(find.byTooltip('Customer Service'), findsOneWidget);
+    expect(find.byTooltip('Account'), findsOneWidget);
+    expect(find.byIcon(Icons.logout), findsNothing);
+
+    final customerServiceRect = tester.getRect(
+      find.byTooltip('Customer Service'),
+    );
+    final accountRect = tester.getRect(find.byTooltip('Account'));
+    expect(customerServiceRect.right, lessThanOrEqualTo(accountRect.left));
+
+    final title = tester.widget<Text>(
+      find.byKey(const ValueKey('home.businessDisplayName')),
+    );
+    expect(title.maxLines, 1);
+    expect(title.overflow, TextOverflow.ellipsis);
+    expect(
+      tester
+          .getCenter(find.byKey(const ValueKey('home.businessDisplayName')))
+          .dx,
+      moreOrLessEquals(tester.view.physicalSize.width / 2),
+    );
+
+    await tester.tap(find.byTooltip('Customer Service'));
+    await tester.pumpAndSettle();
+    expect(find.text(CustomerServiceContact.displayPhone), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(find.text('Call'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Account'));
+    await tester.pumpAndSettle();
+    expect(find.text('Account Settings'), findsOneWidget);
+  });
+
+  testWidgets('Home immediately reflects a business name saved in Settings', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = _FakeAccountProfileRepository(
+      const AccountProfile(
+        fullName: 'Sunny Nguyen',
+        businessNameOnboardingCompleted: true,
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          accountProfileRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: MaterialApp(
+          home: const HomeScreen(),
+          routes: {
+            '/user-settings': (_) => const UserSettingsScreen(),
+            '/user-settings/business-management': (_) =>
+                const BusinessManagementScreen(),
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Sunny Nguyen'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Business Management'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('accountSettings.businessNameField')),
+      'Sunny Nails',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(repository.profile.businessName, 'Sunny Nails');
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    expect(find.text('Sunny Nails'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('skipping fallback onboarding completes it once', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpHomeScreen(
+      tester,
+      profile: const AccountProfile(
+        fullName: 'Sunny Nguyen',
+        businessNameOnboardingCompleted: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(BusinessNamePromptDialog), findsOneWidget);
+
+    await tester.tap(find.text('Skip'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BusinessNamePromptDialog), findsNothing);
+
+    await tester.pump();
+    expect(find.byType(BusinessNamePromptDialog), findsNothing);
+    expect(find.text('Sunny Nguyen'), findsOneWidget);
   });
 
   testWidgets('HomeScreen lets an expanded budget editor grow in the page', (
@@ -319,8 +460,42 @@ void main() {
   });
 }
 
-Future<void> _pumpHomeScreen(WidgetTester tester) async {
-  await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+Future<void> _pumpHomeScreen(
+  WidgetTester tester, {
+  AccountProfile profile = const AccountProfile(
+    businessNameOnboardingCompleted: true,
+  ),
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        accountProfileRepositoryProvider.overrideWithValue(
+          _FakeAccountProfileRepository(profile),
+        ),
+      ],
+      child: MaterialApp(
+        home: const HomeScreen(),
+        routes: {
+          '/user-settings': (_) =>
+              const Scaffold(body: Center(child: Text('Account Settings'))),
+        },
+      ),
+    ),
+  );
+}
+
+class _FakeAccountProfileRepository implements AccountProfileRepository {
+  AccountProfile profile;
+
+  _FakeAccountProfileRepository(this.profile);
+
+  @override
+  Future<AccountProfile> load() async => profile;
+
+  @override
+  Future<void> save(AccountProfile profile) async {
+    this.profile = profile;
+  }
 }
 
 class _GridBreakpointCase {
