@@ -51,7 +51,7 @@ Energy
 Loan Obligation
 Payroll
 Business licenses and permits
-Food
+Food Purchase
 Restaurant supplies
 Advertising and promotion
 software
@@ -62,7 +62,12 @@ Insurance
 Rent
 Office Supplies
 Meal, entertainment
-Automobile, Fuel
+merchant accounting fees
+gas
+water
+electric
+donation
+professional fees
 ```
 
 Connect an Android phone with USB debugging enabled, accept the computer's RSA

@@ -30,7 +30,7 @@ void main() {
           'Loan Obligation',
           'Payroll',
           'Business licenses and permits',
-          'Food',
+          'Food Purchase',
           'Restaurant supplies',
           'Advertising and promotion',
           'software',
@@ -41,7 +41,12 @@ void main() {
           'Rent',
           'Office Supplies',
           'Meal, entertainment',
-          'Automobile, Fuel',
+          'merchant accounting fees',
+          'gas',
+          'water',
+          'electric',
+          'donation',
+          'professional fees',
         ],
       );
     });
@@ -49,12 +54,12 @@ void main() {
     test('maps the supported expense fields', () {
       final mapped = mapper.map(
         result: _result(<String, Object?>{
-          'supplier_name': 'City Fuel',
+          'supplier_name': 'City Gas',
           'date': '2026-08-06',
           'time': '14:35',
           'total_amount': 125.75,
           'tips_gratuity': 5.25,
-          'purchase_category': 'Automobile, Fuel',
+          'purchase_category': 'gas',
           'card_last4': '7281',
         }),
         image: image,
@@ -65,14 +70,14 @@ void main() {
       expect(mapped.totalAmount, 125.75);
       expect(mapped.tipsGratuity, 5.25);
       expect(mapped.transactionDate, DateTime(2026, 8, 6, 14, 35));
-      expect(mapped.category, ExpenseCategory.automobileFuel);
-      expect(mapped.payee, 'City Fuel');
+      expect(mapped.category, ExpenseCategory.gas);
+      expect(mapped.payee, 'City Gas');
       expect(mapped.cardLast4, '7281');
       expect(mapped.receiptImage, same(image));
     });
 
     test('preserves current category when missing or unsupported', () {
-      for (final value in <Object?>[null, 'Travel', 'Utilities', 'Fuel']) {
+      for (final value in <Object?>[null, 'Travel', 'Other', 'Shopping']) {
         final mapped = mapper.map(
           result: _result(<String, Object?>{'purchase_category': value}),
           image: image,
@@ -162,7 +167,7 @@ void main() {
           'check_number': '4182',
           'transaction_date': '2026-08-06',
           'payee': 'Old Payee',
-          'category': 'Fuel',
+          'category': 'gas',
         }),
         image: image,
         fallbackDate: fallback,

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -28,6 +26,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   bool _hasExtractedData = false;
   bool _isSaving = false;
   bool _isRecurringExpense = false;
+  bool _cameraPermissionWasDenied = false;
   CancellationToken? _activeCancellationToken;
   ExpenseScheduleFrequency _recurringFrequency =
       ExpenseScheduleFrequency.monthly;
@@ -48,9 +47,6 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
     _tipsGratuityController = TextEditingController();
     _payeeController = TextEditingController();
     _cardLast4Controller = TextEditingController();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_startAutomaticExtraction());
-    });
   }
 
   @override
@@ -65,39 +61,21 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
 
   // ── Setup ─────────────────────────────────────────────────────────────────
 
-  Future<void> _startAutomaticExtraction() async {
-    _activeCancellationToken?.cancel();
-    final emptyData = ScannedExpenseData(transactionDate: AppClock.now);
-    setState(() {
-      _scannedImageBytes = null;
-      _isScanning = false;
-      _hasExtractedData = false;
-      _isRecurringExpense = false;
-      _recurringStartDate = emptyData.transactionDate;
-      _recurringFrequency = ExpenseScheduleFrequency.monthly;
-      _data = emptyData;
-    });
-    _syncControllers(emptyData);
-    await _showCameraPermissionDialog();
-  }
-
   // ── Camera picker ─────────────────────────────────────────────────────────
 
-  Future<void> _showCameraPermissionDialog() async {
-    final choice = await showDialog<String>(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (_) => const CameraPermissionDialog(),
-    );
-    if (!mounted) return;
-    debugPrint('[ScanExpense] Camera permission rationale choice: $choice.');
-    if (choice == 'while' || choice == 'once') {
-      await _pickImage(ImageSource.camera);
-    } else {
-      debugPrint(
-        '[ScanExpense] Camera capture was not started because permission was declined.',
+  Future<void> _takePhoto() async {
+    if (_cameraPermissionWasDenied) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Camera access is disabled. Enable it in Settings to take a photo.',
+          ),
+        ),
       );
+      return;
     }
+
+    await _pickImage(ImageSource.camera);
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -154,6 +132,18 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
     } on MindeeRequestCancelledException {
       return;
     } catch (error, stackTrace) {
+      if (error is PlatformException &&
+          (error.code == 'camera_access_denied' ||
+              error.code == 'camera_access_restricted')) {
+        debugPrint('[ScanExpense] Camera access was denied: ${error.code}.');
+        if (mounted) {
+          setState(() {
+            _isScanning = false;
+            _cameraPermissionWasDenied = true;
+          });
+        }
+        return;
+      }
       debugPrint('[ScanExpense] Mindee analysis failed: $error');
       debugPrintStack(stackTrace: stackTrace);
       if (mounted &&
@@ -387,7 +377,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.bolt_outlined, color: Colors.black87),
-            onPressed: _isScanning ? null : _showCameraPermissionDialog,
+            onPressed: _isScanning ? null : _takePhoto,
             tooltip: 'Scan receipt',
           ),
         ],
@@ -414,7 +404,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
             _ScannerArea(
               imageBytes: _scannedImageBytes,
               isScanning: _isScanning,
-              onTap: _showCameraPermissionDialog,
+              onTap: _takePhoto,
             ),
             const SizedBox(height: 16),
             Padding(

@@ -42,7 +42,7 @@ class SignUpFormState {
       obscurePassword = true,
       obscureConfirm = true,
       agreedToTerms = false,
-      countryCode = '+84',
+      countryCode = '+1',
       errors = const <String>[],
       nameInvalid = false,
       emailInvalid = false,

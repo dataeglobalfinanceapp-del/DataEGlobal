@@ -25,7 +25,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Saving Plan'), findsOneWidget);
-    expect(find.text('TOTAL DEPOSIT'), findsOneWidget);
+    expect(find.text('TOTAL BALANCE'), findsOneWidget);
     expect(find.text(r'$120,000.00'), findsOneWidget);
     expect(find.text('Total Saving'), findsOneWidget);
     expect(find.text(r'$0.00'), findsOneWidget);
@@ -271,6 +271,37 @@ void main() {
       zeroTexts.any((text) => text.style?.color == const Color(0xFF16A34A)),
       isTrue,
     );
+  });
+
+  testWidgets('daily shortfall rolls forward and reacts to past edits', (
+    WidgetTester tester,
+  ) async {
+    AppClock.set(DateTime(2026, 1, 3));
+    await _saveDeposit(amount: 365000, date: DateTime(2026, 1, 1));
+
+    await tester.pumpWidget(const MaterialApp(home: SavingScreen()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Day'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Show all'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(0), '100');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).at(1), '60');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(find.text(r'$140.00'), findsWidgets);
+    expect(find.text(r'$36,500.00'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).at(1), '100');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(find.text(r'$140.00'), findsNothing);
+    expect(find.text(r'$100.00'), findsWidgets);
   });
 }
 

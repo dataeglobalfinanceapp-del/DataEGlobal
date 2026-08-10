@@ -784,38 +784,19 @@ class LiabilityService {
     }
 
     for (final seed in DefaultBudgetSeedData.expenses) {
-      final transactionDate = _seedDate(createdAt, seed.dayOfMonth);
+      final transactionDate = _seedDate(createdAt, seed.date.day);
       if (transactionDate == null) continue;
-      final payee = seed.payee.trim().isEmpty ? seed.category : seed.payee;
-
-      if (seed.isRecurringMonthly) {
-        final expenses = SaveFutureExpense.createDueRecurringExpenses(
-          checkNumber: _seedCheckNumber(seed),
-          totalAmount: seed.amount,
-          startDate: transactionDate,
-          category: seed.category,
-          payee: payee,
-          isManual: true,
-          frequency: RecurrenceSchedule.monthly,
-          now: createdAt,
-          idGenerator: _newId,
-        );
-        for (final expense in expenses) {
-          _addExpense(state, expense);
-        }
-        changed = changed || expenses.isNotEmpty;
-        continue;
-      }
 
       _addExpense(
         state,
         ExpenseRecord(
           id: _newId('seed-expense'),
           checkNumber: _seedCheckNumber(seed),
-          totalAmount: seed.amount,
+          totalAmount: seed.total,
           transactionDate: transactionDate,
           category: seed.category,
-          payee: payee,
+          payee: seed.payee,
+          last4CreditCard: seed.last4CreditCard,
           isManual: true,
         ),
       );
@@ -844,7 +825,7 @@ class LiabilityService {
   }
 
   static String _seedCheckNumber(BudgetSeedExpense seed) {
-    final day = seed.dayOfMonth.toString().padLeft(2, '0');
+    final day = seed.date.day.toString().padLeft(2, '0');
     return 'Seed-${_seedToken(seed.category)}-$day';
   }
 
@@ -1199,7 +1180,7 @@ class LiabilityService {
       'Rent' => const Color(0xFF3B82F6),
       'Insurance' => const Color(0xFF60A5FA),
       'Business licenses and permits' => const Color(0xFF7C3AED),
-      'Food' => const Color(0xFFF97316),
+      'Food Purchase' => const Color(0xFFF97316),
       'Restaurant supplies' => const Color(0xFF0D9488),
       'Advertising and promotion' => const Color(0xFFDB2777),
       'software' => const Color(0xFF4F46E5),
@@ -1208,13 +1189,13 @@ class LiabilityService {
       'Maintenance' => const Color(0xFF475569),
       'Office Supplies' => const Color(0xFF9333EA),
       'Meal, entertainment' => const Color(0xFFEA580C),
-      'Automobile, Fuel' => const Color(0xFFEF4444),
-      'Consumable Supplies' => const Color(0xFF93C5FD),
-      'Utilities' => const Color(0xFFBFDBFE),
-      'Fuel' => const Color(0xFFEF4444),
-      'COGS' => const Color(0xFF1E3A5F),
       'Loan Obligation' => const Color(0xFFDC2626),
-      'Equipment' => const Color(0xFF1D4ED8),
+      'merchant accounting fees' => const Color(0xFF0F766E),
+      'gas' => const Color(0xFFEF4444),
+      'water' => const Color(0xFF0EA5E9),
+      'electric' => const Color(0xFFFBBF24),
+      'donation' => const Color(0xFFEC4899),
+      'professional fees' => const Color(0xFF1D4ED8),
       _ => const Color(0xFF374151),
     };
   }
@@ -1361,13 +1342,14 @@ class ExpenseRecord {
   final DateTime transactionDate;
   final String category;
   final String payee;
+  final String last4CreditCard;
   final bool isManual;
   final String recurringSeriesId;
   final int recurringIndex;
   final int recurringEndMonthKey;
   final String recurringFrequency;
 
-  const ExpenseRecord({
+  ExpenseRecord({
     required this.id,
     required this.checkNumber,
     required this.totalAmount,
@@ -1375,12 +1357,13 @@ class ExpenseRecord {
     required this.transactionDate,
     required this.category,
     required this.payee,
+    String last4CreditCard = '',
     required this.isManual,
     this.recurringSeriesId = '',
     this.recurringIndex = 0,
     this.recurringEndMonthKey = 0,
     this.recurringFrequency = '',
-  });
+  }) : last4CreditCard = normalizeCardLastFour(last4CreditCard);
 
   factory ExpenseRecord.fromJson(Map<String, dynamic> json) {
     final seriesId = _asString(json['recurringSeriesId']);
@@ -1392,6 +1375,7 @@ class ExpenseRecord {
       transactionDate: _asDate(json['transactionDate']),
       category: _asString(json['category'], fallback: 'Other'),
       payee: _asString(json['payee']),
+      last4CreditCard: _asString(json['last4CreditCard']),
       isManual: json['isManual'] == true,
       recurringSeriesId: seriesId,
       recurringIndex: _asInt(json['recurringIndex']),
@@ -1426,6 +1410,7 @@ class ExpenseRecord {
       transactionDate: transactionDate,
       category: category,
       payee: payee,
+      last4CreditCard: last4CreditCard,
       isManual: isManual,
       recurringSeriesId: recurringSeriesId,
       recurringIndex: recurringIndex,
@@ -1442,6 +1427,7 @@ class ExpenseRecord {
     'transactionDate': transactionDate.toIso8601String(),
     'category': category,
     'payee': payee,
+    'last4CreditCard': last4CreditCard,
     'isManual': isManual,
     'recurringSeriesId': recurringSeriesId,
     'recurringIndex': recurringIndex,

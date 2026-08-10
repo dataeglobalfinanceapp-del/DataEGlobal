@@ -34,8 +34,8 @@ void main() {
       checkNumber: 'E200',
       totalAmount: 45,
       transactionDate: DateTime(2026, 6, 13),
-      category: 'Fuel',
-      payee: 'Fuel Stop',
+      category: 'gas',
+      payee: 'Gas Stop',
       isManual: true,
     );
 
@@ -190,8 +190,8 @@ void main() {
       checkNumber: 'E200',
       totalAmount: 45,
       transactionDate: DateTime(2026, 6, 10),
-      category: 'Fuel',
-      payee: 'Fuel Stop',
+      category: 'gas',
+      payee: 'Gas Stop',
       isManual: true,
     );
     await LiabilityService.saveExpense(
@@ -219,28 +219,28 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('Fuel Stop'),
+      find.text('Gas Stop'),
       find.byType(ListView),
       const Offset(0, -100),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Fuel Stop'), findsOneWidget);
+    expect(find.text('Gas Stop'), findsOneWidget);
     expect(find.text('Studio Rent'), findsOneWidget);
 
-    await tester.tap(find.text('Fuel'));
+    await tester.tap(find.text('gas'));
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('Fuel total'),
+      find.text('gas total'),
       find.byType(ListView),
       const Offset(0, 180),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Fuel total'), findsOneWidget);
+    expect(find.text('gas total'), findsOneWidget);
     expect(find.text(r'$45.00'), findsWidgets);
-    expect(find.text('Fuel Stop'), findsOneWidget);
+    expect(find.text('Gas Stop'), findsOneWidget);
     expect(find.text('Studio Rent'), findsNothing);
   });
 
@@ -251,8 +251,8 @@ void main() {
       checkNumber: 'E200',
       totalAmount: 45,
       transactionDate: DateTime(2026, 6, 12),
-      category: 'Fuel',
-      payee: 'Fuel Stop',
+      category: 'gas',
+      payee: 'Gas Stop',
       isManual: true,
     );
 
@@ -304,8 +304,8 @@ void main() {
       checkNumber: 'E200',
       totalAmount: 45,
       transactionDate: DateTime(2026, 6, 12),
-      category: 'Fuel',
-      payee: 'Fuel Stop',
+      category: 'gas',
+      payee: 'Gas Stop',
       isManual: true,
     );
     await LiabilityService.saveExpense(
@@ -346,13 +346,13 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('Fuel Stop'),
+      find.text('Gas Stop'),
       find.byType(ListView),
       const Offset(0, -100),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Fuel Stop'), findsOneWidget);
+    expect(find.text('Gas Stop'), findsOneWidget);
     expect(find.text('Office Supply'), findsNothing);
   });
 }

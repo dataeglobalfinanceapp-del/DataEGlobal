@@ -190,11 +190,11 @@ void main() {
     const categories = <String>[
       'Payroll',
       'Rent',
-      'Fuel',
-      'Utilities',
+      'gas',
+      'electric',
       'Insurance',
       'Shopping',
-      'Equipment',
+      'professional fees',
       'Other',
     ];
     for (var index = 0; index < categories.length; index++) {
@@ -242,8 +242,8 @@ void main() {
       checkNumber: 'E200',
       totalAmount: 45,
       transactionDate: DateTime(2026, 6, 13),
-      category: 'Fuel',
-      payee: 'Fuel Stop',
+      category: 'gas',
+      payee: 'Gas Stop',
       isManual: true,
     );
 
@@ -297,8 +297,8 @@ void main() {
       checkNumber: 'MAY-E',
       totalAmount: 70,
       transactionDate: DateTime(2026, 5, 8, 9),
-      category: 'Fuel',
-      payee: 'Fuel Stop',
+      category: 'gas',
+      payee: 'Gas Stop',
       isManual: true,
     );
     await LiabilityService.saveDeposit(
@@ -315,8 +315,8 @@ void main() {
       checkNumber: 'JUL-E',
       totalAmount: 400,
       transactionDate: DateTime(2026, 7, 6),
-      category: 'Equipment',
-      payee: 'Equipment',
+      category: 'professional fees',
+      payee: 'professional fees',
       isManual: true,
     );
 
@@ -395,7 +395,7 @@ void main() {
       checkNumber: 'Q3-E',
       totalAmount: 300,
       transactionDate: DateTime(2026, 7, 11),
-      category: 'Utilities',
+      category: 'electric',
       payee: 'Power Co',
       isManual: true,
     );

@@ -100,8 +100,6 @@ void main() {
     expect(tester.takeException(), isNull);
 
     await tester.pumpAndSettle();
-    await tester.tap(find.text("Don't allow"));
-    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
     expect(find.text('EXPENSE DATA'), findsOneWidget);

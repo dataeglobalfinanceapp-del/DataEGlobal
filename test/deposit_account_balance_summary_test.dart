@@ -172,8 +172,8 @@ Future<void> _saveExpense({required double amount, required DateTime date}) {
     checkNumber: 'E-${date.month}-${date.day}',
     totalAmount: amount,
     transactionDate: date,
-    category: 'Fuel',
-    payee: 'Fuel',
+    category: 'gas',
+    payee: 'gas',
     isManual: true,
   );
 }

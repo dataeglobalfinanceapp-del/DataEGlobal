@@ -313,14 +313,27 @@ class _ReminderTokens {
 }
 
 const List<String> _categories = <String>[
-  'Utilities',
-  'Insurance',
-  'Loan',
-  'Rent',
-  'Fuel',
-  'Equipment',
+  'Energy',
+  'Loan Obligation',
   'Payroll',
-  'Other',
+  'Business licenses and permits',
+  'Food Purchase',
+  'Restaurant supplies',
+  'Advertising and promotion',
+  'software',
+  'pest control',
+  'Internet',
+  'Maintenance',
+  'Insurance',
+  'Rent',
+  'Office Supplies',
+  'Meal, entertainment',
+  'merchant accounting fees',
+  'gas',
+  'water',
+  'electric',
+  'donation',
+  'professional fees',
 ];
 
 const List<String> _reminderCounts = <String>[

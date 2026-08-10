@@ -59,8 +59,8 @@ void main() {
         checkNumber: 'EXP-1',
         totalAmount: 500,
         transactionDate: DateTime(2026, 6, 10),
-        category: 'Utilities',
-        payee: 'Utilities',
+        category: 'electric',
+        payee: 'electric',
         isManual: true,
       );
 

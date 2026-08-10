@@ -15,7 +15,7 @@ enum ExpenseCategory {
     'Business licenses and permits',
     Icons.business_center_outlined,
   ),
-  food('Food', Icons.restaurant_outlined),
+  foodPurchase('Food Purchase', Icons.restaurant_outlined),
   restaurantSupplies('Restaurant supplies', Icons.inventory_2_outlined),
   advertisingAndPromotion('Advertising and promotion', Icons.campaign_outlined),
   software('software', Icons.computer_outlined),
@@ -26,7 +26,15 @@ enum ExpenseCategory {
   rent('Rent', Icons.home_outlined),
   officeSupplies('Office Supplies', Icons.edit_note_outlined),
   mealEntertainment('Meal, entertainment', Icons.local_dining),
-  automobileFuel('Automobile, Fuel', Icons.local_gas_station_outlined);
+  merchantAccountingFees(
+    'merchant accounting fees',
+    Icons.account_balance_wallet_outlined,
+  ),
+  gas('gas', Icons.local_gas_station_outlined),
+  water('water', Icons.water_drop_outlined),
+  electric('electric', Icons.electric_meter_outlined),
+  donation('donation', Icons.volunteer_activism_outlined),
+  professionalFees('professional fees', Icons.business_center_outlined);
 
   const ExpenseCategory(this.label, this.icon);
   final String label;
@@ -471,102 +479,6 @@ class _CategoryPickerSheetState extends State<CategoryPickerSheet> {
               }),
               const SizedBox(height: 16),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class CameraPermissionDialog extends StatelessWidget {
-  const CameraPermissionDialog({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F0F0),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.videocam_outlined,
-                size: 28,
-                color: Color(0xFF555555),
-              ),
-            ),
-            const SizedBox(height: 16),
-            RichText(
-              textAlign: TextAlign.center,
-              text: const TextSpan(
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black87,
-                  height: 1.5,
-                ),
-                children: [
-                  TextSpan(text: 'Allow '),
-                  TextSpan(
-                    text: 'Save Tep',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  TextSpan(text: ' to take pictures and record video'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            _PermissionOption(
-              label: 'While using this app',
-              onTap: () => Navigator.pop(context, 'while'),
-            ),
-            const SizedBox(height: 8),
-            _PermissionOption(
-              label: 'Only this time',
-              onTap: () => Navigator.pop(context, 'once'),
-            ),
-            const SizedBox(height: 8),
-            _PermissionOption(
-              label: "Don't allow",
-              onTap: () => Navigator.pop(context, 'deny'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PermissionOption extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _PermissionOption({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 13),
-        decoration: BoxDecoration(
-          color: const Color(0xFFDEEBF7),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Color(0xFF1A5FAD),
-            fontWeight: FontWeight.w500,
           ),
         ),
       ),

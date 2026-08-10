@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:savetep/features/auth/screens/saving_screen/saving_rollover_calculator.dart';
 import 'package:savetep/features/auth/widgets/summary_card_shell.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
@@ -51,11 +52,11 @@ class _SavingScreenState extends State<SavingScreen> {
     });
   }
 
-  double get _yearDeposits => _deposits
+  double get _totalBalance => _deposits
       .where((record) => record.transactionDate.year == _year)
       .fold<double>(0, (sum, record) => sum + record.totalAmount);
 
-  double get _totalSavingTarget => _yearDeposits * (_savingRate / 100);
+  double get _totalSavingTarget => _totalBalance * (_savingRate / 100);
 
   double get _totalSaving =>
       _dailySavedAmounts.values.fold<double>(0, (sum, amount) => sum + amount);
@@ -63,11 +64,32 @@ class _SavingScreenState extends State<SavingScreen> {
   List<_SavingPeriodRow> get _savingRows {
     final totalTarget = _totalSavingTarget;
 
-    return switch (_period) {
+    final rows = switch (_period) {
       _SavingPeriod.day => _buildDailyRows(totalTarget),
       _SavingPeriod.week => _buildWeeklyRows(totalTarget),
       _SavingPeriod.month => _buildMonthlyRows(totalTarget),
     };
+
+    return _applyRollover(rows);
+  }
+
+  List<_SavingPeriodRow> _applyRollover(List<_SavingPeriodRow> rows) {
+    final requiredAmounts = calculateSavingRequiredAmounts(
+      periods: [
+        for (final row in rows)
+          SavingRolloverPeriod(
+            end: row.end,
+            requiredAmount: row.requiredAmount,
+            savedAmount: _savedAmountInRange(row.start, row.end),
+          ),
+      ],
+      today: _today,
+    );
+
+    return [
+      for (var index = 0; index < rows.length; index++)
+        rows[index].copyWith(requiredAmount: requiredAmounts[index]),
+    ];
   }
 
   List<_SavingPeriodRow> _buildDailyRows(double totalTarget) {
@@ -238,7 +260,10 @@ class _SavingScreenState extends State<SavingScreen> {
     final rows = _savingRows;
     final visibleRows = _visibleRows(rows);
     final pastRows = _pastRows(rows);
-    final periodTarget = rows.isEmpty ? 0.0 : rows.first.requiredAmount;
+    final dueRows = rows.where((row) => !_isPastRow(row, _today));
+    final periodTarget = dueRows.isEmpty
+        ? (rows.isEmpty ? 0.0 : rows.first.requiredAmount)
+        : dueRows.first.requiredAmount;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -271,7 +296,7 @@ class _SavingScreenState extends State<SavingScreen> {
                     sliver: SliverList.list(
                       children: [
                         _SavingSummary(
-                          totalDeposits: _yearDeposits,
+                          totalBalance: _totalBalance,
                           totalSaving: _totalSaving,
                           savingRate: _savingRate,
                           totalSavingTarget: _totalSavingTarget,
@@ -330,7 +355,7 @@ class _SavingScreenState extends State<SavingScreen> {
 }
 
 class _SavingSummary extends StatelessWidget {
-  final double totalDeposits;
+  final double totalBalance;
   final double totalSaving;
   final double savingRate;
   final double totalSavingTarget;
@@ -339,7 +364,7 @@ class _SavingSummary extends StatelessWidget {
   final VoidCallback onEditRate;
 
   const _SavingSummary({
-    required this.totalDeposits,
+    required this.totalBalance,
     required this.totalSaving,
     required this.savingRate,
     required this.totalSavingTarget,
@@ -361,7 +386,7 @@ class _SavingSummary extends StatelessWidget {
           children: [
             Expanded(
               child: _SavingSummaryDetails(
-                totalDeposits: totalDeposits,
+                totalBalance: totalBalance,
                 savingRate: savingRate,
                 totalSavingTarget: totalSavingTarget,
                 periodLabel: periodLabel,
@@ -389,7 +414,7 @@ class _SavingSummary extends StatelessWidget {
 }
 
 class _SavingSummaryDetails extends StatelessWidget {
-  final double totalDeposits;
+  final double totalBalance;
   final double savingRate;
   final double totalSavingTarget;
   final String periodLabel;
@@ -398,7 +423,7 @@ class _SavingSummaryDetails extends StatelessWidget {
   final SummaryCardMetrics metrics;
 
   const _SavingSummaryDetails({
-    required this.totalDeposits,
+    required this.totalBalance,
     required this.savingRate,
     required this.totalSavingTarget,
     required this.periodLabel,
@@ -413,7 +438,7 @@ class _SavingSummaryDetails extends StatelessWidget {
         ((metrics.isTablet ? 14.0 : 13.0) * metrics.heightScale)
             .clamp(11.0, metrics.isTablet ? 15.0 : 13.0)
             .toDouble();
-    final totalDepositFontSize =
+    final totalBalanceFontSize =
         ((metrics.isTablet ? 30.0 : 28.0) * metrics.heightScale)
             .clamp(22.0, metrics.isTablet ? 34.0 : 28.0)
             .toDouble();
@@ -423,7 +448,7 @@ class _SavingSummaryDetails extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'TOTAL DEPOSIT',
+          'TOTAL BALANCE',
           style: TextStyle(
             color: SummaryCardTokens.label,
             fontSize: metrics.primaryLabelFontSize,
@@ -436,11 +461,11 @@ class _SavingSummaryDetails extends StatelessWidget {
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(
-            formatMoney(totalDeposits),
+            formatMoney(totalBalance),
             maxLines: 1,
             style: TextStyle(
               color: Colors.white,
-              fontSize: totalDepositFontSize,
+              fontSize: totalBalanceFontSize,
               fontWeight: FontWeight.w900,
               letterSpacing: 0,
             ),
@@ -999,6 +1024,16 @@ class _SavingPeriodRow {
     required this.end,
     required this.requiredAmount,
   });
+
+  _SavingPeriodRow copyWith({double? requiredAmount}) {
+    return _SavingPeriodRow(
+      key: key,
+      label: label,
+      start: start,
+      end: end,
+      requiredAmount: requiredAmount ?? this.requiredAmount,
+    );
+  }
 }
 
 class _DateSpan {

@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/services/app_clock.dart';
+import 'package:savetep/features/auth/models/budget_data.dart';
+import 'package:savetep/features/auth/screens/scan_screen/expense_screen/scan_expense_screen.dart';
 import 'package:savetep/services/liability_service.dart';
 
 void main() {
@@ -72,7 +74,7 @@ void main() {
       totalAmount: 240,
       tipsGratuity: 5,
       transactionDate: DateTime(2026, 6, 15, 14, 35),
-      category: 'Utilities',
+      category: 'electric',
       payee: 'Power Co',
       isManual: true,
       isRecurringMonthly: true,
@@ -151,8 +153,8 @@ void main() {
       checkNumber: 'e1',
       totalAmount: 40,
       transactionDate: DateTime(2026, 6, 13),
-      category: 'Fuel',
-      payee: 'Fuel',
+      category: 'gas',
+      payee: 'gas',
       isManual: true,
     );
     await LiabilityService.saveExpense(
@@ -206,8 +208,8 @@ void main() {
       totalAmount: 125.75,
       tipsGratuity: 5,
       transactionDate: transactionDate,
-      category: 'Fuel',
-      payee: 'City Fuel',
+      category: 'gas',
+      payee: 'City Gas',
       isManual: false,
     );
 
@@ -226,13 +228,32 @@ void main() {
       'checkNumber': '101',
       'totalAmount': 42,
       'transactionDate': '2026-08-06',
-      'category': 'Utilities',
+      'category': 'electric',
       'payee': 'Power Co',
       'isManual': true,
     });
 
     expect(expense.transactionDate, DateTime(2026, 8, 6));
     expect(expense.tipsGratuity, 0);
+  });
+
+  test('default budget seed covers every valid expense category', () {
+    final seeds = DefaultBudgetSeedData.expenses;
+    final expectedCategories = ExpenseCategory.values
+        .map((ExpenseCategory category) => category.label)
+        .toSet();
+
+    expect(
+      seeds.map((BudgetSeedExpense seed) => seed.category).toSet(),
+      expectedCategories,
+    );
+    expect(seeds, hasLength(expectedCategories.length));
+    for (final seed in seeds) {
+      expect(seed.payee.trim(), isNotEmpty);
+      expect(seed.total, greaterThan(0));
+      expect(seed.date, isA<DateTime>());
+      expect(seed.last4CreditCard, matches(RegExp(r'^\d{4}$')));
+    }
   });
 
   test('default budget seed uses the created month', () async {
@@ -242,9 +263,16 @@ void main() {
     final expenses = await LiabilityService.loadExpenses();
 
     expect(deposits, hasLength(2));
-    expect(expenses, hasLength(11));
+    expect(expenses, hasLength(21));
     expect(deposits.map((record) => record.transactionDate.month).toSet(), {6});
     expect(expenses.map((record) => record.transactionDate.month).toSet(), {6});
+    expect(
+      expenses.every(
+        (ExpenseRecord record) =>
+            RegExp(r'^\d{4}$').hasMatch(record.last4CreditCard),
+      ),
+      isTrue,
+    );
 
     final cash = deposits.singleWhere((record) => record.cash == 100000);
     expect(cash.transactionDate.day, 1);
@@ -257,7 +285,7 @@ void main() {
     expect(credit.totalAmount, 20000);
 
     expect(await LiabilityService.loadDeposits(), hasLength(2));
-    expect(await LiabilityService.loadExpenses(), hasLength(11));
+    expect(await LiabilityService.loadExpenses(), hasLength(21));
   });
 
   test(
@@ -272,12 +300,12 @@ void main() {
       );
 
       expect(data.deposit, 120000);
-      expect(data.available, closeTo(109457.56, 0.001));
+      expect(data.available, closeTo(105897.03, 0.001));
       expect(data.total, 120000);
-      expect(data.expense, closeTo(10542.44, 0.001));
-      expect(data.surplusPercent, 91);
-      expect(data.utilizationPercent, 9);
-      expect(data.transactionCount, 7);
+      expect(data.expense, closeTo(14102.97, 0.001));
+      expect(data.surplusPercent, 88);
+      expect(data.utilizationPercent, 12);
+      expect(data.transactionCount, 16);
     },
   );
 }

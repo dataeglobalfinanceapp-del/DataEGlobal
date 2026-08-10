@@ -66,7 +66,7 @@ void main() {
       utilizationPercent: 13,
       categories: [
         BudgetCategory(
-          label: 'Utilities',
+          label: 'electric',
           percentage: 76.9,
           color: Color(0xFF64748B),
         ),
@@ -114,16 +114,16 @@ void main() {
       categories: [
         BudgetCategory(label: 'Payroll', percentage: 20, color: Colors.teal),
         BudgetCategory(label: 'Rent', percentage: 18, color: Colors.green),
-        BudgetCategory(label: 'Fuel', percentage: 16, color: Colors.amber),
+        BudgetCategory(label: 'gas', percentage: 16, color: Colors.amber),
         BudgetCategory(
-          label: 'Utilities',
+          label: 'electric',
           percentage: 14,
           color: Colors.blueGrey,
         ),
         BudgetCategory(label: 'Insurance', percentage: 12, color: Colors.blue),
         BudgetCategory(label: 'Shopping', percentage: 10, color: Colors.cyan),
         BudgetCategory(
-          label: 'Equipment',
+          label: 'professional fees',
           percentage: 6,
           color: Colors.lightGreen,
         ),

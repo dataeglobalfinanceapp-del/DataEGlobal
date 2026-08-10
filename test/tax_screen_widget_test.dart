@@ -39,11 +39,11 @@ void main() {
       isManual: true,
     );
     await LiabilityService.saveExpense(
-      checkNumber: 'fuel',
+      checkNumber: 'gas',
       totalAmount: 500,
       transactionDate: DateTime(2026, 3, 1),
-      category: 'Fuel',
-      payee: 'Fuel Stop',
+      category: 'gas',
+      payee: 'Gas Stop',
       isManual: true,
     );
 
@@ -62,7 +62,7 @@ void main() {
     expect(find.text(r'$50,000.00'), findsNWidgets(2));
     expect(find.text('Payroll'), findsOneWidget);
     expect(find.text(r'$10,000.00'), findsOneWidget);
-    expect(find.text('Fuel'), findsOneWidget);
+    expect(find.text('gas'), findsOneWidget);
     expect(find.text(r'$500.00'), findsOneWidget);
     expect(find.text('Advertising'), findsOneWidget);
     expect(find.text('Not tracked in app'), findsNothing);
@@ -137,19 +137,19 @@ void main() {
       isManual: true,
     );
     await LiabilityService.saveExpense(
-      checkNumber: 'fuel-in-range',
+      checkNumber: 'gas-in-range',
       totalAmount: 100,
       transactionDate: DateTime(2026, 6, 10),
-      category: 'Fuel',
-      payee: 'Fuel Stop',
+      category: 'gas',
+      payee: 'Gas Stop',
       isManual: true,
     );
     await LiabilityService.saveExpense(
-      checkNumber: 'fuel-outside-range',
+      checkNumber: 'gas-outside-range',
       totalAmount: 600,
       transactionDate: DateTime(2026, 5, 31),
-      category: 'Fuel',
-      payee: 'Fuel Stop',
+      category: 'gas',
+      payee: 'Gas Stop',
       isManual: true,
     );
 
@@ -171,7 +171,7 @@ void main() {
     expect(find.text(r'$15,000.00'), findsNWidgets(2));
     expect(find.text('Payroll'), findsOneWidget);
     expect(find.text(r'$1,500.00'), findsOneWidget);
-    expect(find.text('Fuel'), findsOneWidget);
+    expect(find.text('gas'), findsOneWidget);
     expect(find.text(r'$100.00'), findsOneWidget);
     expect(find.text(r'$600.00'), findsNothing);
     expect(find.text(r'$50,000.00'), findsNothing);
@@ -182,19 +182,19 @@ void main() {
     WidgetTester tester,
   ) async {
     await LiabilityService.saveExpense(
-      checkNumber: 'fuel-in-range',
+      checkNumber: 'gas-in-range',
       totalAmount: 45,
       transactionDate: DateTime(2026, 6, 12),
-      category: 'Fuel',
-      payee: 'Fuel Stop',
+      category: 'gas',
+      payee: 'Gas Stop',
       isManual: true,
     );
     await LiabilityService.saveExpense(
-      checkNumber: 'fuel-outside-range',
+      checkNumber: 'gas-outside-range',
       totalAmount: 90,
       transactionDate: DateTime(2026, 6, 20),
-      category: 'Fuel',
-      payee: 'Fuel Later',
+      category: 'gas',
+      payee: 'Gas Later',
       isManual: true,
     );
     await LiabilityService.saveExpense(
@@ -230,21 +230,21 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('Fuel'),
+      find.text('gas'),
       find.byType(ListView),
       const Offset(0, -180),
     );
     await tester.pumpAndSettle();
 
-    final fuelLink = tester.widget<Text>(find.text('Fuel'));
-    expect(fuelLink.style?.decoration, TextDecoration.underline);
+    final gasLink = tester.widget<Text>(find.text('gas'));
+    expect(gasLink.style?.decoration, TextDecoration.underline);
 
-    await tester.tap(find.text('Fuel'));
+    await tester.tap(find.text('gas'));
     await tester.pumpAndSettle();
 
     expect(find.text('Transaction'), findsOneWidget);
     expect(find.text('06/10/2026 - 06/15/2026'), findsOneWidget);
-    expect(find.text('Fuel total'), findsOneWidget);
+    expect(find.text('gas total'), findsOneWidget);
     expect(find.text(r'$45.00'), findsWidgets);
 
     await tester.dragUntilVisible(
@@ -256,8 +256,8 @@ void main() {
     await tester.tap(find.text('June'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Fuel Stop'), findsOneWidget);
-    expect(find.text('Fuel Later'), findsNothing);
+    expect(find.text('Gas Stop'), findsOneWidget);
+    expect(find.text('Gas Later'), findsNothing);
     expect(find.text('Studio Rent'), findsNothing);
   });
 }

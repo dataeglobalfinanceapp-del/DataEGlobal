@@ -61,17 +61,17 @@ void main() {
     await ReminderService.saveReminders(<ReminderDraft>[
       ReminderDraft(
         date: DateTime(2026, 6, 10),
-        category: 'Utilities',
+        category: 'electric',
         amount: 120,
         reminderCount: 'Just one',
-        payee: 'Utilities',
+        payee: 'electric',
       ),
     ]);
 
     await tester.pumpWidget(const MaterialApp(home: ReminderScreen()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Utilities'), findsWidgets);
+    expect(find.text('electric'), findsWidgets);
     expect(find.text('Just one'), findsOneWidget);
     expect(find.text('06/10/2026'), findsOneWidget);
     expect(find.text(r'$120.00'), findsWidgets);
@@ -119,29 +119,29 @@ void main() {
       checkNumber: 'EXP-1',
       totalAmount: 200,
       transactionDate: DateTime(2026, 6, 16),
-      category: 'Utilities',
-      payee: 'Utilities',
+      category: 'electric',
+      payee: 'electric',
       isManual: true,
     );
     await LiabilityService.saveExpense(
       checkNumber: 'EXP-2',
       totalAmount: 50,
       transactionDate: DateTime(2026, 6, 25),
-      category: 'Fuel',
-      payee: 'Fuel',
+      category: 'gas',
+      payee: 'gas',
       isManual: true,
     );
     await ReminderService.saveReminders(<ReminderDraft>[
       ReminderDraft(
         date: DateTime(2026, 6, 16),
-        category: 'Utilities',
+        category: 'electric',
         amount: 100,
         reminderCount: 'Just one',
         payee: 'This Week Bill',
       ),
       ReminderDraft(
         date: DateTime(2026, 6, 25),
-        category: 'Fuel',
+        category: 'gas',
         amount: 80,
         reminderCount: 'Just one',
         payee: 'Later Bill',
@@ -249,10 +249,10 @@ void main() {
     await ReminderService.saveReminders(<ReminderDraft>[
       ReminderDraft(
         date: DateTime(2026, 6, 10),
-        category: 'Utilities',
+        category: 'electric',
         amount: 120,
         reminderCount: 'Just one',
-        payee: 'Utilities',
+        payee: 'electric',
       ),
     ]);
 

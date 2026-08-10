@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/features/auth/screens/scan_screen/expense_screen/scan_expense_auto_screen.dart';
@@ -79,6 +80,45 @@ void main() {
     final List<ReminderRecord> reminders =
         await ReminderService.loadReminders();
     expect(reminders, isEmpty);
+  });
+
+  testWidgets('camera permission is requested only from the camera action', (
+    WidgetTester tester,
+  ) async {
+    const MethodChannel imagePickerChannel = MethodChannel(
+      'plugins.flutter.io/image_picker',
+    );
+    var cameraRequests = 0;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      imagePickerChannel,
+      (MethodCall call) async {
+        cameraRequests++;
+        throw PlatformException(code: 'camera_access_denied');
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        imagePickerChannel,
+        null,
+      ),
+    );
+
+    await _pumpAutoExpenseScreen(tester);
+    expect(cameraRequests, 0);
+    expect(find.text('While using this app'), findsNothing);
+    expect(find.text('Only this time'), findsNothing);
+    expect(find.text("Don't allow"), findsNothing);
+    expect(find.byTooltip('Scan receipt'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Scan receipt'));
+    await tester.pumpAndSettle();
+    expect(cameraRequests, 1);
+    expect(find.textContaining('Settings'), findsNothing);
+
+    await tester.tap(find.byTooltip('Scan receipt'));
+    await tester.pump();
+    expect(cameraRequests, 1);
+    expect(find.textContaining('Settings'), findsOneWidget);
   });
 
   testWidgets('auto recurring expense automatically adds reminders', (
@@ -165,7 +205,7 @@ void main() {
       totalAmount: 150,
       transactionDate: AppClock.now,
       startDate: DateTime(2026, 7, 1),
-      category: 'Utilities',
+      category: 'electric',
       payee: 'Power Co',
       isManual: true,
       frequency: 'Biweekly',
@@ -198,9 +238,6 @@ void main() {
 
 Future<void> _pumpAutoExpenseScreen(WidgetTester tester) async {
   await tester.pumpWidget(const MaterialApp(home: ScanExpenseAutoScreen()));
-  await tester.pumpAndSettle();
-
-  await tester.tap(find.text("Don't allow"));
   await tester.pumpAndSettle();
 }
 

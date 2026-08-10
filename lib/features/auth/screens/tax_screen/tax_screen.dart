@@ -511,13 +511,19 @@ class _ProfitLossExpenseCatalog {
 
   static const List<_ProfitLossExpenseDefinition> definitions = [
     _ProfitLossExpenseDefinition(
-      'Cost of Goods Sold (COGS)',
-      categories: <String>['COGS'],
+      'Food Purchase',
+      categories: <String>['Food Purchase'],
       trackedInApp: true,
     ),
     _ProfitLossExpenseDefinition(
-      'Accounting and Legal Fees',
-      categories: <String>['Accounting and Legal Fees'],
+      'merchant accounting fees',
+      categories: <String>['merchant accounting fees'],
+      trackedInApp: true,
+    ),
+    _ProfitLossExpenseDefinition(
+      'professional fees',
+      categories: <String>['professional fees'],
+      trackedInApp: true,
     ),
     _ProfitLossExpenseDefinition(
       'Advertising',
@@ -533,24 +539,31 @@ class _ProfitLossExpenseCatalog {
       categories: <String>['Maintenance and Repairs'],
     ),
     _ProfitLossExpenseDefinition(
-      'Consumable Supplies',
-      categories: <String>['Consumable Supplies'],
-      trackedInApp: true,
-    ),
-    _ProfitLossExpenseDefinition(
       'Payroll',
       categories: <String>['Payroll'],
       trackedInApp: true,
       prorateFixedCost: true,
     ),
     _ProfitLossExpenseDefinition(
-      'Equipment',
-      categories: <String>['Equipment'],
+      'gas',
+      categories: <String>['gas'],
       trackedInApp: true,
     ),
     _ProfitLossExpenseDefinition(
-      'Fuel',
-      categories: <String>['Fuel'],
+      'water',
+      categories: <String>['water'],
+      trackedInApp: true,
+      prorateFixedCost: true,
+    ),
+    _ProfitLossExpenseDefinition(
+      'electric',
+      categories: <String>['electric'],
+      trackedInApp: true,
+      prorateFixedCost: true,
+    ),
+    _ProfitLossExpenseDefinition(
+      'donation',
+      categories: <String>['donation'],
       trackedInApp: true,
     ),
     _ProfitLossExpenseDefinition('Postage', categories: <String>['Postage']),
@@ -569,12 +582,6 @@ class _ProfitLossExpenseCatalog {
     _ProfitLossExpenseDefinition(
       'Travel/Transportation',
       categories: <String>['Travel/Transportation'],
-    ),
-    _ProfitLossExpenseDefinition(
-      'Utilities',
-      categories: <String>['Utilities'],
-      trackedInApp: true,
-      prorateFixedCost: true,
     ),
     _ProfitLossExpenseDefinition(
       'Other (excluding depreciation/amortization)',
@@ -852,7 +859,7 @@ class _ProfitLossExpenseCatalog {
 
   static bool _isFixedCostCategory(String value) {
     return switch (_normalize(value)) {
-      'payroll' || 'rent' || 'utilities' => true,
+      'payroll' || 'rent' || 'water' || 'electric' => true,
       _ => false,
     };
   }

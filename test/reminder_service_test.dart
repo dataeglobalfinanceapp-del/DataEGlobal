@@ -131,7 +131,7 @@ void main() {
     await ReminderService.saveReminders(<ReminderDraft>[
       ReminderDraft(
         date: DateTime(2026, 6, 20),
-        category: 'Utilities',
+        category: 'electric',
         amount: 80,
         reminderCount: 'Just one',
         payee: 'Power Co',
@@ -184,7 +184,7 @@ void main() {
     await ReminderService.saveReminders(<ReminderDraft>[
       ReminderDraft(
         date: DateTime(2026, 5, 25),
-        category: 'Utilities',
+        category: 'electric',
         amount: 80,
         reminderCount: 'Just one',
         payee: 'Power Co',
@@ -299,7 +299,7 @@ void main() {
       await ReminderService.saveReminders(<ReminderDraft>[
         ReminderDraft(
           date: DateTime(2026, 6, 10),
-          category: 'Utilities',
+          category: 'electric',
           amount: 90,
           reminderCount: 'Monthly',
           payee: 'Power Co',

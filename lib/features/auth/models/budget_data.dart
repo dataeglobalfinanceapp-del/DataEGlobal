@@ -33,62 +33,184 @@ class BudgetSeedDeposit {
 }
 
 class BudgetSeedExpense {
-  final int dayOfMonth;
   final String category;
-  final double amount;
   final String payee;
-  final bool isRecurringMonthly;
+  final double total;
+  final DateTime date;
+  final String last4CreditCard;
 
-  const BudgetSeedExpense({
-    required this.dayOfMonth,
+  BudgetSeedExpense({
     required this.category,
-    required this.amount,
-    this.payee = '',
-    this.isRecurringMonthly = false,
-  });
+    required this.payee,
+    required this.total,
+    required this.date,
+    required this.last4CreditCard,
+  }) : assert(total > 0),
+       assert(last4CreditCard.length == 4),
+       assert(
+         last4CreditCard.codeUnits.every(
+           (int digit) => digit >= 0x30 && digit <= 0x39,
+         ),
+       );
 }
 
 class DefaultBudgetSeedData {
-  static const int version = 1;
+  static const int version = 2;
 
   static const List<BudgetSeedDeposit> deposits = [
     BudgetSeedDeposit(dayOfMonth: 1, label: 'Cash', cash: 100000),
     BudgetSeedDeposit(dayOfMonth: 15, label: 'Credit', creditDeposit: 20000),
   ];
 
-  static const List<BudgetSeedExpense> expenses = [
-    BudgetSeedExpense(dayOfMonth: 10, category: 'Utilities', amount: 1200),
-    BudgetSeedExpense(dayOfMonth: 16, category: 'Equipment', amount: 800),
-    BudgetSeedExpense(dayOfMonth: 9, category: 'COGS', amount: 3000),
+  static final List<BudgetSeedExpense> expenses = List.unmodifiable([
     BudgetSeedExpense(
-      dayOfMonth: 2,
-      category: 'Consumable Supplies',
-      amount: 3185.82,
+      category: 'Energy',
+      payee: 'Green Energy Co.',
+      total: 185.40,
+      date: DateTime(2026, 6, 2),
+      last4CreditCard: '4821',
     ),
     BudgetSeedExpense(
-      dayOfMonth: 10,
-      category: 'Consumable Supplies',
-      amount: 3000.27,
+      category: 'Loan Obligation',
+      payee: 'Community Business Bank',
+      total: 1250,
+      date: DateTime(2026, 6, 3),
+      last4CreditCard: '7742',
     ),
     BudgetSeedExpense(
-      dayOfMonth: 17,
-      category: 'Consumable Supplies',
-      amount: 4000.56,
+      category: 'Payroll',
+      payee: 'Save Tep Payroll',
+      total: 4200,
+      date: DateTime(2026, 6, 4),
+      last4CreditCard: '1936',
     ),
     BudgetSeedExpense(
-      dayOfMonth: 22,
-      category: 'Consumable Supplies',
-      amount: 3500.30,
+      category: 'Business licenses and permits',
+      payee: 'City Business Licensing Office',
+      total: 325,
+      date: DateTime(2026, 6, 5),
+      last4CreditCard: '6604',
     ),
     BudgetSeedExpense(
-      dayOfMonth: 30,
-      category: 'Consumable Supplies',
-      amount: 1254.20,
+      category: 'Food Purchase',
+      payee: 'Restaurant Depot',
+      total: 1875.65,
+      date: DateTime(2026, 6, 6),
+      last4CreditCard: '2847',
     ),
-    BudgetSeedExpense(dayOfMonth: 8, category: 'Fuel', amount: 156.35),
-    BudgetSeedExpense(dayOfMonth: 17, category: 'Fuel', amount: 256.57),
-    BudgetSeedExpense(dayOfMonth: 23, category: 'Fuel', amount: 189.22),
-  ];
+    BudgetSeedExpense(
+      category: 'Restaurant supplies',
+      payee: 'WebstaurantStore',
+      total: 642.30,
+      date: DateTime(2026, 6, 7),
+      last4CreditCard: '9153',
+    ),
+    BudgetSeedExpense(
+      category: 'Advertising and promotion',
+      payee: 'Meta Ads',
+      total: 450,
+      date: DateTime(2026, 6, 8),
+      last4CreditCard: '4386',
+    ),
+    BudgetSeedExpense(
+      category: 'software',
+      payee: 'Microsoft 365',
+      total: 129.99,
+      date: DateTime(2026, 6, 9),
+      last4CreditCard: '5274',
+    ),
+    BudgetSeedExpense(
+      category: 'pest control',
+      payee: 'EcoShield Pest Solutions',
+      total: 165,
+      date: DateTime(2026, 6, 10),
+      last4CreditCard: '8026',
+    ),
+    BudgetSeedExpense(
+      category: 'Internet',
+      payee: 'Spectrum Business',
+      total: 119.95,
+      date: DateTime(2026, 6, 11),
+      last4CreditCard: '3719',
+    ),
+    BudgetSeedExpense(
+      category: 'Maintenance',
+      payee: 'Reliable Repair Services',
+      total: 285,
+      date: DateTime(2026, 6, 12),
+      last4CreditCard: '6048',
+    ),
+    BudgetSeedExpense(
+      category: 'Insurance',
+      payee: 'Statewide Business Insurance',
+      total: 760,
+      date: DateTime(2026, 6, 13),
+      last4CreditCard: '2465',
+    ),
+    BudgetSeedExpense(
+      category: 'Rent',
+      payee: 'Downtown Properties',
+      total: 3500,
+      date: DateTime(2026, 6, 14),
+      last4CreditCard: '7194',
+    ),
+    BudgetSeedExpense(
+      category: 'Office Supplies',
+      payee: 'Staples',
+      total: 214.68,
+      date: DateTime(2026, 6, 15),
+      last4CreditCard: '5832',
+    ),
+    BudgetSeedExpense(
+      category: 'Meal, entertainment',
+      payee: 'Harbor Bistro',
+      total: 148.25,
+      date: DateTime(2026, 6, 16),
+      last4CreditCard: '9317',
+    ),
+    BudgetSeedExpense(
+      category: 'merchant accounting fees',
+      payee: 'Stripe',
+      total: 96.42,
+      date: DateTime(2026, 6, 17),
+      last4CreditCard: '4058',
+    ),
+    BudgetSeedExpense(
+      category: 'gas',
+      payee: 'Shell',
+      total: 82.74,
+      date: DateTime(2026, 6, 18),
+      last4CreditCard: '1673',
+    ),
+    BudgetSeedExpense(
+      category: 'water',
+      payee: 'City Water Services',
+      total: 143.20,
+      date: DateTime(2026, 6, 19),
+      last4CreditCard: '6529',
+    ),
+    BudgetSeedExpense(
+      category: 'electric',
+      payee: 'Pacific Electric',
+      total: 428.63,
+      date: DateTime(2026, 6, 20),
+      last4CreditCard: '3107',
+    ),
+    BudgetSeedExpense(
+      category: 'donation',
+      payee: 'Community Food Bank',
+      total: 250,
+      date: DateTime(2026, 6, 21),
+      last4CreditCard: '8461',
+    ),
+    BudgetSeedExpense(
+      category: 'professional fees',
+      payee: 'Martinez CPA Group',
+      total: 900,
+      date: DateTime(2026, 6, 22),
+      last4CreditCard: '2784',
+    ),
+  ]);
 }
 
 class BudgetData {
