@@ -39,8 +39,17 @@ void main() {
     expect(find.text('Transactions'), findsOneWidget);
     expect(find.text('Profit &\nLoss'), findsOneWidget);
     expect(find.text('Investments'), findsOneWidget);
+    expect(find.text('Goal'), findsOneWidget);
+    expect(find.text('Shopping'), findsOneWidget);
     expect(find.text('TRANSACTION'), findsNothing);
     expect(_actionGridDelegate(tester).crossAxisCount, 4);
+    _expectFeatureCardsHaveEqualSize(tester, <String>[
+      'Deposit',
+      'Expense',
+      'Transactions',
+      'Goal',
+      'Shopping',
+    ]);
     _expectBudgetCardsAlignedWithDateRange(tester);
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -527,5 +536,26 @@ void _expectBudgetCardsAlignedWithDateRange(WidgetTester tester) {
     expect(cardRect.left, moreOrLessEquals(dateRangeRect.left));
     expect(cardRect.right, moreOrLessEquals(dateRangeRect.right));
     expect(cardRect.width, moreOrLessEquals(dateRangeRect.width));
+  }
+}
+
+void _expectFeatureCardsHaveEqualSize(
+  WidgetTester tester,
+  List<String> labels,
+) {
+  final grid = find.byType(GridView);
+  final cardSizes = labels.map((String label) {
+    final card = find.descendant(
+      of: grid,
+      matching: find.ancestor(
+        of: find.text(label),
+        matching: find.byType(Container),
+      ),
+    );
+    return tester.getSize(card.first);
+  }).toList();
+
+  for (final size in cardSizes.skip(1)) {
+    expect(size, cardSizes.first);
   }
 }

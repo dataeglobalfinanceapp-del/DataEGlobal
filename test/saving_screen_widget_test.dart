@@ -20,12 +20,14 @@ void main() {
     WidgetTester tester,
   ) async {
     await _saveDeposit(amount: 120000, date: DateTime(2026, 1, 1));
+    await _saveExpense(amount: 20000, date: DateTime(2026, 1, 2));
 
     await tester.pumpWidget(const MaterialApp(home: SavingScreen()));
     await tester.pumpAndSettle();
 
     expect(find.text('Saving Plan'), findsOneWidget);
-    expect(find.text('TOTAL BALANCE'), findsOneWidget);
+    expect(find.text('TOTAL DEPOSIT'), findsOneWidget);
+    expect(find.text('TOTAL BALANCE'), findsNothing);
     expect(find.text(r'$120,000.00'), findsOneWidget);
     expect(find.text('Total Saving'), findsOneWidget);
     expect(find.text(r'$0.00'), findsOneWidget);
@@ -319,6 +321,17 @@ Future<void> _saveDeposit({required double amount, required DateTime date}) {
     giftCard: 0,
     other: 0,
     transactionDate: date,
+    isManual: true,
+  );
+}
+
+Future<void> _saveExpense({required double amount, required DateTime date}) {
+  return LiabilityService.saveExpense(
+    checkNumber: 'saving-expense',
+    totalAmount: amount,
+    transactionDate: date,
+    category: 'Other',
+    payee: 'Saving test expense',
     isManual: true,
   );
 }

@@ -329,6 +329,20 @@ const List<_HomeFeatureAction> _homeFeatureActions = <_HomeFeatureAction>[
     color: Color(0xFFFCE7F3),
     routeName: '/reminders',
   ),
+  _HomeFeatureAction(
+    icon: Icons.flag_outlined,
+    label: 'Goal',
+    color: Color(0xFFFFF7ED),
+    iconColor: Color(0xFFC2410C),
+    textColor: Color(0xFF7C2D12),
+  ),
+  _HomeFeatureAction(
+    icon: Icons.shopping_bag_outlined,
+    label: 'Shopping',
+    color: Color(0xFFFFF1F2),
+    iconColor: Color(0xFFBE123C),
+    textColor: Color(0xFF881337),
+  ),
 ];
 
 enum _HomePeriodType {

@@ -52,11 +52,11 @@ class _SavingScreenState extends State<SavingScreen> {
     });
   }
 
-  double get _totalBalance => _deposits
+  double get _totalDeposit => _deposits
       .where((record) => record.transactionDate.year == _year)
       .fold<double>(0, (sum, record) => sum + record.totalAmount);
 
-  double get _totalSavingTarget => _totalBalance * (_savingRate / 100);
+  double get _totalSavingTarget => _totalDeposit * (_savingRate / 100);
 
   double get _totalSaving =>
       _dailySavedAmounts.values.fold<double>(0, (sum, amount) => sum + amount);
@@ -296,7 +296,7 @@ class _SavingScreenState extends State<SavingScreen> {
                     sliver: SliverList.list(
                       children: [
                         _SavingSummary(
-                          totalBalance: _totalBalance,
+                          totalDeposit: _totalDeposit,
                           totalSaving: _totalSaving,
                           savingRate: _savingRate,
                           totalSavingTarget: _totalSavingTarget,
@@ -355,7 +355,7 @@ class _SavingScreenState extends State<SavingScreen> {
 }
 
 class _SavingSummary extends StatelessWidget {
-  final double totalBalance;
+  final double totalDeposit;
   final double totalSaving;
   final double savingRate;
   final double totalSavingTarget;
@@ -364,7 +364,7 @@ class _SavingSummary extends StatelessWidget {
   final VoidCallback onEditRate;
 
   const _SavingSummary({
-    required this.totalBalance,
+    required this.totalDeposit,
     required this.totalSaving,
     required this.savingRate,
     required this.totalSavingTarget,
@@ -386,7 +386,7 @@ class _SavingSummary extends StatelessWidget {
           children: [
             Expanded(
               child: _SavingSummaryDetails(
-                totalBalance: totalBalance,
+                totalDeposit: totalDeposit,
                 savingRate: savingRate,
                 totalSavingTarget: totalSavingTarget,
                 periodLabel: periodLabel,
@@ -414,7 +414,7 @@ class _SavingSummary extends StatelessWidget {
 }
 
 class _SavingSummaryDetails extends StatelessWidget {
-  final double totalBalance;
+  final double totalDeposit;
   final double savingRate;
   final double totalSavingTarget;
   final String periodLabel;
@@ -423,7 +423,7 @@ class _SavingSummaryDetails extends StatelessWidget {
   final SummaryCardMetrics metrics;
 
   const _SavingSummaryDetails({
-    required this.totalBalance,
+    required this.totalDeposit,
     required this.savingRate,
     required this.totalSavingTarget,
     required this.periodLabel,
@@ -438,7 +438,7 @@ class _SavingSummaryDetails extends StatelessWidget {
         ((metrics.isTablet ? 14.0 : 13.0) * metrics.heightScale)
             .clamp(11.0, metrics.isTablet ? 15.0 : 13.0)
             .toDouble();
-    final totalBalanceFontSize =
+    final totalDepositFontSize =
         ((metrics.isTablet ? 30.0 : 28.0) * metrics.heightScale)
             .clamp(22.0, metrics.isTablet ? 34.0 : 28.0)
             .toDouble();
@@ -448,7 +448,7 @@ class _SavingSummaryDetails extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'TOTAL BALANCE',
+          'TOTAL DEPOSIT',
           style: TextStyle(
             color: SummaryCardTokens.label,
             fontSize: metrics.primaryLabelFontSize,
@@ -461,11 +461,11 @@ class _SavingSummaryDetails extends StatelessWidget {
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(
-            formatMoney(totalBalance),
+            formatMoney(totalDeposit),
             maxLines: 1,
             style: TextStyle(
               color: Colors.white,
-              fontSize: totalBalanceFontSize,
+              fontSize: totalDepositFontSize,
               fontWeight: FontWeight.w900,
               letterSpacing: 0,
             ),
