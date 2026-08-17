@@ -31,68 +31,10 @@ compiled application and is not suitable for production or a distributed APK.
 Never commit the key, print it in logs, or include it in screenshots. Revoke the
 test key when it is no longer needed.
 
-Create separate Mindee extraction models for expenses and deposits. The expense
-model must use these exact machine keys:
-
-```text
-supplier_name
-date
-time
-total_amount
-tips_gratuity
-purchase_category
-card_last4
-```
-
-Configure `purchase_category` with exactly these classification values:
-
-```text
-Energy
-Loan Obligation
-Payroll
-Business licenses and permits
-Food Purchase
-Restaurant supplies
-Advertising and promotion
-software
-pest control
-Internet
-Maintenance
-Insurance
-Rent
-Office Supplies
-Meal, entertainment
-merchant accounting fees
-gas
-water
-electric
-donation
-professional fees
-```
-
-Connect an Android phone with USB debugging enabled, accept the computer's RSA
-prompt, and confirm that Flutter can see it:
-
-```powershell
-flutter devices
-```
-
-Then start the app with temporary environment variables, replacing
-`<ANDROID_DEVICE_ID>` with the ID shown by `flutter devices`:
-
-```powershell
-$env:MINDEE_V2_API_KEY = '<LOCAL_TEST_API_KEY>'
-$env:MINDEE_EXPENSE_MODEL_ID = '<EXPENSE_MODEL_ID>'
-$env:MINDEE_DEPOSIT_MODEL_ID = '<DEPOSIT_MODEL_ID>'
-
-flutter run -d <ANDROID_DEVICE_ID> `
-  --dart-define=MINDEE_V2_API_KEY=$env:MINDEE_V2_API_KEY `
-  --dart-define=MINDEE_EXPENSE_MODEL_ID=$env:MINDEE_EXPENSE_MODEL_ID `
-  --dart-define=MINDEE_DEPOSIT_MODEL_ID=$env:MINDEE_DEPOSIT_MODEL_ID
-```
-
-Amplify sandbox and Cognito setup are unchanged. No local OCR backend is needed
-for this startup flow.
+For the complete Cognito, Mindee, validation, Android launch, scan verification,
+and shutdown procedure, use
+[ANDROID_AWS_COGNITO_MINDEE_TESTING_GUIDE.md](ANDROID_AWS_COGNITO_MINDEE_TESTING_GUIDE.md).
+It is the single source of truth for local Android testing.
 
 ## Getting Started
 
