@@ -6,13 +6,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'amplify_outputs.dart';
-import 'features/auth/screens/login_screen/confirm_reset_screen.dart';
-import 'features/auth/screens/login_screen/login_screen.dart';
-import 'features/auth/screens/login_screen/signup_screen.dart';
-import 'features/auth/screens/login_screen/confirm_signup_screen.dart';
-import 'features/auth/screens/login_screen/forgot_password_screen.dart';
+import 'features/auth/screens/login_screen/forgot_password/confirm_reset_screen.dart';
+import 'features/auth/screens/login_screen/forgot_password/forgot_password_screen.dart';
+import 'features/auth/screens/login_screen/login/login_screen.dart';
+import 'features/auth/screens/login_screen/onboarding/business_name_onboarding_screen.dart';
+import 'features/auth/screens/login_screen/onboarding/business_category/business_category_screen.dart';
+import 'features/auth/screens/login_screen/onboarding/splash_screen.dart';
+import 'features/auth/screens/login_screen/shared/models/auth_flow_arguments.dart';
+import 'features/auth/screens/login_screen/signup/confirm_signup_screen.dart';
+import 'features/auth/screens/login_screen/signup/signup_screen.dart';
 import 'features/auth/screens/home_screen/home_screen.dart';
-import 'features/auth/screens/login_screen/splash_screen.dart';
 import 'features/auth/screens/scan_screen/scan.dart';
 import 'features/auth/screens/scan_screen/deposit_screen/scan_deposit_choice.dart';
 import 'features/auth/screens/scan_screen/expense_screen/scan_expense_auto_screen.dart';
@@ -168,6 +171,22 @@ class _SaveTepAppState extends State<SaveTepApp> {
           '/confirm-reset': (context) {
             final email = ModalRoute.of(context)!.settings.arguments as String;
             return ConfirmResetScreen(email: email);
+          },
+          '/business-name-onboarding': (context) {
+            final arguments = ModalRoute.of(context)!.settings.arguments;
+            final onboarding = arguments as BusinessNameOnboardingArguments;
+            return BusinessNameOnboardingScreen(
+              email: onboarding.email,
+              fullName: onboarding.fullName,
+            );
+          },
+          '/business-categories-onboarding': (context) {
+            final arguments = ModalRoute.of(context)!.settings.arguments;
+            final onboarding = arguments as BusinessCategoryOnboardingArguments;
+            return BusinessCategoryScreen(
+              businessProfile: onboarding.businessProfile,
+              initialSelectedCategoryIds: onboarding.initialSelectedCategoryIds,
+            );
           },
           '/home': (context) => const HomeScreen(),
           '/scan': (context) => const ScanScreen(),

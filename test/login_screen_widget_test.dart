@@ -1,5 +1,5 @@
-import 'package:savetep/features/auth/screens/login_screen/login_controller.dart';
-import 'package:savetep/features/auth/screens/login_screen/login_screen.dart';
+import 'package:savetep/features/auth/screens/login_screen/login/controllers/login_controller.dart';
+import 'package:savetep/features/auth/screens/login_screen/login/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

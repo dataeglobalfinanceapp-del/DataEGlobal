@@ -1,15 +1,15 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:savetep/domain/services/budget_target_service.dart';
-import 'package:savetep/features/auth/models/budget_data.dart';
+import 'package:savetep/features/auth/screens/home_screen/controllers/home_budget_chart_controller.dart';
+import 'package:savetep/features/auth/screens/home_screen/domain/home_budget_chart_calculator.dart';
+import 'package:savetep/features/auth/screens/home_screen/models/home_budget_chart_models.dart';
 import 'package:savetep/services/money_formatter.dart';
 
 class BudgetSumChart extends StatefulWidget {
-  final BudgetData data;
+  final HomeBudgetData data;
   final String periodKey;
   const BudgetSumChart({super.key, required this.data, this.periodKey = ''});
   @override
@@ -17,60 +17,52 @@ class BudgetSumChart extends StatefulWidget {
 }
 
 class _BudgetSumChartState extends State<BudgetSumChart> {
-  final Map<String, Map<String, double>> _targetPercentagesByPeriod = {};
-  bool _isEditingTargets = false;
+  late final HomeBudgetChartController _chartController;
+
   @override
   void initState() {
     super.initState();
-    unawaited(_loadTargets());
+    _chartController = HomeBudgetChartController()
+      ..addListener(_onStateChanged)
+      ..loadTargets();
+  }
+
+  @override
+  void dispose() {
+    _chartController
+      ..removeListener(_onStateChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onStateChanged() {
+    if (mounted) setState(() {});
   }
 
   String get _periodKey {
-    final key = widget.periodKey.trim();
-    final rawKey = key.isNotEmpty
-        ? key
-        : widget.data.period.trim().isEmpty
-        ? 'Week'
-        : widget.data.period;
-    return rawKey == 'Year' ? 'Month' : rawKey;
+    return HomeBudgetChartCalculator.periodKey(
+      selectedPeriod: widget.periodKey,
+      dataPeriod: widget.data.period,
+    );
   }
 
   void _updateTarget(String label, String value) {
-    final target = double.tryParse(value.trim());
-    final periodTargets = _targetPercentagesByPeriod.putIfAbsent(
-      _periodKey,
-      () => <String, double>{},
+    _chartController.updateTarget(
+      periodKey: _periodKey,
+      label: label,
+      value: value,
     );
-    setState(() {
-      if (target == null) {
-        periodTargets.remove(label);
-      } else {
-        periodTargets[label] = target.clamp(0, 100).toDouble();
-      }
-    });
-    unawaited(_saveTargets());
-  }
-
-  Future<void> _loadTargets() async {
-    final targets = await BudgetTargetService.loadTargetPercentages();
-    if (!mounted) return;
-    setState(() {
-      _targetPercentagesByPeriod
-        ..clear()
-        ..addAll(targets);
-    });
-  }
-
-  Future<void> _saveTargets() async {
-    await BudgetTargetService.saveTargetPercentages(_targetPercentagesByPeriod);
   }
 
   @override
   Widget build(BuildContext context) {
-    final segments = _budgetSegments(widget.data);
-    final allLegendSegments = _allLegendSegments(widget.data);
-    final targetPercentages =
-        _targetPercentagesByPeriod[_periodKey] ?? const <String, double>{};
+    final segments = _presentSegments(
+      HomeBudgetChartCalculator.budgetSegments(widget.data),
+    );
+    final allLegendSegments = _presentSegments(
+      HomeBudgetChartCalculator.legendSegments(widget.data),
+    );
+    final targetPercentages = _chartController.targetPercentagesFor(_periodKey);
     final mediaSize = MediaQuery.sizeOf(context);
     final heightScale = (mediaSize.height / 844).clamp(0.78, 1.15).toDouble();
     return ConstrainedBox(
@@ -128,17 +120,17 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
                       dimension: 32,
                       child: IconButton(
                         padding: EdgeInsets.zero,
-                        tooltip: _isEditingTargets ? 'Done' : 'Edit targets',
+                        tooltip: _chartController.isEditingTargets
+                            ? 'Done'
+                            : 'Edit targets',
                         icon: Icon(
-                          _isEditingTargets
+                          _chartController.isEditingTargets
                               ? Icons.check_circle_outline
                               : Icons.edit_outlined,
                           size: 18,
                         ),
                         color: const Color(0xFF0F766E),
-                        onPressed: () => setState(
-                          () => _isEditingTargets = !_isEditingTargets,
-                        ),
+                        onPressed: _chartController.toggleEditingTargets,
                       ),
                     ),
                   ],
@@ -164,8 +156,12 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
                       allLegendSegments.length,
                     );
                     final rowHeight =
-                        ((_isEditingTargets ? 32.0 : 22.0) * heightScale)
-                            .clamp(_isEditingTargets ? 28.0 : 18.0, 34.0)
+                        ((_chartController.isEditingTargets ? 32.0 : 22.0) *
+                                heightScale)
+                            .clamp(
+                              _chartController.isEditingTargets ? 28.0 : 18.0,
+                              34.0,
+                            )
                             .toDouble();
                     final minChartHeight =
                         ((isWide ? 200.0 : 130.0) * heightScale)
@@ -182,7 +178,7 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
                       segments: allLegendSegments,
                       targetPercentages: targetPercentages,
                       periodKey: _periodKey,
-                      isEditingTargets: _isEditingTargets,
+                      isEditingTargets: _chartController.isEditingTargets,
                       onTargetChanged: _updateTarget,
                     );
                     final figure = _BudgetDonutFigure(
@@ -230,97 +226,19 @@ class _BudgetSumChartState extends State<BudgetSumChart> {
   }
 
   /// Segments used for the actual donut chart rendering (active only, no zeros)
-  List<_BudgetSegment> _budgetSegments(BudgetData data) {
-    final segments = <_BudgetSegment>[];
-    final categories = _visibleCategories(data);
-    if (categories.isEmpty) {
-      if (data.expense > 0) {
-        segments.add(
-          _BudgetSegment(
-            label: 'Expenses',
-            amount: data.expense,
-            percentage: 100,
-            color: const Color(0xFF0F766E),
-          ),
-        );
-      } else {
-        segments.add(
-          const _BudgetSegment(
-            label: 'No activity',
-            amount: 0,
-            percentage: 100,
-            color: Color(0xFFE5E7EB),
-            isPlaceholder: true,
-          ),
-        );
-      }
-    } else {
-      for (var index = 0; index < categories.length; index++) {
-        final category = categories[index];
-        final amount = data.expense * category.percentage / 100;
-        if (amount <= 0) continue;
-        segments.add(
-          _BudgetSegment(
-            label: category.label,
-            amount: amount,
-            percentage: category.percentage,
-            color: _categoryColor(category.label, index),
-          ),
-        );
-      }
-    }
-    return segments;
+  List<_BudgetSegment> _presentSegments(List<HomeBudgetSegment> segments) {
+    return List<_BudgetSegment>.generate(segments.length, (index) {
+      final segment = segments[index];
+      final color = segment.isPlaceholder
+          ? const Color(0xFFE5E7EB)
+          : segment.label == 'Expenses'
+          ? const Color(0xFF0F766E)
+          : _categoryColor(segment.label, index);
+      return _BudgetSegment(data: segment, color: color);
+    }, growable: false);
   }
 
   /// All categories including zeros — shown in legend
-  List<_BudgetSegment> _allLegendSegments(BudgetData data) {
-    final allCategories = data.categories.toList()
-      ..sort((a, b) => b.percentage.compareTo(a.percentage));
-    final result = <_BudgetSegment>[];
-    for (var index = 0; index < allCategories.length && index < 8; index++) {
-      final category = allCategories[index];
-      final amount = data.expense * category.percentage / 100;
-      result.add(
-        _BudgetSegment(
-          label: category.label,
-          amount: amount,
-          percentage: category.percentage,
-          color: _categoryColor(category.label, index),
-        ),
-      );
-    }
-    if (result.isEmpty) {
-      result.add(
-        const _BudgetSegment(
-          label: 'No activity',
-          amount: 0,
-          percentage: 0,
-          color: Color(0xFFE5E7EB),
-          isPlaceholder: true,
-        ),
-      );
-    }
-    return result;
-  }
-
-  List<BudgetCategory> _visibleCategories(BudgetData data) {
-    final categories =
-        data.categories.where((category) => category.percentage > 0).toList()
-          ..sort((a, b) => b.percentage.compareTo(a.percentage));
-    if (categories.length <= 8) return categories;
-    final visible = categories.take(7).toList();
-    final otherTotal = categories
-        .skip(7)
-        .fold<double>(0, (total, category) => total + category.percentage);
-    visible.add(
-      BudgetCategory(
-        label: 'Others',
-        percentage: otherTotal,
-        color: const Color(0xFF374151),
-      ),
-    );
-    return visible;
-  }
 }
 
 // ── Period Pill ───────────────────────────────────────────────────────────────
@@ -407,8 +325,7 @@ class _LegendRow extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    final isOverTarget =
-        segment.percentage > 0 && segment.percentage > targetPercentage;
+    final isOverTarget = segment.isOverTarget(targetPercentage);
     final textColor = isOverTarget
         ? const Color(0xFFDC2626)
         : const Color(0xFF111827);
@@ -544,7 +461,7 @@ class _EmptyLegend extends StatelessWidget {
 // ── Donut Figure ──────────────────────────────────────────────────────────────
 
 class _BudgetDonutFigure extends StatelessWidget {
-  final BudgetData data;
+  final HomeBudgetData data;
   final List<_BudgetSegment> segments;
   const _BudgetDonutFigure({required this.data, required this.segments});
   @override
@@ -616,7 +533,7 @@ class _BudgetDonutFigure extends StatelessWidget {
 }
 
 class _CenterBudgetText extends StatelessWidget {
-  final BudgetData data;
+  final HomeBudgetData data;
   final double width;
   const _CenterBudgetText({required this.data, required this.width});
   @override
@@ -625,9 +542,7 @@ class _CenterBudgetText extends StatelessWidget {
         ? const Color(0xFF16A34A)
         : const Color(0xFFDC2626);
     final scale = (width / 108).clamp(0.82, 1.0).toDouble();
-    final surplusPercent = data.deposit > 0
-        ? ((data.available / data.deposit) * 100).round()
-        : 0;
+    final surplusPercent = HomeBudgetChartCalculator.surplusPercent(data);
     return SizedBox(
       width: width,
       child: Column(
@@ -702,18 +617,19 @@ class _CenterBudgetText extends StatelessWidget {
 // ── Data Model ────────────────────────────────────────────────────────────────
 
 class _BudgetSegment {
-  final String label;
-  final double amount;
-  final double percentage;
+  final HomeBudgetSegment data;
   final Color color;
-  final bool isPlaceholder;
-  const _BudgetSegment({
-    required this.label,
-    required this.amount,
-    required this.percentage,
-    required this.color,
-    this.isPlaceholder = false,
-  });
+
+  const _BudgetSegment({required this.data, required this.color});
+
+  String get label => data.label;
+  double get amount => data.amount;
+  double get percentage => data.percentage;
+  bool get isPlaceholder => data.isPlaceholder;
+
+  bool isOverTarget(double targetPercentage) {
+    return data.isOverTarget(targetPercentage);
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

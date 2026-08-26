@@ -1,44 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:savetep/features/auth/models/expense_category.dart';
 import 'package:savetep/services/money_formatter.dart';
+
+export 'package:savetep/features/auth/models/expense_category.dart'
+    show ExpenseCategory, ExpenseType;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Models
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum ExpenseCategory {
-  energy('Energy', Icons.electric_bolt_outlined),
-  loanObligation('Loan Obligation', Icons.account_balance_outlined),
-  payroll('Payroll', Icons.people_outline),
-  businessLicensesAndPermits(
-    'Business licenses and permits',
-    Icons.business_center_outlined,
-  ),
-  foodPurchase('Food Purchase', Icons.restaurant_outlined),
-  restaurantSupplies('Restaurant supplies', Icons.inventory_2_outlined),
-  advertisingAndPromotion('Advertising and promotion', Icons.campaign_outlined),
-  software('software', Icons.computer_outlined),
-  pestControl('pest control', Icons.pest_control_outlined),
-  internet('Internet', Icons.wifi),
-  maintenance('Maintenance', Icons.build_outlined),
-  insurance('Insurance', Icons.shield_outlined),
-  rent('Rent', Icons.home_outlined),
-  officeSupplies('Office Supplies', Icons.edit_note_outlined),
-  mealEntertainment('Meal, entertainment', Icons.local_dining),
-  merchantAccountingFees(
-    'merchant accounting fees',
-    Icons.account_balance_wallet_outlined,
-  ),
-  gas('gas', Icons.local_gas_station_outlined),
-  water('water', Icons.water_drop_outlined),
-  electric('electric', Icons.electric_meter_outlined),
-  donation('donation', Icons.volunteer_activism_outlined),
-  professionalFees('professional fees', Icons.business_center_outlined);
-
-  const ExpenseCategory(this.label, this.icon);
-  final String label;
-  final IconData icon;
+extension ExpenseCategoryPresentation on ExpenseCategory {
+  IconData get icon => switch (id) {
+    'legacy.energy' => Icons.electric_bolt_outlined,
+    'legacy.loan_obligation' => Icons.account_balance_outlined,
+    'fixed.payroll_wages' => Icons.people_outline,
+    'variable.business_license' => Icons.business_center_outlined,
+    'legacy.food_purchase' => Icons.restaurant_outlined,
+    'legacy.restaurant_supplies' => Icons.inventory_2_outlined,
+    'variable.marketing_advertise' => Icons.campaign_outlined,
+    'legacy.software' => Icons.computer_outlined,
+    'variable.pets_control' => Icons.pest_control_outlined,
+    'fixed.internet' => Icons.wifi,
+    'variable.repair' => Icons.build_outlined,
+    'fixed.business_insurance' => Icons.shield_outlined,
+    'fixed.rents' => Icons.home_outlined,
+    'variable.office' => Icons.edit_note_outlined,
+    'variable.meal_and_entertaiment' => Icons.local_dining,
+    'variable.merchant_services' => Icons.account_balance_wallet_outlined,
+    'fixed.gas' ||
+    'variable.gas_for_mileage' => Icons.local_gas_station_outlined,
+    'fixed.water' => Icons.water_drop_outlined,
+    'fixed.electrical' => Icons.electric_meter_outlined,
+    'variable.gift_donation' => Icons.volunteer_activism_outlined,
+    _ =>
+      expenseType == ExpenseType.fixed
+          ? Icons.account_balance_wallet_outlined
+          : Icons.receipt_long_outlined,
+  };
 }
 
 class ScannedExpenseData {
@@ -390,7 +390,13 @@ class _ExpenseScheduleField extends StatelessWidget {
 
 class CategoryPickerSheet extends StatefulWidget {
   final ExpenseCategory selected;
-  const CategoryPickerSheet({super.key, required this.selected});
+  final List<ExpenseCategory> categories;
+
+  const CategoryPickerSheet({
+    super.key,
+    required this.selected,
+    required this.categories,
+  });
   @override
   State<CategoryPickerSheet> createState() => _CategoryPickerSheetState();
 }
@@ -425,7 +431,7 @@ class _CategoryPickerSheetState extends State<CategoryPickerSheet> {
                 ),
               ),
               const SizedBox(height: 12),
-              ...ExpenseCategory.values.map((cat) {
+              ...widget.categories.map((cat) {
                 final isSelected = _selected == cat;
                 return ListTile(
                   leading: Icon(
@@ -436,7 +442,7 @@ class _CategoryPickerSheetState extends State<CategoryPickerSheet> {
                         : const Color(0xFF888888),
                   ),
                   title: Text(
-                    cat.label,
+                    cat.name,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: isSelected
@@ -547,7 +553,7 @@ class ExpenseReviewDialog extends StatelessWidget {
               value: formatMoney(data.tipsGratuity),
             ),
             const Divider(height: 22, color: Color(0xFFE5E7EB)),
-            ExpenseReviewRow(label: 'Category', value: data.category.label),
+            ExpenseReviewRow(label: 'Category', value: data.category.name),
             ExpenseReviewRow(label: 'Payee', value: data.payee),
             ExpenseReviewRow(label: 'Card Last 4', value: data.cardLast4 ?? ''),
             const SizedBox(height: 20),

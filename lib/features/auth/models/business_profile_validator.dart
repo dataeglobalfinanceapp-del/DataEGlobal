@@ -1,5 +1,5 @@
 import 'package:savetep/features/auth/models/business_profile.dart';
-import 'package:savetep/features/auth/screens/login_screen/auth_form_validators.dart';
+import 'package:savetep/features/auth/screens/login_screen/shared/validators/auth_form_validators.dart';
 
 enum BusinessProfileField { businessName, dba, address, ein, email, phone }
 
@@ -21,11 +21,7 @@ class BusinessProfileValidator {
   static BusinessProfileValidation validate(BusinessProfile profile) {
     final errors = <BusinessProfileField, String>{};
 
-    void require(
-      BusinessProfileField field,
-      String value,
-      String label,
-    ) {
+    void require(BusinessProfileField field, String value, String label) {
       if (value.trim().isEmpty) errors[field] = '$label is required';
     }
 

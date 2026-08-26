@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -6,15 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:savetep/core/customer_service_contact.dart';
 import 'package:savetep/features/auth/models/business_profile.dart';
-import 'package:savetep/features/auth/models/budget_data.dart';
 import 'package:savetep/features/auth/screens/user_setting/user_settings_routes.dart';
-import 'package:savetep/features/auth/screens/user_setting/widgets/user_logo_menu_button.dart';
 import 'package:savetep/providers/business_profile_provider.dart';
-import 'package:savetep/services/app_clock.dart';
-import 'package:savetep/services/customer_service_launcher.dart';
-import 'package:savetep/services/liability_service.dart';
 
-import 'budget_donut_chart.dart';
+import 'controllers/home_screen_controller.dart';
+import 'models/home_date_range.dart';
+import 'widgets/budget_donut_chart.dart';
+import 'widgets/home_account_button.dart';
 
 class _HomeLayoutTokens {
   const _HomeLayoutTokens._();
@@ -345,145 +342,6 @@ const List<_HomeFeatureAction> _homeFeatureActions = <_HomeFeatureAction>[
   ),
 ];
 
-enum _HomePeriodType {
-  day('Day'),
-  week('Week'),
-  month('Month'),
-  quarter('3 Months');
-
-  const _HomePeriodType(this.label);
-
-  final String label;
-}
-
-class _HomeDateRange {
-  final DateTime start;
-  final DateTime end;
-
-  const _HomeDateRange({required this.start, required this.end});
-}
-
-class _MonthOption {
-  final int month;
-  final String label;
-
-  const _MonthOption({required this.month, required this.label});
-}
-
-class _QuarterOption {
-  final int quarter;
-  final String label;
-
-  const _QuarterOption({required this.quarter, required this.label});
-}
-
-class _HomeDateRangeService {
-  const _HomeDateRangeService._();
-
-  static const int firstMonth = 1;
-  static const int monthsInQuarter = 3;
-  static const int weekLookbackDays = 6;
-
-  static _HomeDateRange rangeFor({
-    required _HomePeriodType period,
-    required int selectedMonth,
-    required int selectedQuarter,
-    required DateTime today,
-  }) {
-    final DateTime currentDay = dateOnly(today);
-
-    return switch (period) {
-      _HomePeriodType.day => _HomeDateRange(start: currentDay, end: currentDay),
-      _HomePeriodType.week => _HomeDateRange(
-        start: currentDay.subtract(const Duration(days: weekLookbackDays)),
-        end: currentDay,
-      ),
-      _HomePeriodType.month => _monthRange(
-        month: clampMonth(selectedMonth, currentDay),
-        today: currentDay,
-      ),
-      _HomePeriodType.quarter => _quarterRange(
-        quarter: clampQuarter(selectedQuarter, currentDay),
-        today: currentDay,
-      ),
-    };
-  }
-
-  static List<_MonthOption> availableMonthOptions(DateTime today) {
-    final DateTime currentDay = dateOnly(today);
-    return List<_MonthOption>.generate(currentDay.month, (int index) {
-      final int month = index + 1;
-      return _MonthOption(month: month, label: _monthNames[month]);
-    }, growable: false);
-  }
-
-  static List<_QuarterOption> availableQuarterOptions(DateTime today) {
-    final int current = currentQuarter(today);
-    return List<_QuarterOption>.generate(current, (int index) {
-      final int quarter = index + 1;
-      return _QuarterOption(quarter: quarter, label: 'Q$quarter');
-    }, growable: false);
-  }
-
-  static int currentQuarter(DateTime date) {
-    return ((dateOnly(date).month - 1) ~/ monthsInQuarter) + 1;
-  }
-
-  static int clampMonth(int month, DateTime today) {
-    return month.clamp(firstMonth, dateOnly(today).month).toInt();
-  }
-
-  static int clampQuarter(int quarter, DateTime today) {
-    return quarter.clamp(1, currentQuarter(today)).toInt();
-  }
-
-  static DateTime dateOnly(DateTime value) {
-    return DateTime(value.year, value.month, value.day);
-  }
-
-  static _HomeDateRange _monthRange({
-    required int month,
-    required DateTime today,
-  }) {
-    final DateTime start = DateTime(today.year, month);
-    final bool isCurrentMonth = month == today.month;
-    return _HomeDateRange(
-      start: start,
-      end: isCurrentMonth ? today : DateTime(today.year, month + 1, 0),
-    );
-  }
-
-  static _HomeDateRange _quarterRange({
-    required int quarter,
-    required DateTime today,
-  }) {
-    final int startMonth = ((quarter - 1) * monthsInQuarter) + firstMonth;
-    final int endMonth = startMonth + monthsInQuarter - 1;
-    final DateTime start = DateTime(today.year, startMonth);
-    final bool isCurrentQuarter = quarter == currentQuarter(today);
-    return _HomeDateRange(
-      start: start,
-      end: isCurrentQuarter ? today : DateTime(today.year, endMonth + 1, 0),
-    );
-  }
-}
-
-const List<String> _monthNames = <String>[
-  '',
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -492,127 +350,32 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  _HomePeriodType _selectedPeriod = _HomePeriodType.week;
-  late int _selectedMonth;
-  late int _selectedQuarter;
-  late DateTime _startDate;
-  late DateTime _endDate;
-  BudgetData _budgetData = const BudgetData();
-  bool _isLoadingBudget = true;
-  int _budgetLoadSerial = 0;
+  late final HomeScreenController _screenController;
 
   @override
   void initState() {
     super.initState();
-    final DateTime today = AppClock.now;
-    _selectedMonth = today.month;
-    _selectedQuarter = _HomeDateRangeService.currentQuarter(today);
-    LiabilityService.dataVersion.addListener(_handleBudgetDataChanged);
-    _updateDateRange();
-    unawaited(_loadBudgetData());
+    _screenController = HomeScreenController()
+      ..addListener(_onStateChanged)
+      ..start();
   }
 
   @override
   void dispose() {
-    LiabilityService.dataVersion.removeListener(_handleBudgetDataChanged);
+    _screenController
+      ..removeListener(_onStateChanged)
+      ..dispose();
     super.dispose();
   }
 
-  void _handleBudgetDataChanged() {
-    if (!mounted) return;
-    unawaited(_loadBudgetData());
-  }
-
-  void _updateDateRange() {
-    final DateTime today = AppClock.now;
-    _selectedMonth = _HomeDateRangeService.clampMonth(_selectedMonth, today);
-    _selectedQuarter = _HomeDateRangeService.clampQuarter(
-      _selectedQuarter,
-      today,
-    );
-
-    final _HomeDateRange range = _HomeDateRangeService.rangeFor(
-      period: _selectedPeriod,
-      selectedMonth: _selectedMonth,
-      selectedQuarter: _selectedQuarter,
-      today: today,
-    );
-    _startDate = range.start;
-    _endDate = range.end;
-  }
-
-  Future<void> _loadBudgetData() async {
-    final loadSerial = ++_budgetLoadSerial;
-    setState(() {
-      _updateDateRange();
-      _isLoadingBudget = true;
-    });
-
-    final startDate = _startDate;
-    final endDate = _endDate;
-    final data = await LiabilityService.loadBudgetData(
-      startDate: startDate,
-      endDate: endDate,
-      period: '${_formatDate(startDate)} - ${_formatDate(endDate)}',
-    );
-
-    if (!mounted || loadSerial != _budgetLoadSerial) return;
-    setState(() {
-      _budgetData = data;
-      _isLoadingBudget = false;
-    });
+  void _onStateChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _openAndRefresh(String routeName) async {
     await Navigator.pushNamed(context, routeName);
     if (!mounted) return;
-    await _loadBudgetData();
-  }
-
-  void _selectPeriod(_HomePeriodType period) {
-    if (_selectedPeriod == period) return;
-
-    setState(() {
-      _selectedPeriod = period;
-      _updateDateRange();
-    });
-    unawaited(_loadBudgetData());
-  }
-
-  void _selectMonth(int month) {
-    final int availableMonth = _HomeDateRangeService.clampMonth(
-      month,
-      AppClock.now,
-    );
-    if (_selectedPeriod == _HomePeriodType.month &&
-        _selectedMonth == availableMonth) {
-      return;
-    }
-
-    setState(() {
-      _selectedPeriod = _HomePeriodType.month;
-      _selectedMonth = availableMonth;
-      _updateDateRange();
-    });
-    unawaited(_loadBudgetData());
-  }
-
-  void _selectQuarter(int quarter) {
-    final int availableQuarter = _HomeDateRangeService.clampQuarter(
-      quarter,
-      AppClock.now,
-    );
-    if (_selectedPeriod == _HomePeriodType.quarter &&
-        _selectedQuarter == availableQuarter) {
-      return;
-    }
-
-    setState(() {
-      _selectedPeriod = _HomePeriodType.quarter;
-      _selectedQuarter = availableQuarter;
-      _updateDateRange();
-    });
-    unawaited(_loadBudgetData());
+    await _screenController.loadBudgetData();
   }
 
   Future<void> _showCustomerService() async {
@@ -635,7 +398,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
     if (shouldCall != true || !mounted) return;
 
-    final opened = await const CustomerServiceLauncher().call();
+    final opened = await _screenController.callCustomerService();
     if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open the phone dialer.')),
@@ -690,7 +453,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onPressed: _showCustomerService,
             icon: const Icon(Icons.support_agent_outlined),
           ),
-          UserLogoMenuButton(
+          HomeAccountButton(
             size: 36,
             onPressed: () =>
                 Navigator.pushNamed(context, UserSettingsRoutes.settings),
@@ -707,7 +470,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           final featureCards = _buildFeatureCards(metrics, featureCount);
 
           return RefreshIndicator(
-            onRefresh: _loadBudgetData,
+            onRefresh: _screenController.loadBudgetData,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: Padding(
@@ -728,20 +491,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           SizedBox(height: metrics.compactSectionGap),
                           _HomeDateRangeSelector(
                             metrics: metrics,
-                            selectedPeriod: _selectedPeriod,
-                            selectedMonth: _selectedMonth,
-                            selectedQuarter: _selectedQuarter,
-                            availableMonths:
-                                _HomeDateRangeService.availableMonthOptions(
-                                  AppClock.now,
-                                ),
+                            selectedPeriod: _screenController.selectedPeriod,
+                            selectedMonth: _screenController.selectedMonth,
+                            selectedQuarter: _screenController.selectedQuarter,
+                            availableMonths: _screenController.availableMonths,
                             availableQuarters:
-                                _HomeDateRangeService.availableQuarterOptions(
-                                  AppClock.now,
-                                ),
-                            onPeriodSelected: _selectPeriod,
-                            onMonthSelected: _selectMonth,
-                            onQuarterSelected: _selectQuarter,
+                                _screenController.availableQuarters,
+                            onPeriodSelected: _screenController.selectPeriod,
+                            onMonthSelected: _screenController.selectMonth,
+                            onQuarterSelected: _screenController.selectQuarter,
                           ),
                           SizedBox(height: metrics.sectionGap),
                           _buildBudgetSection(metrics, featureCount),
@@ -801,7 +559,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildBudgetSection(_HomeLayoutMetrics metrics, int featureCount) {
     final sectionHeight = metrics.budgetSectionHeight(featureCount);
-    if (_isLoadingBudget) {
+    if (_screenController.isLoadingBudget) {
       final indicatorSize = (sectionHeight * 0.28).clamp(42.0, 72.0).toDouble();
       return SizedBox(
         width: double.infinity,
@@ -820,17 +578,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: SizedBox(
         width: metrics.contentWidth,
         child: BudgetDonutChart(
-          data: _budgetData,
-          periodKey: _selectedPeriod.label,
+          homeData: _screenController.budgetData,
+          periodKey: _screenController.selectedPeriod.label,
         ),
       ),
     );
   }
 
   Widget _buildDateRangePill(_HomeLayoutMetrics metrics) {
-    final periodLabel = _budgetData.period.isEmpty
-        ? '${_formatDate(_startDate)} - ${_formatDate(_endDate)}'
-        : _budgetData.period;
+    final periodLabel = _screenController.dateRangeLabel;
 
     final bool isTablet = metrics.isTablet;
     final scale = metrics.scaleFactor;
@@ -974,21 +730,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return GestureDetector(onTap: onTap, child: card);
   }
-
-  String _formatDate(DateTime date) {
-    return '${date.month.toString().padLeft(2, '0')}/'
-        '${date.day.toString().padLeft(2, '0')}';
-  }
 }
 
 class _HomeDateRangeSelector extends StatelessWidget {
   final _HomeLayoutMetrics metrics;
-  final _HomePeriodType selectedPeriod;
+  final HomePeriodType selectedPeriod;
   final int selectedMonth;
   final int selectedQuarter;
-  final List<_MonthOption> availableMonths;
-  final List<_QuarterOption> availableQuarters;
-  final ValueChanged<_HomePeriodType> onPeriodSelected;
+  final List<HomeMonthOption> availableMonths;
+  final List<HomeQuarterOption> availableQuarters;
+  final ValueChanged<HomePeriodType> onPeriodSelected;
   final ValueChanged<int> onMonthSelected;
   final ValueChanged<int> onQuarterSelected;
 
@@ -1006,7 +757,7 @@ class _HomeDateRangeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<_HomePeriodType> periods = _HomePeriodType.values;
+    final List<HomePeriodType> periods = HomePeriodType.values;
     return Row(
       children: <Widget>[
         for (int index = 0; index < periods.length; index += 1) ...<Widget>[
@@ -1017,36 +768,34 @@ class _HomeDateRangeSelector extends StatelessWidget {
     );
   }
 
-  Widget _buildPeriodSegment(_HomePeriodType period) {
+  Widget _buildPeriodSegment(HomePeriodType period) {
     return switch (period) {
-      _HomePeriodType.month => _PeriodMenuAnchor<_MonthOption>(
+      HomePeriodType.month => _PeriodMenuAnchor<HomeMonthOption>(
         period: period,
         options: availableMonths,
-        optionLabel: (_MonthOption option) => option.label,
-        isOptionSelected: (_MonthOption option) =>
+        optionLabel: (HomeMonthOption option) => option.label,
+        isOptionSelected: (HomeMonthOption option) =>
             option.month == selectedMonth,
-        onOptionSelected: (_MonthOption option) =>
+        onOptionSelected: (HomeMonthOption option) =>
             onMonthSelected(option.month),
         onPeriodSelected: onPeriodSelected,
         buttonBuilder: (VoidCallback onPressed) {
           return _HomePeriodButton(
             label: period.label,
-            detail: selectedPeriod == period
-                ? _monthNames[selectedMonth]
-                : null,
+            detail: selectedPeriod == period ? monthNames[selectedMonth] : null,
             isSelected: selectedPeriod == period,
             metrics: metrics,
             onPressed: onPressed,
           );
         },
       ),
-      _HomePeriodType.quarter => _PeriodMenuAnchor<_QuarterOption>(
+      HomePeriodType.quarter => _PeriodMenuAnchor<HomeQuarterOption>(
         period: period,
         options: availableQuarters,
-        optionLabel: (_QuarterOption option) => option.label,
-        isOptionSelected: (_QuarterOption option) =>
+        optionLabel: (HomeQuarterOption option) => option.label,
+        isOptionSelected: (HomeQuarterOption option) =>
             option.quarter == selectedQuarter,
-        onOptionSelected: (_QuarterOption option) =>
+        onOptionSelected: (HomeQuarterOption option) =>
             onQuarterSelected(option.quarter),
         onPeriodSelected: onPeriodSelected,
         buttonBuilder: (VoidCallback onPressed) {
@@ -1070,12 +819,12 @@ class _HomeDateRangeSelector extends StatelessWidget {
 }
 
 class _PeriodMenuAnchor<T> extends StatelessWidget {
-  final _HomePeriodType period;
+  final HomePeriodType period;
   final List<T> options;
   final String Function(T option) optionLabel;
   final bool Function(T option) isOptionSelected;
   final ValueChanged<T> onOptionSelected;
-  final ValueChanged<_HomePeriodType> onPeriodSelected;
+  final ValueChanged<HomePeriodType> onPeriodSelected;
   final Widget Function(VoidCallback onPressed) buttonBuilder;
 
   const _PeriodMenuAnchor({

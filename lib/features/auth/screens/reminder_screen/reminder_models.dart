@@ -123,7 +123,7 @@ class _ReminderFormData {
   final TextEditingController amountController;
 
   _ReminderFormData({required this.date})
-    : category = _categories.first,
+    : category = ExpenseCategory.energy.name,
       reminderCount = _reminderCounts.first,
       amountController = TextEditingController();
 
@@ -311,30 +311,6 @@ class _ReminderTokens {
     fontWeight: FontWeight.w600,
   );
 }
-
-const List<String> _categories = <String>[
-  'Energy',
-  'Loan Obligation',
-  'Payroll',
-  'Business licenses and permits',
-  'Food Purchase',
-  'Restaurant supplies',
-  'Advertising and promotion',
-  'software',
-  'pest control',
-  'Internet',
-  'Maintenance',
-  'Insurance',
-  'Rent',
-  'Office Supplies',
-  'Meal, entertainment',
-  'merchant accounting fees',
-  'gas',
-  'water',
-  'electric',
-  'donation',
-  'professional fees',
-];
 
 const List<String> _reminderCounts = <String>[
   'Monthly',

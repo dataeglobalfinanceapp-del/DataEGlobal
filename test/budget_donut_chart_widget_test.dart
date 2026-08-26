@@ -1,5 +1,5 @@
 import 'package:savetep/features/auth/models/budget_data.dart';
-import 'package:savetep/features/auth/screens/home_screen/budget_donut_chart.dart';
+import 'package:savetep/features/auth/screens/home_screen/widgets/budget_donut_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

@@ -1,5 +1,5 @@
-import 'package:savetep/features/auth/screens/login_screen/signup_controller.dart';
-import 'package:savetep/features/auth/services/auth_service.dart';
+import 'package:savetep/features/auth/screens/login_screen/signup/controllers/signup_controller.dart';
+import 'package:savetep/features/auth/screens/login_screen/shared/models/auth_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -8,7 +8,7 @@ void main() {
       final SignUpController controller = SignUpController(
         signUp:
             ({required email, required password, required fullName}) async =>
-                const SignUpAttempt(
+                const AuthSignUpAttempt(
                   needsConfirmation: true,
                   codeDelivery: null,
                 ),
@@ -64,7 +64,7 @@ void main() {
               submittedEmail = email;
               submittedPassword = password;
               submittedFullName = fullName;
-              return const SignUpAttempt(
+              return const AuthSignUpAttempt(
                 needsConfirmation: true,
                 codeDelivery: null,
               );
@@ -80,7 +80,7 @@ void main() {
       controller.setAgreedToTerms(true);
       controller.setCountryCode('+1');
 
-      final SignUpAttempt? result = await controller.submit();
+      final AuthSignUpAttempt? result = await controller.submit();
 
       expect(result?.needsConfirmation, isTrue);
       expect(submittedEmail, 'sunny@example.com');

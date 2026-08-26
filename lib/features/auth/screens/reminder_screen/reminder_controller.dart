@@ -350,6 +350,15 @@ class _CreateReminderController extends ChangeNotifier {
     _notify();
   }
 
+  void ensureAvailableCategories(List<String> categories) {
+    if (categories.isEmpty) return;
+    for (final _ReminderFormData form in _forms) {
+      if (!categories.contains(form.category)) {
+        form.category = categories.first;
+      }
+    }
+  }
+
   void setReminderCount(_ReminderFormData form, String reminderCount) {
     form.reminderCount = reminderCount;
     _notify();

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:savetep/features/auth/models/expense_category.dart';
 import 'package:savetep/features/auth/screens/reminder_screen/reminder_screen.dart';
+import 'package:savetep/providers/expense_category_provider.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/reminder_service.dart';
@@ -273,10 +276,18 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(
-        home: CreateReminderScreen(initialDate: DateTime(2026, 6, 15)),
+      ProviderScope(
+        overrides: [
+          activeExpenseCategoriesProvider.overrideWith(
+            (ref) async => ExpenseCategory.values,
+          ),
+        ],
+        child: MaterialApp(
+          home: CreateReminderScreen(initialDate: DateTime(2026, 6, 15)),
+        ),
       ),
     );
+    await tester.pumpAndSettle();
 
     expect(find.text('Create Reminder'), findsOneWidget);
     expect(find.textContaining('DATE', findRichText: true), findsOneWidget);
@@ -287,5 +298,36 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Add more reminder'), findsOneWidget);
+  });
+
+  testWidgets('CreateReminderScreen uses active business categories', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeExpenseCategoriesProvider.overrideWith(
+            (ref) async => const <ExpenseCategory>[
+              ExpenseCategory.rents,
+              ExpenseCategory.travel,
+            ],
+          ),
+        ],
+        child: MaterialApp(
+          home: CreateReminderScreen(initialDate: DateTime(2026, 6, 15)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(ExpenseCategory.rents.name), findsOneWidget);
+    expect(find.text(ExpenseCategory.energy.name), findsNothing);
+
+    await tester.ensureVisible(find.text(ExpenseCategory.rents.name));
+    await tester.tap(find.text(ExpenseCategory.rents.name));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ExpenseCategory.travel.name), findsOneWidget);
+    expect(find.text(ExpenseCategory.energy.name), findsNothing);
   });
 }

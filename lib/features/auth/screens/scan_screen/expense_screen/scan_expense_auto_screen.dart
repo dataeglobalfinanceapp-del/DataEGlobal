@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:savetep/features/auth/screens/scan_screen/mindee/mindee_analysis_models.dart';
 import 'package:savetep/features/auth/screens/scan_screen/mindee/mindee_mapping.dart';
 import 'package:savetep/features/auth/screens/scan_screen/mindee/mindee_providers.dart';
+import 'package:savetep/providers/expense_category_provider.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/money_formatter.dart';
@@ -13,14 +14,15 @@ import 'package:savetep/services/recurring_expense_reminder_service.dart';
 import 'mindee_expense_fields.dart';
 import 'scan_expense_screen.dart';
 
-class ScanExpenseAutoScreen extends StatefulWidget {
+class ScanExpenseAutoScreen extends ConsumerStatefulWidget {
   const ScanExpenseAutoScreen({super.key});
 
   @override
-  State<ScanExpenseAutoScreen> createState() => _ScanExpenseAutoScreenState();
+  ConsumerState<ScanExpenseAutoScreen> createState() =>
+      _ScanExpenseAutoScreenState();
 }
 
-class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
+class _ScanExpenseAutoScreenState extends ConsumerState<ScanExpenseAutoScreen> {
   Uint8List? _scannedImageBytes;
   bool _isScanning = false;
   bool _hasExtractedData = false;
@@ -98,7 +100,8 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
       _activeCancellationToken?.cancel();
       requestToken = CancellationToken();
       _activeCancellationToken = requestToken;
-      final currentCategory = _data.category;
+      final currentCategory =
+          _effectiveCategory(_readAvailableCategories()) ?? _data.category;
       final pendingData = ScannedExpenseData(
         transactionDate: AppClock.now,
         category: currentCategory,
@@ -264,12 +267,19 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   // ── Category picker ───────────────────────────────────────────────────────
 
   Future<void> _showCategoryPicker() async {
+    final List<ExpenseCategory> categories = _readAvailableCategories();
+    final ExpenseCategory? activeCategory = _effectiveCategory(categories);
+    if (activeCategory == null) {
+      _showCategoryUnavailableMessage();
+      return;
+    }
     final selected = await showModalBottomSheet<ExpenseCategory>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (_) => CategoryPickerSheet(selected: _data.category),
+      builder: (_) =>
+          CategoryPickerSheet(selected: activeCategory, categories: categories),
     );
     if (selected != null && mounted) {
       setState(() => _data = _data.copyWith(category: selected));
@@ -279,6 +289,13 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
   // ── Confirm & Save ────────────────────────────────────────────────────────
 
   Future<void> _confirm() async {
+    final ExpenseCategory? activeCategory = _effectiveCategory(
+      _readAvailableCategories(),
+    );
+    if (activeCategory == null) {
+      _showCategoryUnavailableMessage();
+      return;
+    }
     final String? cardLast4;
     try {
       cardLast4 = normalizeOptionalCardLast4(_cardLast4Controller.text);
@@ -293,6 +310,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
     final updatedData = _data.copyWith(
       totalAmount: parseMoney(_totalAmountController.text),
       tipsGratuity: parseMoney(_tipsGratuityController.text),
+      category: activeCategory,
       payee: _payeeController.text.trim(),
       cardLast4: cardLast4,
       clearCardLast4: cardLast4 == null,
@@ -314,7 +332,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
           tipsGratuity: updatedData.tipsGratuity,
           transactionDate: updatedData.transactionDate,
           startDate: _recurringStartDate,
-          category: updatedData.category.label,
+          category: updatedData.category.name,
           payee: updatedData.payee,
           isManual: false,
           frequency: _recurringFrequency.label,
@@ -325,7 +343,7 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
           totalAmount: updatedData.totalAmount,
           tipsGratuity: updatedData.tipsGratuity,
           transactionDate: updatedData.transactionDate,
-          category: updatedData.category.label,
+          category: updatedData.category.name,
           payee: updatedData.payee,
           isManual: false,
         );
@@ -352,10 +370,45 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
     return 'Expense saved';
   }
 
+  List<ExpenseCategory> _readAvailableCategories() {
+    return ref
+        .read(activeExpenseCategoriesProvider)
+        .when(
+          data: (List<ExpenseCategory> categories) => categories,
+          loading: () => const <ExpenseCategory>[],
+          error: (_, _) => const <ExpenseCategory>[],
+        );
+  }
+
+  void _showCategoryUnavailableMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Expense categories are not available yet.'),
+      ),
+    );
+  }
+
+  ExpenseCategory? _effectiveCategory(List<ExpenseCategory> categories) {
+    for (final ExpenseCategory category in categories) {
+      if (category.id == _data.category.id) return category;
+    }
+    return categories.firstOrNull;
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final List<ExpenseCategory> availableCategories = ref
+        .watch(activeExpenseCategoriesProvider)
+        .when(
+          data: (List<ExpenseCategory> categories) => categories,
+          loading: () => const <ExpenseCategory>[],
+          error: (_, _) => const <ExpenseCategory>[],
+        );
+    final ExpenseCategory? activeCategory = _effectiveCategory(
+      availableCategories,
+    );
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
@@ -523,17 +576,19 @@ class _ScanExpenseAutoScreenState extends State<ScanExpenseAutoScreen> {
                         InfoRow(
                           label: 'CATEGORY:',
                           child: GestureDetector(
-                            onTap: _showCategoryPicker,
+                            onTap: activeCategory == null
+                                ? null
+                                : _showCategoryPicker,
                             child: Row(
                               children: [
                                 Icon(
-                                  _data.category.icon,
+                                  activeCategory?.icon ?? Icons.hourglass_empty,
                                   size: 20,
                                   color: const Color(0xFF4A90D9),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  _data.category.label,
+                                  activeCategory?.name ?? 'Unavailable',
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,

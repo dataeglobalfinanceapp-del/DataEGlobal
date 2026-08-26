@@ -19,6 +19,20 @@ Build this Flutter app with a feature-based structure and clear separation betwe
 - Use centralized styling tokens, app theme values, or shared component styles instead of scattering visual constants.
 - Add tests for important business logic and widget behavior touched by a change.
 
+Structural Isolation
+
+Keep each feature structurally isolated: feature-specific UI, state, models, services, and persistence should remain inside that feature unless reuse is proven.
+
+Do not import or depend on another feature's private implementation details; communicate through explicit public interfaces, shared contracts, or intentionally shared modules.
+
+Keep dependency direction clear: UI may depend on state/controllers, which may depend on domain/services; lower layers must not depend on UI.
+
+Isolate side effects such as network, storage, platform APIs, and analytics behind services or repositories so business rules remain testable.
+
+Avoid broad refactors or cross-feature changes unless the task requires them. Prefer the smallest change that preserves existing boundaries.
+
+When shared code is necessary, extract only stable, genuinely reusable behavior; do not create shared abstractions for one-off convenience.
+
 ## Validation
 
 Run these before handing off a Flutter change:

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:savetep/features/auth/screens/login_screen/login_controller.dart';
+import 'package:savetep/features/auth/screens/login_screen/login/controllers/login_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

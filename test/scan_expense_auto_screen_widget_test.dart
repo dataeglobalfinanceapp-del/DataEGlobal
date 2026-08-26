@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:savetep/features/auth/models/expense_category.dart';
 import 'package:savetep/features/auth/screens/scan_screen/expense_screen/scan_expense_auto_screen.dart';
+import 'package:savetep/providers/expense_category_provider.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/recurring_expense_reminder_service.dart';
@@ -80,6 +83,41 @@ void main() {
     final List<ReminderRecord> reminders =
         await ReminderService.loadReminders();
     expect(reminders, isEmpty);
+  });
+
+  testWidgets('category picker uses only the active business categories', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          activeExpenseCategoriesProvider.overrideWith(
+            (ref) async => const <ExpenseCategory>[
+              ExpenseCategory.rents,
+              ExpenseCategory.travel,
+            ],
+          ),
+        ],
+        child: const MaterialApp(home: ScanExpenseAutoScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(ExpenseCategory.rents.name), findsOneWidget);
+    expect(find.text(ExpenseCategory.energy.name), findsNothing);
+
+    await tester.ensureVisible(find.text(ExpenseCategory.rents.name));
+    await tester.tap(find.text(ExpenseCategory.rents.name));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ExpenseCategory.travel.name), findsOneWidget);
+    expect(find.text(ExpenseCategory.energy.name), findsNothing);
+
+    await tester.tap(find.text(ExpenseCategory.travel.name));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ExpenseCategory.travel.name), findsOneWidget);
+    expect(find.text(ExpenseCategory.rents.name), findsNothing);
   });
 
   testWidgets('camera permission is requested only from the camera action', (
@@ -237,7 +275,16 @@ void main() {
 }
 
 Future<void> _pumpAutoExpenseScreen(WidgetTester tester) async {
-  await tester.pumpWidget(const MaterialApp(home: ScanExpenseAutoScreen()));
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        activeExpenseCategoriesProvider.overrideWith(
+          (ref) async => ExpenseCategory.values,
+        ),
+      ],
+      child: const MaterialApp(home: ScanExpenseAutoScreen()),
+    ),
+  );
   await tester.pumpAndSettle();
 }
 

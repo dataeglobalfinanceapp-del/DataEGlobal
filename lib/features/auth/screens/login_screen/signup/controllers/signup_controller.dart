@@ -1,14 +1,18 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
-import '../../services/auth_service.dart';
-import 'auth_form_validators.dart';
+import 'package:savetep/features/auth/screens/login_screen/shared/models/auth_models.dart';
+import 'package:savetep/features/auth/screens/login_screen/shared/validators/auth_form_validators.dart';
+
+import '../models/signup_flow_result.dart';
 
 typedef SignUpRequest =
-    Future<SignUpAttempt> Function({
+    Future<AuthSignUpAttempt> Function({
       required String email,
       required String password,
       required String fullName,
     });
+typedef StageNewAccount =
+    Future<void> Function({required String email, required String fullName});
 
 class SignUpFormState {
   final bool isLoading;
@@ -126,6 +130,7 @@ class SignUpController extends ChangeNotifier {
   ];
 
   final SignUpRequest _signUp;
+  final StageNewAccount? _stageNewAccount;
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
@@ -136,7 +141,11 @@ class SignUpController extends ChangeNotifier {
   SignUpFormState _state = const SignUpFormState.initial();
   bool _isDisposed = false;
 
-  SignUpController({required SignUpRequest signUp}) : _signUp = signUp;
+  SignUpController({
+    required SignUpRequest signUp,
+    StageNewAccount? stageNewAccount,
+  }) : _signUp = signUp,
+       _stageNewAccount = stageNewAccount;
 
   SignUpFormState get state => _state;
 
@@ -196,7 +205,7 @@ class SignUpController extends ChangeNotifier {
     _setState(_state.copyWith(countryCode: value));
   }
 
-  Future<SignUpAttempt?> submit() async {
+  Future<AuthSignUpAttempt?> submit() async {
     if (!validate()) return null;
 
     _setState(_state.copyWith(isLoading: true, errors: const <String>[]));
@@ -206,12 +215,41 @@ class SignUpController extends ChangeNotifier {
         password: passwordController.text,
         fullName: fullName,
       );
-    } on Exception catch (error) {
+    } on Object catch (error) {
       _setState(_state.copyWith(errors: <String>[error.toString()]));
       return null;
     } finally {
       _setState(_state.copyWith(isLoading: false));
     }
+  }
+
+  Future<SignUpFlowResult?> submitFlow() async {
+    final AuthSignUpAttempt? attempt = await submit();
+    if (_isDisposed || attempt == null) return null;
+
+    String? profileWarning;
+    final StageNewAccount? stageNewAccount = _stageNewAccount;
+    if (stageNewAccount != null) {
+      _setState(_state.copyWith(isLoading: true));
+      try {
+        await stageNewAccount(email: email, fullName: fullName);
+      } on Object catch (error) {
+        profileWarning =
+            'Account created, but profile setup could not be prepared: $error';
+      } finally {
+        _setState(_state.copyWith(isLoading: false));
+      }
+    }
+
+    return SignUpFlowResult(
+      nextStep: attempt.needsConfirmation
+          ? SignUpNextStep.confirmEmail
+          : SignUpNextStep.businessNameOnboarding,
+      email: email,
+      fullName: fullName,
+      codeDelivery: attempt.codeDelivery,
+      profileWarning: profileWarning,
+    );
   }
 
   void _setState(SignUpFormState nextState) {

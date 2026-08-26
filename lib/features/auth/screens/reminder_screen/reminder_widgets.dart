@@ -977,6 +977,7 @@ class _DeleteReminderDialog extends StatelessWidget {
 
 class _CreateReminderList extends StatelessWidget {
   final List<_ReminderFormData> forms;
+  final List<String> categories;
   final ValueChanged<_ReminderFormData> onPickDate;
   final ValueChanged<_ReminderFormData> onRemove;
   final VoidCallback onAdd;
@@ -987,6 +988,7 @@ class _CreateReminderList extends StatelessWidget {
 
   const _CreateReminderList({
     required this.forms,
+    required this.categories,
     required this.onPickDate,
     required this.onRemove,
     required this.onAdd,
@@ -1007,6 +1009,7 @@ class _CreateReminderList extends StatelessWidget {
         final _ReminderFormData form = forms[index];
         return _ReminderForm(
           form: form,
+          categories: categories,
           canRemove: forms.length > 1,
           onPickDate: () => onPickDate(form),
           onRemove: () => onRemove(form),
@@ -1055,6 +1058,7 @@ class _AddReminderButton extends StatelessWidget {
 
 class _ReminderForm extends StatelessWidget {
   final _ReminderFormData form;
+  final List<String> categories;
   final bool canRemove;
   final VoidCallback onPickDate;
   final VoidCallback onRemove;
@@ -1063,6 +1067,7 @@ class _ReminderForm extends StatelessWidget {
 
   const _ReminderForm({
     required this.form,
+    required this.categories,
     required this.canRemove,
     required this.onPickDate,
     required this.onRemove,
@@ -1121,14 +1126,23 @@ class _ReminderForm extends StatelessWidget {
                   child: _InputLikeBox(
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: form.category,
+                        value: categories.contains(form.category)
+                            ? form.category
+                            : categories.first,
                         isExpanded: true,
                         icon: const Icon(
                           Icons.grid_view,
                           size: 18,
                           color: _ReminderTokens.iconBlue,
                         ),
-                        items: _categoryItems,
+                        items: categories
+                            .map<DropdownMenuItem<String>>(
+                              (String category) => DropdownMenuItem<String>(
+                                value: category,
+                                child: Text(category),
+                              ),
+                            )
+                            .toList(growable: false),
                         onChanged: (String? value) {
                           if (value == null) return;
                           onCategoryChanged(value);
@@ -1192,13 +1206,6 @@ class _ReminderForm extends StatelessWidget {
       ),
     );
   }
-
-  static final List<DropdownMenuItem<String>> _categoryItems = _categories
-      .map<DropdownMenuItem<String>>(
-        (String category) =>
-            DropdownMenuItem<String>(value: category, child: Text(category)),
-      )
-      .toList(growable: false);
 
   static final List<DropdownMenuItem<String>> _reminderCountItems =
       _reminderCounts

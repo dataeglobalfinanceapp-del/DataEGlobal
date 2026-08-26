@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/data/local/local_store.dart';
-import 'package:savetep/features/auth/screens/login_screen/business_name_onboarding_screen.dart';
+import 'package:savetep/features/auth/screens/login_screen/onboarding/business_name_onboarding_screen.dart';
 import 'package:savetep/features/auth/services/account_profile_service.dart';
 import 'package:savetep/features/auth/widgets/business_name_prompt_dialog.dart';
 

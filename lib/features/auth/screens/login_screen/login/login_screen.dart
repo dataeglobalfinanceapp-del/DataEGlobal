@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:savetep/features/auth/screens/login_screen/shared/models/auth_flow_destination.dart';
+import 'package:savetep/features/auth/screens/login_screen/shared/repositories/auth_repository.dart';
+import 'package:savetep/features/auth/widgets/auth_widgets.dart';
 import 'package:savetep/providers/business_profile_provider.dart';
 
-import '../../services/auth_service.dart';
-import '../../widgets/auth_widgets.dart';
-import 'login_controller.dart';
+import 'controllers/login_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final LoginController? controller;
@@ -17,10 +18,10 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
+  static const AuthRepository _authRepository = ServiceAuthRepository();
+
   late LoginController _controller;
   late bool _ownsController;
-  bool _authenticationComplete = false;
-  bool _routingProfile = false;
 
   @override
   void initState() {
@@ -50,35 +51,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void _bindController() {
     _ownsController = widget.controller == null;
     _controller =
-        widget.controller ?? LoginController(signIn: AuthService.signIn);
+        widget.controller ??
+        LoginController(
+          signIn: _authRepository.signIn,
+          loadBusinessSetupCompleted: () async {
+            ref.invalidate(businessProfileProvider);
+            final profile = await ref.read(businessProfileProvider.future);
+            return profile.setupCompleted;
+          },
+        );
   }
 
   Future<void> _submit() async {
-    if (_routingProfile) return;
+    final AuthFlowDestination? destination = await _controller
+        .submitForDestination();
+    if (!mounted) return;
 
-    if (!_authenticationComplete) {
-      final signedIn = await _controller.submit();
-      if (!mounted || !signedIn) return;
-      _authenticationComplete = true;
+    if (destination == null) {
+      final String? error = _controller.state.profileError;
+      if (error != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error)));
+      }
+      return;
     }
 
-    setState(() => _routingProfile = true);
-    try {
-      ref.invalidate(businessProfileProvider);
-      final profile = await ref.read(businessProfileProvider.future);
-      if (!mounted) return;
+    Navigator.pushReplacementNamed(context, _routeFor(destination));
+  }
 
-      Navigator.pushReplacementNamed(
-        context,
-        profile.setupCompleted ? '/home' : '/business-setup',
-      );
-    } on Object catch (error) {
-      if (!mounted) return;
-      setState(() => _routingProfile = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not load business setup: $error')),
-      );
-    }
+  String _routeFor(AuthFlowDestination destination) {
+    return switch (destination) {
+      AuthFlowDestination.login => '/login',
+      AuthFlowDestination.home => '/home',
+      AuthFlowDestination.businessSetup => '/business-setup',
+    };
   }
 
   @override
@@ -99,8 +106,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               _LoginForm(
                 controller: _controller,
                 state: state,
-                isRoutingProfile: _routingProfile,
-                authenticationComplete: _authenticationComplete,
                 onSubmit: _submit,
                 onForgotPassword: () =>
                     Navigator.pushNamed(context, '/forgot-password'),
@@ -118,8 +123,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 class _LoginForm extends StatelessWidget {
   final LoginController controller;
   final LoginFormState state;
-  final bool isRoutingProfile;
-  final bool authenticationComplete;
   final VoidCallback onSubmit;
   final VoidCallback onForgotPassword;
   final VoidCallback onSignUp;
@@ -127,8 +130,6 @@ class _LoginForm extends StatelessWidget {
   const _LoginForm({
     required this.controller,
     required this.state,
-    required this.isRoutingProfile,
-    required this.authenticationComplete,
     required this.onSubmit,
     required this.onForgotPassword,
     required this.onSignUp,
@@ -172,8 +173,8 @@ class _LoginForm extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           AuthPrimaryButton(
-            label: authenticationComplete ? 'Continue' : 'Login',
-            isLoading: state.isLoading || isRoutingProfile,
+            label: state.authenticationComplete ? 'Continue' : 'Login',
+            isLoading: state.isLoading || state.isRoutingProfile,
             onPressed: onSubmit,
           ),
           const SizedBox(height: 20),

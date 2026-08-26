@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../services/auth_service.dart';
-import '../../services/account_profile_service.dart';
-import '../../widgets/auth_widgets.dart';
-import 'business_name_onboarding_screen.dart';
-import 'confirm_signup_screen.dart';
-import 'signup_controller.dart';
+import 'package:savetep/features/auth/screens/login_screen/shared/models/auth_flow_arguments.dart';
+import 'package:savetep/features/auth/screens/login_screen/shared/repositories/auth_repository.dart';
+import 'package:savetep/features/auth/screens/login_screen/shared/repositories/pending_account_profile_repository.dart';
+import 'package:savetep/features/auth/widgets/auth_widgets.dart';
+
+import 'models/signup_flow_result.dart';
+import 'controllers/signup_controller.dart';
 
 class SignUpScreen extends StatefulWidget {
   final SignUpController? controller;
@@ -18,6 +19,10 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
+  static const AuthRepository _authRepository = ServiceAuthRepository();
+  static const PendingAccountProfileRepository _profileRepository =
+      ServicePendingAccountProfileRepository();
+
   late SignUpController _controller;
   late bool _ownsController;
 
@@ -49,51 +54,47 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void _bindController() {
     _ownsController = widget.controller == null;
     _controller =
-        widget.controller ?? SignUpController(signUp: AuthService.signUp);
+        widget.controller ??
+        SignUpController(
+          signUp: _authRepository.signUp,
+          stageNewAccount: _profileRepository.stageNewAccount,
+        );
   }
 
   Future<void> _submit() async {
-    final SignUpAttempt? signUp = await _controller.submit();
-    if (!mounted || signUp == null) return;
+    final SignUpFlowResult? result = await _controller.submitFlow();
+    if (!mounted || result == null) return;
 
-    try {
-      await AccountProfileService.stageNewAccount(
-        email: _controller.email,
-        fullName: _controller.fullName,
-      );
-    } on Object catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Account created, but profile setup could not be prepared: $error',
-          ),
-        ),
-      );
-    }
-
-    if (!mounted) return;
-    if (!signUp.needsConfirmation) {
-      Navigator.pushReplacementNamed(
+    final String? warning = result.profileWarning;
+    if (warning != null) {
+      ScaffoldMessenger.of(
         context,
-        '/business-name-onboarding',
-        arguments: BusinessNameOnboardingArguments(
-          email: _controller.email,
-          fullName: _controller.fullName,
-        ),
-      );
-      return;
+      ).showSnackBar(SnackBar(content: Text(warning)));
     }
 
-    Navigator.pushNamed(
-      context,
-      '/confirm-signup',
-      arguments: ConfirmSignUpArguments(
-        email: _controller.email,
-        fullName: _controller.fullName,
-        codeDelivery: signUp.codeDelivery,
-      ),
-    );
+    switch (result.nextStep) {
+      case SignUpNextStep.businessNameOnboarding:
+        Navigator.pushReplacementNamed(
+          context,
+          '/business-name-onboarding',
+          arguments: BusinessNameOnboardingArguments(
+            email: result.email,
+            fullName: result.fullName,
+          ),
+        );
+        return;
+      case SignUpNextStep.confirmEmail:
+        Navigator.pushNamed(
+          context,
+          '/confirm-signup',
+          arguments: ConfirmSignUpArguments(
+            email: result.email,
+            fullName: result.fullName,
+            codeDelivery: result.codeDelivery,
+          ),
+        );
+        return;
+    }
   }
 
   Future<void> _pickCountryCode() async {

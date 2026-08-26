@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
+import 'package:savetep/features/auth/models/expense_category.dart';
+import 'package:savetep/providers/expense_category_provider.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/money_formatter.dart';
@@ -164,16 +167,17 @@ class _ReminderScreenState extends State<ReminderScreen> {
   }
 }
 
-class CreateReminderScreen extends StatefulWidget {
+class CreateReminderScreen extends ConsumerStatefulWidget {
   final DateTime initialDate;
 
   const CreateReminderScreen({super.key, required this.initialDate});
 
   @override
-  State<CreateReminderScreen> createState() => _CreateReminderScreenState();
+  ConsumerState<CreateReminderScreen> createState() =>
+      _CreateReminderScreenState();
 }
 
-class _CreateReminderScreenState extends State<CreateReminderScreen> {
+class _CreateReminderScreenState extends ConsumerState<CreateReminderScreen> {
   late final _CreateReminderController _controller;
 
   @override
@@ -189,6 +193,9 @@ class _CreateReminderScreenState extends State<CreateReminderScreen> {
   }
 
   Future<void> _save() async {
+    _controller.ensureAvailableCategories(
+      _activeExpenseCategoryNames(ref.read(activeExpenseCategoriesProvider)),
+    );
     final bool saved = await _controller.save();
     if (!mounted) return;
 
@@ -216,6 +223,12 @@ class _CreateReminderScreenState extends State<CreateReminderScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final AsyncValue<List<ExpenseCategory>> activeCategories = ref.watch(
+      activeExpenseCategoriesProvider,
+    );
+    final List<String> categoryNames = _activeExpenseCategoryNames(
+      activeCategories,
+    );
     return ListenableBuilder(
       listenable: _controller,
       builder: (BuildContext context, Widget? child) {
@@ -241,20 +254,45 @@ class _CreateReminderScreenState extends State<CreateReminderScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.check, color: Colors.black87),
-                onPressed: _controller.isSaving ? null : _save,
+                onPressed: _controller.isSaving || categoryNames.isEmpty
+                    ? null
+                    : _save,
               ),
             ],
           ),
-          body: _CreateReminderList(
-            forms: _controller.forms,
-            onPickDate: _pickDate,
-            onRemove: _controller.removeReminder,
-            onAdd: _controller.addReminder,
-            onCategoryChanged: _controller.setCategory,
-            onReminderCountChanged: _controller.setReminderCount,
+          body: activeCategories.when(
+            data: (List<ExpenseCategory> categories) => categories.isEmpty
+                ? const Center(
+                    child: Text('No active expense categories are available.'),
+                  )
+                : _CreateReminderList(
+                    forms: _controller.forms,
+                    categories: categoryNames,
+                    onPickDate: _pickDate,
+                    onRemove: _controller.removeReminder,
+                    onAdd: _controller.addReminder,
+                    onCategoryChanged: _controller.setCategory,
+                    onReminderCountChanged: _controller.setReminderCount,
+                  ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, _) => const Center(
+              child: Text('Expense categories could not be loaded.'),
+            ),
           ),
         );
       },
     );
   }
+}
+
+List<String> _activeExpenseCategoryNames(
+  AsyncValue<List<ExpenseCategory>> categories,
+) {
+  return categories.when(
+    data: (List<ExpenseCategory> values) => values
+        .map((ExpenseCategory category) => category.name)
+        .toList(growable: false),
+    loading: () => const <String>[],
+    error: (_, _) => const <String>[],
+  );
 }

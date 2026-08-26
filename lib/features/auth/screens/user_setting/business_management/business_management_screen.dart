@@ -3,45 +3,63 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:savetep/features/auth/models/business_profile.dart';
 import 'package:savetep/features/auth/models/business_profile_validator.dart';
+import 'package:savetep/features/auth/screens/login_screen/shared/models/auth_flow_arguments.dart';
 import 'package:savetep/providers/business_profile_provider.dart';
 
 import '../widgets/user_setting_detail_scaffold.dart';
 
-class BusinessManagementScreen extends ConsumerWidget {
+class BusinessManagementScreen extends ConsumerStatefulWidget {
   final bool isSetupFlow;
 
   const BusinessManagementScreen({super.key, this.isSetupFlow = false});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BusinessManagementScreen> createState() =>
+      _BusinessManagementScreenState();
+}
+
+class _BusinessManagementScreenState
+    extends ConsumerState<BusinessManagementScreen> {
+  Set<String>? _categoryDraftIds;
+
+  @override
+  Widget build(BuildContext context) {
     final profile = ref.watch(businessProfileProvider);
 
     return UserSettingDetailScaffold(
-      title: isSetupFlow ? 'Business Management Setup' : 'Business Management',
+      title: widget.isSetupFlow
+          ? 'Business Management Setup'
+          : 'Business Management',
       icon: Icons.business_outlined,
       accentColor: const Color(0xFF38A9E8),
-      showBackButton: !isSetupFlow,
+      showBackButton: !widget.isSetupFlow,
       child: profile.when(
         data: (profile) => BusinessProfileForm(
           profile: profile,
-          isSetupFlow: isSetupFlow,
+          isSetupFlow: widget.isSetupFlow,
           onSave: (updatedProfile) async {
+            if (widget.isSetupFlow) {
+              final Set<String>? draftIds =
+                  await Navigator.pushNamed<Set<String>>(
+                    context,
+                    '/business-categories-onboarding',
+                    arguments: BusinessCategoryOnboardingArguments(
+                      businessProfile: updatedProfile,
+                      initialSelectedCategoryIds: _categoryDraftIds,
+                    ),
+                  );
+              if (!mounted || draftIds == null) return;
+              setState(() => _categoryDraftIds = draftIds);
+              return;
+            }
+
             await ref
                 .read(businessProfileProvider.notifier)
                 .save(updatedProfile);
-            if (!context.mounted) return;
-
-            if (isSetupFlow) {
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/home',
-                (route) => false,
-              );
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Business information saved.')),
-              );
-            }
+            if (!mounted) return;
+            ScaffoldMessenger.of(this.context).showSnackBar(
+              const SnackBar(content: Text('Business information saved.')),
+            );
           },
         ),
         loading: () => const CircularProgressIndicator(),
