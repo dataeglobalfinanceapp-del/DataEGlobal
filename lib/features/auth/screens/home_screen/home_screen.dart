@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:savetep/core/customer_service_contact.dart';
 import 'package:savetep/features/auth/models/business_profile.dart';
-import 'package:savetep/features/auth/screens/user_setting/user_settings_routes.dart';
+import 'package:savetep/features/auth/screens/user_settings/user_settings_routes.dart';
 import 'package:savetep/providers/business_profile_provider.dart';
 
 import 'controllers/home_screen_controller.dart';
@@ -296,7 +296,7 @@ const List<_HomeFeatureAction> _homeFeatureActions = <_HomeFeatureAction>[
     icon: Icons.flag,
     label: 'Profit &\nLoss',
     color: Color(0xFFE0F2FE),
-    routeName: '/tax',
+    routeName: '/profit-loss',
   ),
   _HomeFeatureAction(
     icon: Icons.credit_card,

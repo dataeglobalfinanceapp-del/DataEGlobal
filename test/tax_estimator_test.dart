@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:savetep/services/tax_estimator.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/tax_estimate_service.dart';
-import 'package:savetep/features/auth/screens/tax_screen/tax_estimator.dart';
 
 void main() {
   tearDown(() {

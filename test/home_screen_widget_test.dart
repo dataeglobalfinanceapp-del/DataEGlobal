@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:savetep/core/customer_service_contact.dart';
 import 'package:savetep/features/auth/models/account_profile.dart';
 import 'package:savetep/features/auth/screens/home_screen/home_screen.dart';
-import 'package:savetep/features/auth/screens/user_setting/user_setting_screens.dart';
+import 'package:savetep/features/auth/screens/user_settings/user_settings_screens.dart';
 import 'package:savetep/features/auth/services/account_profile_service.dart';
 import 'package:savetep/features/auth/widgets/business_name_prompt_dialog.dart';
 import 'package:savetep/providers/account_profile_provider.dart';
@@ -131,8 +131,8 @@ void main() {
         child: MaterialApp(
           home: const HomeScreen(),
           routes: {
-            '/user-settings': (_) => const UserSettingsScreen(),
-            '/user-settings/business-management': (_) =>
+            UserSettingsRoutes.settings: (_) => const UserSettingsScreen(),
+            UserSettingsRoutes.businessManagement: (_) =>
                 const BusinessManagementScreen(),
           },
         ),
@@ -485,7 +485,7 @@ Future<void> _pumpHomeScreen(
       child: MaterialApp(
         home: const HomeScreen(),
         routes: {
-          '/user-settings': (_) =>
+          UserSettingsRoutes.settings: (_) =>
               const Scaffold(body: Center(child: Text('Account Settings'))),
         },
       ),

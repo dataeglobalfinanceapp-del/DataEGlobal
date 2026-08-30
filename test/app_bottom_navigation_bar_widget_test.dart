@@ -1,8 +1,13 @@
-import 'package:savetep/features/auth/widgets/app_bottom_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:savetep/features/auth/widgets/bottom_nav_bar.dart';
+
 void main() {
+  test('Profit and Loss route uses the report navigation item', () {
+    expect(bottomNavItemForRouteName('/profit-loss'), AppBottomNavItem.report);
+  });
+
   testWidgets('AppBottomNavigationBar routes to selected destination', (
     WidgetTester tester,
   ) async {

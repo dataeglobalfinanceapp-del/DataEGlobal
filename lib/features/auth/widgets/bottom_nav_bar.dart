@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../screens/user_setting/user_settings_routes.dart';
+import '../screens/user_settings/user_settings_routes.dart';
 import 'app_bottom_navigation_bar.dart';
 
 export 'app_bottom_navigation_bar.dart';
@@ -30,7 +30,7 @@ AppBottomNavItem? bottomNavItemForRouteName(
     case '/reminders':
       return AppBottomNavItem.calendar;
     case '/transactions':
-    case '/tax':
+    case '/profit-loss':
       return AppBottomNavItem.report;
     case UserSettingsRoutes.settings:
     case UserSettingsRoutes.businessManagement:

@@ -1,4 +1,5 @@
-import 'package:savetep/features/auth/screens/user_setting/change_password/change_password_controller.dart';
+import 'package:savetep/features/auth/screens/user_settings/change_password/change_password_controller.dart';
+import 'package:savetep/features/auth/screens/user_settings/change_password/models/change_password_rules.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

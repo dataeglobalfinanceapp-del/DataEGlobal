@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/features/auth/models/account_profile.dart';
-import 'package:savetep/features/auth/screens/user_setting/user_setting_screens.dart';
+import 'package:savetep/features/auth/screens/user_settings/user_settings_screens.dart';
 import 'package:savetep/features/auth/services/account_profile_service.dart';
 import 'package:savetep/providers/account_profile_provider.dart';
 

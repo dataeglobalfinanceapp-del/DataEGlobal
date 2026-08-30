@@ -10,11 +10,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:savetep/features/auth/models/account_profile.dart';
-import 'package:savetep/features/auth/screens/user_setting/user_settings_routes.dart';
+import 'package:savetep/features/auth/screens/profit_loss_screen/profit_loss_screen.dart';
+import 'package:savetep/features/auth/screens/user_settings/user_settings_routes.dart';
 import 'package:savetep/features/auth/services/account_profile_service.dart';
 import 'package:savetep/features/auth/widgets/app_bottom_navigation_bar.dart';
 import 'package:savetep/main.dart';
 import 'package:savetep/providers/account_profile_provider.dart';
+import 'package:savetep/services/liability_service.dart';
 
 void main() {
   testWidgets('App builds a MaterialApp', (WidgetTester tester) async {
@@ -107,6 +109,23 @@ void main() {
     expect(find.text('TIPS & GRATUITY'), findsOneWidget);
     expect(find.text('Enter Manually'), findsNothing);
     expect(find.text('Extract Automatically'), findsNothing);
+  });
+
+  testWidgets('profit loss route opens ProfitLossScreen', (
+    WidgetTester tester,
+  ) async {
+    LiabilityService.resetForTesting();
+    addTearDown(
+      () => LiabilityService.resetForTesting(disablePersistence: false),
+    );
+
+    await tester.pumpWidget(_buildApp(initialRoute: '/profit-loss'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ProfitLossScreen), findsOneWidget);
+    expect(find.text('Profit and Loss'), findsOneWidget);
+    expect(find.byType(AppBottomNavigationBar), findsOneWidget);
   });
 
   testWidgets('App shell hides bottom navigation on auth routes', (

@@ -177,7 +177,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
   }
 
   void _openProfitAndLoss() {
-    Navigator.pushNamed(context, '/tax');
+    Navigator.pushNamed(context, '/profit-loss');
   }
 
   Future<_ExportRange?> _chooseExportRange(String actionLabel) async {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../screens/user_setting/user_settings_routes.dart';
+import '../screens/user_settings/user_settings_routes.dart';
 
 enum AppBottomNavItem {
   home('Home', Icons.home_rounded, '/home'),

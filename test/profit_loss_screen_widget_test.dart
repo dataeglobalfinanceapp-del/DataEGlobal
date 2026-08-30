@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:savetep/features/auth/screens/tax_screen/tax_screen.dart';
+import 'package:savetep/features/auth/screens/profit_loss_screen/profit_loss_screen.dart';
 import 'package:savetep/features/auth/screens/transaction_screen/transaction_screen.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
@@ -17,11 +17,11 @@ void main() {
     LiabilityService.resetForTesting(disablePersistence: false);
   });
 
-  testWidgets('TaxScreen renders yearly profit and tax statement', (
+  testWidgets('ProfitLossScreen renders yearly profit and loss statement', (
     WidgetTester tester,
   ) async {
     await LiabilityService.saveDeposit(
-      orderNumber: 'tax-deposit',
+      orderNumber: 'profit-loss-deposit',
       totalAmount: 50000,
       creditDeposit: 0,
       cash: 50000,
@@ -47,10 +47,10 @@ void main() {
       isManual: true,
     );
 
-    await tester.pumpWidget(const MaterialApp(home: TaxScreen()));
+    await tester.pumpWidget(const MaterialApp(home: ProfitLossScreen()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Profit and Tax'), findsOneWidget);
+    expect(find.text('Profit and Loss'), findsOneWidget);
     expect(find.text('Profit and Loss Statement 2026'), findsOneWidget);
     expect(find.text('Period Start'), findsOneWidget);
     expect(find.text('01/01/2026'), findsOneWidget);
@@ -89,7 +89,7 @@ void main() {
     expect(decoration.color, const Color(0xFFE0F2FE));
   });
 
-  testWidgets('TaxScreen renders at a narrow mobile width', (
+  testWidgets('ProfitLossScreen renders at a narrow mobile width', (
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(360, 720);
@@ -97,7 +97,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const MaterialApp(home: TaxScreen()));
+    await tester.pumpWidget(const MaterialApp(home: ProfitLossScreen()));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
@@ -105,80 +105,81 @@ void main() {
     expect(find.text('Not tracked in app'), findsNothing);
   });
 
-  testWidgets('TaxScreen filters by date range and prorates fixed costs', (
-    WidgetTester tester,
-  ) async {
-    await LiabilityService.saveDeposit(
-      orderNumber: 'range-deposit',
-      totalAmount: 15000,
-      creditDeposit: 15000,
-      cash: 0,
-      giftCard: 0,
-      other: 0,
-      transactionDate: DateTime(2026, 6, 10),
-      isManual: true,
-    );
-    await LiabilityService.saveDeposit(
-      orderNumber: 'outside-deposit',
-      totalAmount: 50000,
-      creditDeposit: 50000,
-      cash: 0,
-      giftCard: 0,
-      other: 0,
-      transactionDate: DateTime(2026, 5, 31),
-      isManual: true,
-    );
-    await LiabilityService.saveExpense(
-      checkNumber: 'payroll',
-      totalAmount: 3000,
-      transactionDate: DateTime(2026, 6, 1),
-      category: 'Payroll',
-      payee: 'Payroll',
-      isManual: true,
-    );
-    await LiabilityService.saveExpense(
-      checkNumber: 'gas-in-range',
-      totalAmount: 100,
-      transactionDate: DateTime(2026, 6, 10),
-      category: 'gas',
-      payee: 'Gas Stop',
-      isManual: true,
-    );
-    await LiabilityService.saveExpense(
-      checkNumber: 'gas-outside-range',
-      totalAmount: 600,
-      transactionDate: DateTime(2026, 5, 31),
-      category: 'gas',
-      payee: 'Gas Stop',
-      isManual: true,
-    );
+  testWidgets(
+    'ProfitLossScreen filters by date range and prorates fixed costs',
+    (WidgetTester tester) async {
+      await LiabilityService.saveDeposit(
+        orderNumber: 'range-deposit',
+        totalAmount: 15000,
+        creditDeposit: 15000,
+        cash: 0,
+        giftCard: 0,
+        other: 0,
+        transactionDate: DateTime(2026, 6, 10),
+        isManual: true,
+      );
+      await LiabilityService.saveDeposit(
+        orderNumber: 'outside-deposit',
+        totalAmount: 50000,
+        creditDeposit: 50000,
+        cash: 0,
+        giftCard: 0,
+        other: 0,
+        transactionDate: DateTime(2026, 5, 31),
+        isManual: true,
+      );
+      await LiabilityService.saveExpense(
+        checkNumber: 'payroll',
+        totalAmount: 3000,
+        transactionDate: DateTime(2026, 6, 1),
+        category: 'Payroll',
+        payee: 'Payroll',
+        isManual: true,
+      );
+      await LiabilityService.saveExpense(
+        checkNumber: 'gas-in-range',
+        totalAmount: 100,
+        transactionDate: DateTime(2026, 6, 10),
+        category: 'gas',
+        payee: 'Gas Stop',
+        isManual: true,
+      );
+      await LiabilityService.saveExpense(
+        checkNumber: 'gas-outside-range',
+        totalAmount: 600,
+        transactionDate: DateTime(2026, 5, 31),
+        category: 'gas',
+        payee: 'Gas Stop',
+        isManual: true,
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: TaxScreen(
-          initialDateRange: DateTimeRange(
-            start: DateTime(2026, 6, 1),
-            end: DateTime(2026, 6, 15),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ProfitLossScreen(
+            initialDateRange: DateTimeRange(
+              start: DateTime(2026, 6, 1),
+              end: DateTime(2026, 6, 15),
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('06/01/2026 - 06/15/2026'), findsOneWidget);
-    expect(find.text('06/01/2026'), findsOneWidget);
-    expect(find.text('06/15/2026'), findsOneWidget);
-    expect(find.text(r'$15,000.00'), findsNWidgets(2));
-    expect(find.text('Payroll'), findsOneWidget);
-    expect(find.text(r'$1,500.00'), findsOneWidget);
-    expect(find.text('gas'), findsOneWidget);
-    expect(find.text(r'$100.00'), findsOneWidget);
-    expect(find.text(r'$600.00'), findsNothing);
-    expect(find.text(r'$50,000.00'), findsNothing);
-    expect(find.text(r'$1,600.00'), findsOneWidget);
-  });
+      expect(find.text('06/01/2026 - 06/15/2026'), findsOneWidget);
+      expect(find.text('06/01/2026'), findsOneWidget);
+      expect(find.text('06/15/2026'), findsOneWidget);
+      expect(find.text(r'$15,000.00'), findsNWidgets(2));
+      expect(find.text('Payroll'), findsOneWidget);
+      expect(find.text(r'$1,500.00'), findsOneWidget);
+      expect(find.text('gas'), findsOneWidget);
+      expect(find.text(r'$100.00'), findsOneWidget);
+      expect(find.text(r'$600.00'), findsNothing);
+      expect(find.text(r'$50,000.00'), findsNothing);
+      expect(find.text(r'$1,600.00'), findsOneWidget);
+    },
+  );
 
-  testWidgets('TaxScreen category link opens matching expense report', (
+  testWidgets('ProfitLossScreen category link opens matching expense report', (
     WidgetTester tester,
   ) async {
     await LiabilityService.saveExpense(
@@ -208,7 +209,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: TaxScreen(
+        home: ProfitLossScreen(
           initialDateRange: DateTimeRange(
             start: DateTime(2026, 6, 10),
             end: DateTime(2026, 6, 15),

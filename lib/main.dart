@@ -25,8 +25,8 @@ import 'features/auth/screens/liabilities_screen/liabilities_screen.dart';
 import 'features/auth/screens/saving_screen/saving_screen.dart';
 import 'features/auth/screens/payroll_screen/payroll_screen.dart';
 import 'features/auth/screens/reminder_screen/reminder_screen.dart';
-import 'features/auth/screens/tax_screen/tax_screen.dart';
-import 'features/auth/screens/user_setting/user_setting_screens.dart';
+import 'features/auth/screens/profit_loss_screen/profit_loss_screen.dart';
+import 'features/auth/screens/user_settings/user_settings_screens.dart';
 import 'features/auth/widgets/bottom_nav_bar.dart';
 import 'theme/app_theme.dart';
 import 'widgets/test_clock_overlay.dart';
@@ -206,7 +206,7 @@ class _SaveTepAppState extends State<SaveTepApp> {
           '/saving': (context) => const SavingScreen(),
           '/payroll': (context) => const PayrollScreen(),
           '/reminders': (context) => const ReminderScreen(),
-          '/tax': (context) => const TaxScreen(),
+          '/profit-loss': (context) => const ProfitLossScreen(),
           UserSettingsRoutes.settings: (context) => const UserSettingsScreen(),
           UserSettingsRoutes.businessManagement: (context) =>
               const BusinessManagementScreen(),

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class UserSettingDetailScaffold extends StatelessWidget {
+class UserSettingsDetailScaffold extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color accentColor;
   final Widget? child;
   final bool showBackButton;
 
-  const UserSettingDetailScaffold({
+  const UserSettingsDetailScaffold({
     super.key,
     required this.title,
     required this.icon,

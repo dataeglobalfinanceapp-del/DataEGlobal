@@ -374,7 +374,7 @@ Future<void> _pumpTransactionScreenWithProfitAndLossRoute(
     MaterialApp(
       home: const TransactionScreen(),
       routes: <String, WidgetBuilder>{
-        '/tax': (_) => const Scaffold(body: Text('Profit and Loss')),
+        '/profit-loss': (_) => const Scaffold(body: Text('Profit and Loss')),
       },
     ),
   );

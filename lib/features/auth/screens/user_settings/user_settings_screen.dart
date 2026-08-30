@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:savetep/providers/auth_provider.dart';
-import 'package:savetep/providers/business_profile_provider.dart';
-
+import 'user_settings_controller.dart';
 import 'user_settings_routes.dart';
 import 'widgets/user_settings_menu_item.dart';
 
@@ -121,8 +119,7 @@ class UserSettingsScreen extends ConsumerWidget {
             OutlinedButton.icon(
               onPressed: () async {
                 try {
-                  await ref.read(authStateProvider.notifier).signOut();
-                  ref.invalidate(businessProfileProvider);
+                  await ref.read(userSettingsControllerProvider).signOut();
                   if (!context.mounted) return;
                   Navigator.pushNamedAndRemoveUntil(
                     context,
