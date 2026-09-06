@@ -12,7 +12,6 @@ class ProfitLossStatement extends StatelessWidget {
 
   static const Color _borderColor = Color(0xFF111827);
   static const Color _headerFill = Color(0xFFE5E7EB);
-  static const Color _untrackedFill = Color(0xFFE0F2FE);
   static const Map<int, TableColumnWidth> _wideColumnWidths =
       <int, TableColumnWidth>{0: FlexColumnWidth(2.4), 1: FlexColumnWidth(1)};
   static const Map<int, TableColumnWidth> _compactColumnWidths =
@@ -71,10 +70,22 @@ class ProfitLossStatement extends StatelessWidget {
                       _sectionRow('GROSS INCOME'),
                       _amountRow('Gross Income', report.grossIncome),
                       _totalRow('Total Gross Income', report.grossIncome),
-                      _sectionRow('DETAILED EXPENSES'),
+                      _sectionRow('FIXED EXPENSE'),
                       for (final ProfitLossExpenseLine line
-                          in report.expenseLines)
+                          in report.fixedExpenseLines)
                         _expenseRow(line),
+                      _totalRow(
+                        'Fixed Expense Subtotal',
+                        report.fixedExpenseSubtotal,
+                      ),
+                      _sectionRow('VARIABLE EXPENSE'),
+                      for (final ProfitLossExpenseLine line
+                          in report.variableExpenseLines)
+                        _expenseRow(line),
+                      _totalRow(
+                        'Variable Expense Subtotal',
+                        report.variableExpenseSubtotal,
+                      ),
                       _totalRow('Total Expenses', report.totalExpenses),
                       _sectionRow('NET INCOME'),
                       _totalRow(
@@ -145,11 +156,6 @@ class ProfitLossStatement extends StatelessWidget {
   }
 
   static TableRow _expenseRow(ProfitLossExpenseLine line) {
-    final bool isUntracked = !line.trackedInApp;
-    final String value = isUntracked && line.amount == 0
-        ? ''
-        : formatMoney(line.amount);
-    final String? category = line.reportCategory;
     const TextStyle labelStyle = TextStyle(
       color: Color(0xFF111827),
       fontSize: 12,
@@ -158,10 +164,10 @@ class ProfitLossStatement extends StatelessWidget {
 
     return _row(
       label: line.label,
-      labelChild: category == null || line.amount <= 0
+      labelChild: line.amount <= 0
           ? null
           : ExpenseCategoryReportLink(
-              category: category,
+              category: line.reportCategory,
               label: line.label,
               dateRange: DateTimeRange(
                 start: line.periodStart,
@@ -170,11 +176,7 @@ class ProfitLossStatement extends StatelessWidget {
               style: labelStyle,
               maxLines: 2,
             ),
-      value: value,
-      fill: isUntracked ? _untrackedFill : null,
-      labelSemanticLabel: isUntracked
-          ? '${line.label}, not tracked in app'
-          : null,
+      value: formatMoney(line.amount),
     );
   }
 

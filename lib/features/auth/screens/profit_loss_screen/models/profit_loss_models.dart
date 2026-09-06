@@ -1,12 +1,15 @@
+import 'package:savetep/features/auth/models/expense_category.dart';
 import 'package:savetep/services/liability_service.dart';
 
 class ProfitLossData {
   final List<DepositRecord> deposits;
   final List<ExpenseRecord> expenses;
+  final List<ExpenseCategory> selectedExpenseCategories;
 
   const ProfitLossData({
     this.deposits = const <DepositRecord>[],
     this.expenses = const <ExpenseRecord>[],
+    this.selectedExpenseCategories = const <ExpenseCategory>[],
   });
 }
 
@@ -16,7 +19,10 @@ class ProfitLossReport {
   final DateTime periodEnd;
   final String businessName;
   final double grossIncome;
-  final List<ProfitLossExpenseLine> expenseLines;
+  final List<ProfitLossExpenseLine> fixedExpenseLines;
+  final List<ProfitLossExpenseLine> variableExpenseLines;
+  final double fixedExpenseSubtotal;
+  final double variableExpenseSubtotal;
   final double totalExpenses;
   final double netIncomeBeforeTaxes;
   final double estimatedTaxPercentage;
@@ -29,29 +35,42 @@ class ProfitLossReport {
     required this.periodEnd,
     required this.businessName,
     required this.grossIncome,
-    required this.expenseLines,
+    required this.fixedExpenseLines,
+    required this.variableExpenseLines,
+    required this.fixedExpenseSubtotal,
+    required this.variableExpenseSubtotal,
     required this.totalExpenses,
     required this.netIncomeBeforeTaxes,
     required this.estimatedTaxPercentage,
     required this.estimatedTaxAmount,
     required this.netIncomeAfterTaxes,
   });
+
+  List<ProfitLossExpenseLine> get expenseLines =>
+      List<ProfitLossExpenseLine>.unmodifiable(<ProfitLossExpenseLine>[
+        ...fixedExpenseLines,
+        ...variableExpenseLines,
+      ]);
 }
 
 class ProfitLossExpenseLine {
-  final String label;
+  final ExpenseCategory category;
   final double amount;
-  final bool trackedInApp;
-  final String? reportCategory;
   final DateTime periodStart;
   final DateTime periodEnd;
 
   const ProfitLossExpenseLine({
-    required this.label,
+    required this.category,
     required this.amount,
-    required this.trackedInApp,
-    required this.reportCategory,
     required this.periodStart,
     required this.periodEnd,
   });
+
+  String get categoryId => category.id;
+
+  String get label => category.name;
+
+  String get reportCategory => category.name;
+
+  bool get trackedInApp => true;
 }

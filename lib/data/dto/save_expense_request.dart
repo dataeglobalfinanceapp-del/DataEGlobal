@@ -3,6 +3,7 @@ class SaveExpenseRequest {
   final double totalAmount;
   final double tipsGratuity;
   final DateTime transactionDate;
+  final String categoryId;
   final String category;
   final String payee;
   final bool isManual;
@@ -16,6 +17,7 @@ class SaveExpenseRequest {
     required this.totalAmount,
     this.tipsGratuity = 0,
     required this.transactionDate,
+    this.categoryId = '',
     required this.category,
     required this.payee,
     required this.isManual,
@@ -30,6 +32,7 @@ class SaveExpenseRequest {
     'totalAmount': totalAmount,
     'tipsGratuity': tipsGratuity,
     'transactionDate': transactionDate.toIso8601String(),
+    'categoryId': categoryId,
     'category': category,
     'payee': payee,
     'isManual': isManual,

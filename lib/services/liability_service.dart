@@ -64,6 +64,7 @@ class LiabilityService {
     required double totalAmount,
     double tipsGratuity = 0,
     required DateTime transactionDate,
+    String categoryId = '',
     required String category,
     required String payee,
     required bool isManual,
@@ -84,6 +85,7 @@ class LiabilityService {
                 recurringStartDate ?? transactionDate,
                 transactionDate,
               ),
+              categoryId: categoryId,
               category: category,
               payee: payee,
               isManual: isManual,
@@ -99,6 +101,7 @@ class LiabilityService {
               totalAmount: totalAmount,
               tipsGratuity: tipsGratuity,
               transactionDate: transactionDate,
+              categoryId: categoryId,
               category: category,
               payee: payee,
               isManual: isManual,
@@ -118,6 +121,7 @@ class LiabilityService {
     required String existingExpenseId,
     required double totalAmount,
     required DateTime payDate,
+    String categoryId = '',
   }) async {
     final state = await _loadPreparedState();
     final String checkNumber = _payrollCheckNumber(payrollId);
@@ -146,6 +150,7 @@ class LiabilityService {
       checkNumber: checkNumber,
       totalAmount: totalAmount,
       transactionDate: RecurrenceSchedule.dateOnly(payDate),
+      categoryId: categoryId,
       category: 'Payroll',
       payee: 'Payroll',
       isManual: true,
@@ -1151,6 +1156,7 @@ class LiabilityService {
       totalAmount: expense.totalAmount,
       tipsGratuity: expense.tipsGratuity,
       transactionDate: expense.transactionDate,
+      categoryId: expense.categoryId,
       category: expense.category,
       payee: expense.payee,
       isManual: expense.isManual,
@@ -1340,6 +1346,7 @@ class ExpenseRecord {
   final double totalAmount;
   final double tipsGratuity;
   final DateTime transactionDate;
+  final String categoryId;
   final String category;
   final String payee;
   final String last4CreditCard;
@@ -1355,6 +1362,7 @@ class ExpenseRecord {
     required this.totalAmount,
     this.tipsGratuity = 0,
     required this.transactionDate,
+    this.categoryId = '',
     required this.category,
     required this.payee,
     String last4CreditCard = '',
@@ -1373,6 +1381,7 @@ class ExpenseRecord {
       totalAmount: _asDouble(json['totalAmount']),
       tipsGratuity: _asDouble(json['tipsGratuity']),
       transactionDate: _asDate(json['transactionDate']),
+      categoryId: _asString(json['categoryId']),
       category: _asString(json['category'], fallback: 'Other'),
       payee: _asString(json['payee']),
       last4CreditCard: _asString(json['last4CreditCard']),
@@ -1408,6 +1417,7 @@ class ExpenseRecord {
       totalAmount: totalAmount ?? this.totalAmount,
       tipsGratuity: tipsGratuity ?? this.tipsGratuity,
       transactionDate: transactionDate,
+      categoryId: categoryId,
       category: category,
       payee: payee,
       last4CreditCard: last4CreditCard,
@@ -1425,6 +1435,7 @@ class ExpenseRecord {
     'totalAmount': totalAmount,
     'tipsGratuity': tipsGratuity,
     'transactionDate': transactionDate.toIso8601String(),
+    'categoryId': categoryId,
     'category': category,
     'payee': payee,
     'last4CreditCard': last4CreditCard,

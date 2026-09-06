@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:savetep/data/local/local_store.dart';
+import 'package:savetep/features/auth/models/expense_category.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/recurrence_schedule.dart';
@@ -90,6 +91,7 @@ class PayrollService {
       existingExpenseId: saved.syncedExpenseId,
       totalAmount: saved.totalPay,
       payDate: saved.payDate,
+      categoryId: ExpenseCategory.payrollWages.id,
     );
     final String reminderSeriesId = saved.reminderSeriesId.trim().isEmpty
         ? _newId('payroll-reminder')

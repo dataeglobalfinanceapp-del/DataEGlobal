@@ -1,3 +1,4 @@
+import 'package:savetep/features/auth/models/expense_category.dart';
 import 'package:savetep/services/liability_service.dart';
 import 'package:savetep/services/recurrence_schedule.dart';
 import 'package:savetep/services/tax_estimator.dart';
@@ -28,16 +29,38 @@ class ProfitLossReportService {
       0,
       (double sum, DepositRecord record) => sum + record.totalAmount,
     );
-    final List<ProfitLossExpenseLine> expenseLines =
-        _ProfitLossExpenseCatalog.buildLines(
-          data.expenses,
+    final List<ExpenseCategory> selectedCategories = _uniqueCategoriesById(
+      data.selectedExpenseCategories,
+    );
+    final List<ProfitLossExpenseLine> fixedExpenseLines =
+        _ProfitLossExpenseCalculator.buildLines(
+          expenses: data.expenses,
+          categories: selectedCategories.where(
+            (ExpenseCategory category) =>
+                category.expenseType == ExpenseType.fixed,
+          ),
           periodStart: rangeStart,
           periodEnd: rangeEnd,
         );
-    final double totalExpenses = expenseLines.fold<double>(
+    final List<ProfitLossExpenseLine> variableExpenseLines =
+        _ProfitLossExpenseCalculator.buildLines(
+          expenses: data.expenses,
+          categories: selectedCategories.where(
+            (ExpenseCategory category) =>
+                category.expenseType == ExpenseType.variable,
+          ),
+          periodStart: rangeStart,
+          periodEnd: rangeEnd,
+        );
+    final double fixedExpenseSubtotal = fixedExpenseLines.fold<double>(
       0,
       (double sum, ProfitLossExpenseLine line) => sum + line.amount,
     );
+    final double variableExpenseSubtotal = variableExpenseLines.fold<double>(
+      0,
+      (double sum, ProfitLossExpenseLine line) => sum + line.amount,
+    );
+    final double totalExpenses = fixedExpenseSubtotal + variableExpenseSubtotal;
     final double netIncomeBeforeTaxes = grossIncome - totalExpenses;
     final int taxProjectionMonth = year == currentDate.year
         ? currentDate.month
@@ -53,7 +76,10 @@ class ProfitLossReportService {
       periodEnd: rangeEnd,
       businessName: _businessName,
       grossIncome: grossIncome,
-      expenseLines: expenseLines,
+      fixedExpenseLines: fixedExpenseLines,
+      variableExpenseLines: variableExpenseLines,
+      fixedExpenseSubtotal: fixedExpenseSubtotal,
+      variableExpenseSubtotal: variableExpenseSubtotal,
       totalExpenses: totalExpenses,
       netIncomeBeforeTaxes: netIncomeBeforeTaxes,
       estimatedTaxPercentage: estimate.bracket.rate,
@@ -66,117 +92,25 @@ class ProfitLossReportService {
     final DateTime date = RecurrenceSchedule.dateOnly(value);
     return !date.isBefore(start) && !date.isAfter(end);
   }
-}
 
-class _ProfitLossExpenseDefinition {
-  final String label;
-  final List<String> categories;
-  final bool trackedInApp;
-  final bool includeUnmapped;
-  final bool prorateFixedCost;
-
-  const _ProfitLossExpenseDefinition(
-    this.label, {
-    this.categories = const <String>[],
-    this.trackedInApp = false,
-    this.includeUnmapped = false,
-    this.prorateFixedCost = false,
-  });
-
-  String? get reportCategory {
-    if (includeUnmapped || categories.length != 1) return null;
-    final String category = categories.single.trim();
-    return category.isEmpty ? null : category;
+  static List<ExpenseCategory> _uniqueCategoriesById(
+    Iterable<ExpenseCategory> categories,
+  ) {
+    final Map<String, ExpenseCategory> categoriesById =
+        <String, ExpenseCategory>{};
+    for (final ExpenseCategory category in categories) {
+      categoriesById.putIfAbsent(category.id, () => category);
+    }
+    return List<ExpenseCategory>.unmodifiable(categoriesById.values);
   }
 }
 
-class _ProfitLossExpenseCatalog {
-  const _ProfitLossExpenseCatalog._();
+class _ProfitLossExpenseCalculator {
+  const _ProfitLossExpenseCalculator._();
 
-  static const List<_ProfitLossExpenseDefinition>
-  definitions = <_ProfitLossExpenseDefinition>[
-    _ProfitLossExpenseDefinition(
-      'Food Purchase',
-      categories: <String>['Food Purchase'],
-      trackedInApp: true,
-    ),
-    _ProfitLossExpenseDefinition(
-      'merchant accounting fees',
-      categories: <String>['merchant accounting fees'],
-      trackedInApp: true,
-    ),
-    _ProfitLossExpenseDefinition(
-      'professional fees',
-      categories: <String>['professional fees'],
-      trackedInApp: true,
-    ),
-    _ProfitLossExpenseDefinition(
-      'Advertising',
-      categories: <String>['Advertising'],
-    ),
-    _ProfitLossExpenseDefinition(
-      'Insurance',
-      categories: <String>['Insurance'],
-      trackedInApp: true,
-    ),
-    _ProfitLossExpenseDefinition(
-      'Maintenance and Repairs',
-      categories: <String>['Maintenance and Repairs'],
-    ),
-    _ProfitLossExpenseDefinition(
-      'Payroll',
-      categories: <String>['Payroll'],
-      trackedInApp: true,
-      prorateFixedCost: true,
-    ),
-    _ProfitLossExpenseDefinition(
-      'gas',
-      categories: <String>['gas'],
-      trackedInApp: true,
-    ),
-    _ProfitLossExpenseDefinition(
-      'water',
-      categories: <String>['water'],
-      trackedInApp: true,
-      prorateFixedCost: true,
-    ),
-    _ProfitLossExpenseDefinition(
-      'electric',
-      categories: <String>['electric'],
-      trackedInApp: true,
-      prorateFixedCost: true,
-    ),
-    _ProfitLossExpenseDefinition(
-      'donation',
-      categories: <String>['donation'],
-      trackedInApp: true,
-    ),
-    _ProfitLossExpenseDefinition('Postage', categories: <String>['Postage']),
-    _ProfitLossExpenseDefinition(
-      'Rent',
-      categories: <String>['Rent'],
-      trackedInApp: true,
-      prorateFixedCost: true,
-    ),
-    _ProfitLossExpenseDefinition('Licenses', categories: <String>['Licenses']),
-    _ProfitLossExpenseDefinition('Taxes', categories: <String>['Taxes']),
-    _ProfitLossExpenseDefinition(
-      'Telephone',
-      categories: <String>['Telephone'],
-    ),
-    _ProfitLossExpenseDefinition(
-      'Travel/Transportation',
-      categories: <String>['Travel/Transportation'],
-    ),
-    _ProfitLossExpenseDefinition(
-      'Other (excluding depreciation/amortization)',
-      categories: <String>['Other'],
-      includeUnmapped: true,
-    ),
-  ];
-
-  static List<ProfitLossExpenseLine> buildLines(
-    List<ExpenseRecord> expenses, {
+  static List<ProfitLossExpenseLine> buildLines({
+    required List<ExpenseRecord> expenses,
+    required Iterable<ExpenseCategory> categories,
     required DateTime periodStart,
     required DateTime periodEnd,
   }) {
@@ -184,39 +118,16 @@ class _ProfitLossExpenseCatalog {
     final DateTime rangeEndExclusive = RecurrenceSchedule.dateOnly(
       periodEnd,
     ).add(const Duration(days: 1));
-    final Set<String> mappedCategories = definitions
-        .where(
-          (_ProfitLossExpenseDefinition definition) =>
-              !definition.includeUnmapped,
-        )
-        .expand(
-          (_ProfitLossExpenseDefinition definition) => definition.categories,
-        )
-        .map(_normalize)
-        .toSet();
-
-    return definitions
-        .map((_ProfitLossExpenseDefinition definition) {
-          final double amount = definition.includeUnmapped
-              ? _sumUnmappedExpenses(
-                  expenses,
-                  mappedCategories,
-                  rangeStart,
-                  rangeEndExclusive,
-                )
-              : _sumExpenses(
-                  expenses,
-                  definition.categories,
-                  rangeStart,
-                  rangeEndExclusive,
-                  prorateFixedCost: definition.prorateFixedCost,
-                );
-
+    return categories
+        .map((ExpenseCategory category) {
           return ProfitLossExpenseLine(
-            label: definition.label,
-            amount: amount,
-            trackedInApp: definition.trackedInApp,
-            reportCategory: definition.reportCategory,
+            category: category,
+            amount: _sumExpenses(
+              expenses,
+              category,
+              rangeStart,
+              rangeEndExclusive,
+            ),
             periodStart: rangeStart,
             periodEnd: rangeEndExclusive.subtract(const Duration(days: 1)),
           );
@@ -226,44 +137,13 @@ class _ProfitLossExpenseCatalog {
 
   static double _sumExpenses(
     List<ExpenseRecord> expenses,
-    List<String> categories,
-    DateTime rangeStart,
-    DateTime rangeEndExclusive, {
-    required bool prorateFixedCost,
-  }) {
-    if (!rangeStart.isBefore(rangeEndExclusive)) return 0;
-    final Set<String> categoryKeys = categories.map(_normalize).toSet();
-    return expenses
-        .where(
-          (ExpenseRecord record) =>
-              categoryKeys.contains(_normalize(record.category)),
-        )
-        .fold<double>(
-          0,
-          (double sum, ExpenseRecord record) =>
-              sum +
-              _expenseAmountForRange(
-                record,
-                rangeStart,
-                rangeEndExclusive,
-                expenses,
-                prorateFixedCost: prorateFixedCost,
-              ),
-        );
-  }
-
-  static double _sumUnmappedExpenses(
-    List<ExpenseRecord> expenses,
-    Set<String> mappedCategories,
+    ExpenseCategory category,
     DateTime rangeStart,
     DateTime rangeEndExclusive,
   ) {
     if (!rangeStart.isBefore(rangeEndExclusive)) return 0;
     return expenses
-        .where(
-          (ExpenseRecord record) =>
-              !mappedCategories.contains(_normalize(record.category)),
-        )
+        .where((ExpenseRecord record) => _matchesCategory(record, category))
         .fold<double>(
           0,
           (double sum, ExpenseRecord record) =>
@@ -273,9 +153,26 @@ class _ProfitLossExpenseCatalog {
                 rangeStart,
                 rangeEndExclusive,
                 expenses,
-                prorateFixedCost: _isFixedCostCategory(record.category),
+                prorateFixedCost: category.expenseType == ExpenseType.fixed,
               ),
         );
+  }
+
+  static bool _matchesCategory(
+    ExpenseRecord expense,
+    ExpenseCategory category,
+  ) {
+    final String storedCategoryId = expense.categoryId.trim();
+    if (storedCategoryId.isNotEmpty) {
+      return storedCategoryId == category.id;
+    }
+
+    // Records saved before stable category IDs were introduced retain their
+    // original label. This compatibility path does not determine expense type;
+    // grouping always comes from the selected category's stored ExpenseType.
+    final String legacyCategory = _normalize(expense.category);
+    return legacyCategory == _normalize(category.name) ||
+        legacyCategory == _normalize(category.mindeeLabel);
   }
 
   static double _expenseAmountForRange(
@@ -469,13 +366,6 @@ class _ProfitLossExpenseCatalog {
 
   static DateTime _earlierDate(DateTime left, DateTime right) {
     return left.isBefore(right) ? left : right;
-  }
-
-  static bool _isFixedCostCategory(String value) {
-    return switch (_normalize(value)) {
-      'payroll' || 'rent' || 'water' || 'electric' => true,
-      _ => false,
-    };
   }
 
   static String _normalize(String value) => value.trim().toLowerCase();

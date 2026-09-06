@@ -70,6 +70,7 @@ class LocalTransactionRepository implements TransactionRepository {
       totalAmount: request.totalAmount,
       tipsGratuity: request.tipsGratuity,
       transactionDate: request.transactionDate,
+      categoryId: request.categoryId,
       category: request.category,
       payee: request.payee,
       isManual: request.isManual,

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:savetep/features/auth/models/expense_category.dart';
 import 'package:savetep/features/auth/screens/profit_loss_screen/profit_loss_screen.dart';
 import 'package:savetep/features/auth/screens/transaction_screen/transaction_screen.dart';
+import 'package:savetep/features/auth/services/expense_category_service.dart';
+import 'package:savetep/providers/expense_category_provider.dart';
 import 'package:savetep/services/app_clock.dart';
 import 'package:savetep/services/liability_service.dart';
 
@@ -34,7 +38,8 @@ void main() {
       checkNumber: 'payroll',
       totalAmount: 10000,
       transactionDate: DateTime(2026, 2, 1),
-      category: 'Payroll',
+      categoryId: ExpenseCategory.payrollWages.id,
+      category: ExpenseCategory.payrollWages.name,
       payee: 'Payroll',
       isManual: true,
     );
@@ -42,13 +47,30 @@ void main() {
       checkNumber: 'gas',
       totalAmount: 500,
       transactionDate: DateTime(2026, 3, 1),
-      category: 'gas',
+      categoryId: ExpenseCategory.gasForMileage.id,
+      category: ExpenseCategory.gasForMileage.name,
       payee: 'Gas Stop',
       isManual: true,
     );
+    await LiabilityService.saveExpense(
+      checkNumber: 'unselected-travel',
+      totalAmount: 750,
+      transactionDate: DateTime(2026, 4, 1),
+      categoryId: ExpenseCategory.travel.id,
+      category: ExpenseCategory.travel.name,
+      payee: 'Unselected Travel',
+      isManual: true,
+    );
 
-    await tester.pumpWidget(const MaterialApp(home: ProfitLossScreen()));
-    await tester.pumpAndSettle();
+    await _pumpProfitLossScreen(
+      tester,
+      selectedCategoryIds: <String>{
+        ExpenseCategory.rents.id,
+        ExpenseCategory.payrollWages.id,
+        ExpenseCategory.gasForMileage.id,
+        ExpenseCategory.office.id,
+      },
+    );
 
     expect(find.text('Profit and Loss'), findsOneWidget);
     expect(find.text('Profit and Loss Statement 2026'), findsOneWidget);
@@ -60,12 +82,18 @@ void main() {
     expect(find.text('Save Tep'), findsOneWidget);
     expect(find.text('Gross Income'), findsOneWidget);
     expect(find.text(r'$50,000.00'), findsNWidgets(2));
-    expect(find.text('Payroll'), findsOneWidget);
-    expect(find.text(r'$10,000.00'), findsOneWidget);
-    expect(find.text('gas'), findsOneWidget);
-    expect(find.text(r'$500.00'), findsOneWidget);
-    expect(find.text('Advertising'), findsOneWidget);
-    expect(find.text('Not tracked in app'), findsNothing);
+    expect(find.text('FIXED EXPENSE'), findsOneWidget);
+    expect(find.text(ExpenseCategory.rents.name), findsOneWidget);
+    expect(find.text(ExpenseCategory.payrollWages.name), findsOneWidget);
+    expect(find.text('Fixed Expense Subtotal'), findsOneWidget);
+    expect(find.text(r'$10,000.00'), findsNWidgets(2));
+    expect(find.text('VARIABLE EXPENSE'), findsOneWidget);
+    expect(find.text(ExpenseCategory.gasForMileage.name), findsOneWidget);
+    expect(find.text(ExpenseCategory.office.name), findsOneWidget);
+    expect(find.text('Variable Expense Subtotal'), findsOneWidget);
+    expect(find.text(r'$500.00'), findsNWidgets(2));
+    expect(find.text(r'$0.00'), findsNWidgets(2));
+    expect(find.text(ExpenseCategory.travel.name), findsNothing);
     expect(find.text('Total Expenses'), findsOneWidget);
     expect(find.text(r'$10,500.00'), findsOneWidget);
     expect(find.text('Net Income Before Taxes'), findsOneWidget);
@@ -79,14 +107,6 @@ void main() {
 
     final table = tester.widget<Table>(find.byType(Table));
     expect(table.children.every((row) => row.children.length == 2), isTrue);
-
-    final advertisingRow = table.children.singleWhere((row) {
-      final labelCell = row.children.first as Container;
-      final label = labelCell.child;
-      return label is Text && label.data == 'Advertising';
-    });
-    final decoration = advertisingRow.decoration as BoxDecoration;
-    expect(decoration.color, const Color(0xFFE0F2FE));
   });
 
   testWidgets('ProfitLossScreen renders at a narrow mobile width', (
@@ -97,12 +117,14 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const MaterialApp(home: ProfitLossScreen()));
-    await tester.pumpAndSettle();
+    await _pumpProfitLossScreen(
+      tester,
+      selectedCategoryIds: <String>{ExpenseCategory.rents.id},
+    );
 
     expect(tester.takeException(), isNull);
     expect(find.text('Profit and Loss Statement 2026'), findsOneWidget);
-    expect(find.text('Not tracked in app'), findsNothing);
+    expect(find.text(ExpenseCategory.rents.name), findsOneWidget);
   });
 
   testWidgets(
@@ -132,7 +154,8 @@ void main() {
         checkNumber: 'payroll',
         totalAmount: 3000,
         transactionDate: DateTime(2026, 6, 1),
-        category: 'Payroll',
+        categoryId: ExpenseCategory.payrollWages.id,
+        category: ExpenseCategory.payrollWages.name,
         payee: 'Payroll',
         isManual: true,
       );
@@ -140,7 +163,8 @@ void main() {
         checkNumber: 'gas-in-range',
         totalAmount: 100,
         transactionDate: DateTime(2026, 6, 10),
-        category: 'gas',
+        categoryId: ExpenseCategory.gasForMileage.id,
+        category: ExpenseCategory.gasForMileage.name,
         payee: 'Gas Stop',
         isManual: true,
       );
@@ -148,31 +172,32 @@ void main() {
         checkNumber: 'gas-outside-range',
         totalAmount: 600,
         transactionDate: DateTime(2026, 5, 31),
-        category: 'gas',
+        categoryId: ExpenseCategory.gasForMileage.id,
+        category: ExpenseCategory.gasForMileage.name,
         payee: 'Gas Stop',
         isManual: true,
       );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: ProfitLossScreen(
-            initialDateRange: DateTimeRange(
-              start: DateTime(2026, 6, 1),
-              end: DateTime(2026, 6, 15),
-            ),
-          ),
+      await _pumpProfitLossScreen(
+        tester,
+        selectedCategoryIds: <String>{
+          ExpenseCategory.payrollWages.id,
+          ExpenseCategory.gasForMileage.id,
+        },
+        initialDateRange: DateTimeRange(
+          start: DateTime(2026, 6, 1),
+          end: DateTime(2026, 6, 15),
         ),
       );
-      await tester.pumpAndSettle();
 
       expect(find.text('06/01/2026 - 06/15/2026'), findsOneWidget);
       expect(find.text('06/01/2026'), findsOneWidget);
       expect(find.text('06/15/2026'), findsOneWidget);
       expect(find.text(r'$15,000.00'), findsNWidgets(2));
-      expect(find.text('Payroll'), findsOneWidget);
-      expect(find.text(r'$1,500.00'), findsOneWidget);
-      expect(find.text('gas'), findsOneWidget);
-      expect(find.text(r'$100.00'), findsOneWidget);
+      expect(find.text(ExpenseCategory.payrollWages.name), findsOneWidget);
+      expect(find.text(r'$1,500.00'), findsNWidgets(2));
+      expect(find.text(ExpenseCategory.gasForMileage.name), findsOneWidget);
+      expect(find.text(r'$100.00'), findsNWidgets(2));
       expect(find.text(r'$600.00'), findsNothing);
       expect(find.text(r'$50,000.00'), findsNothing);
       expect(find.text(r'$1,600.00'), findsOneWidget);
@@ -186,7 +211,8 @@ void main() {
       checkNumber: 'gas-in-range',
       totalAmount: 45,
       transactionDate: DateTime(2026, 6, 12),
-      category: 'gas',
+      categoryId: ExpenseCategory.gasForMileage.id,
+      category: ExpenseCategory.gasForMileage.name,
       payee: 'Gas Stop',
       isManual: true,
     );
@@ -194,7 +220,8 @@ void main() {
       checkNumber: 'gas-outside-range',
       totalAmount: 90,
       transactionDate: DateTime(2026, 6, 20),
-      category: 'gas',
+      categoryId: ExpenseCategory.gasForMileage.id,
+      category: ExpenseCategory.gasForMileage.name,
       payee: 'Gas Later',
       isManual: true,
     );
@@ -202,50 +229,56 @@ void main() {
       checkNumber: 'rent-in-range',
       totalAmount: 300,
       transactionDate: DateTime(2026, 6, 10),
-      category: 'Rent',
+      categoryId: ExpenseCategory.rents.id,
+      category: ExpenseCategory.rents.name,
       payee: 'Studio Rent',
       isManual: true,
     );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ProfitLossScreen(
-          initialDateRange: DateTimeRange(
-            start: DateTime(2026, 6, 10),
-            end: DateTime(2026, 6, 15),
-          ),
-        ),
-        routes: <String, WidgetBuilder>{
-          '/transactions': (BuildContext context) {
-            final arguments =
-                ModalRoute.of(context)!.settings.arguments
-                    as TransactionScreenArguments;
-            return TransactionScreen(
-              initialExpenseCategory: arguments.initialExpenseCategory,
-              initialExpenseDateRange: arguments.initialExpenseDateRange,
-            );
-          },
-        },
+    await _pumpProfitLossScreen(
+      tester,
+      selectedCategoryIds: <String>{
+        ExpenseCategory.rents.id,
+        ExpenseCategory.gasForMileage.id,
+      },
+      initialDateRange: DateTimeRange(
+        start: DateTime(2026, 6, 10),
+        end: DateTime(2026, 6, 15),
       ),
+      routes: <String, WidgetBuilder>{
+        '/transactions': (BuildContext context) {
+          final arguments =
+              ModalRoute.of(context)!.settings.arguments
+                  as TransactionScreenArguments;
+          return TransactionScreen(
+            initialExpenseCategory: arguments.initialExpenseCategory,
+            initialExpenseDateRange: arguments.initialExpenseDateRange,
+          );
+        },
+      },
     );
-    await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('gas'),
+      find.text(ExpenseCategory.gasForMileage.name),
       find.byType(ListView),
       const Offset(0, -180),
     );
     await tester.pumpAndSettle();
 
-    final gasLink = tester.widget<Text>(find.text('gas'));
+    final gasLink = tester.widget<Text>(
+      find.text(ExpenseCategory.gasForMileage.name),
+    );
     expect(gasLink.style?.decoration, TextDecoration.underline);
 
-    await tester.tap(find.text('gas'));
+    await tester.tap(find.text(ExpenseCategory.gasForMileage.name));
     await tester.pumpAndSettle();
 
     expect(find.text('Transaction'), findsOneWidget);
     expect(find.text('06/10/2026 - 06/15/2026'), findsOneWidget);
-    expect(find.text('gas total'), findsOneWidget);
+    expect(
+      find.text('${ExpenseCategory.gasForMileage.name} total'),
+      findsOneWidget,
+    );
     expect(find.text(r'$45.00'), findsWidgets);
 
     await tester.dragUntilVisible(
@@ -261,4 +294,91 @@ void main() {
     expect(find.text('Gas Later'), findsNothing);
     expect(find.text('Studio Rent'), findsNothing);
   });
+
+  testWidgets('ProfitLossScreen refreshes changed account categories', (
+    WidgetTester tester,
+  ) async {
+    final _FakeExpenseCategoryRepository repository =
+        _FakeExpenseCategoryRepository(<String>{ExpenseCategory.rents.id});
+    await LiabilityService.saveExpense(
+      checkNumber: 'rent',
+      totalAmount: 100,
+      transactionDate: DateTime(2026, 6, 1),
+      categoryId: ExpenseCategory.rents.id,
+      category: ExpenseCategory.rents.name,
+      payee: 'Rent',
+      isManual: true,
+    );
+    await LiabilityService.saveExpense(
+      checkNumber: 'office',
+      totalAmount: 200,
+      transactionDate: DateTime(2026, 6, 1),
+      categoryId: ExpenseCategory.office.id,
+      category: ExpenseCategory.office.name,
+      payee: 'Office',
+      isManual: true,
+    );
+
+    await _pumpProfitLossScreen(tester, repository: repository);
+
+    expect(find.text(ExpenseCategory.rents.name), findsOneWidget);
+    expect(find.text(ExpenseCategory.office.name), findsNothing);
+
+    repository.selectedCategoryIds = <String>{ExpenseCategory.office.id};
+    await tester.fling(find.byType(ListView), const Offset(0, 400), 1000);
+    await tester.pumpAndSettle();
+
+    expect(find.text(ExpenseCategory.rents.name), findsNothing);
+    expect(find.text(ExpenseCategory.office.name), findsOneWidget);
+    expect(find.text(r'$200.00'), findsNWidgets(3));
+  });
+}
+
+Future<void> _pumpProfitLossScreen(
+  WidgetTester tester, {
+  Set<String> selectedCategoryIds = const <String>{},
+  ExpenseCategoryRepository? repository,
+  DateTimeRange? initialDateRange,
+  Map<String, WidgetBuilder> routes = const <String, WidgetBuilder>{},
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        expenseCategoryRepositoryProvider.overrideWithValue(
+          repository ?? _FakeExpenseCategoryRepository(selectedCategoryIds),
+        ),
+      ],
+      child: MaterialApp(
+        home: ProfitLossScreen(initialDateRange: initialDateRange),
+        routes: routes,
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+class _FakeExpenseCategoryRepository implements ExpenseCategoryRepository {
+  Set<String> selectedCategoryIds;
+
+  _FakeExpenseCategoryRepository(this.selectedCategoryIds);
+
+  @override
+  Future<List<ExpenseCategory>> loadActiveCategories() async {
+    return ExpenseCategory.onboardingCategories
+        .where(
+          (ExpenseCategory category) =>
+              selectedCategoryIds.contains(category.id),
+        )
+        .toList(growable: false);
+  }
+
+  @override
+  Future<Set<String>?> loadSelectedCategoryIds() async {
+    return Set<String>.of(selectedCategoryIds);
+  }
+
+  @override
+  Future<void> saveSelectedCategoryIds(Set<String> selectedCategoryIds) async {
+    this.selectedCategoryIds = Set<String>.of(selectedCategoryIds);
+  }
 }
