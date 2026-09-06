@@ -1,0 +1,13 @@
+{
+  "AUTH_ENV": "singapore-dev",
+  "APP_ENV": "dev",
+  "API_BASE_URL": "https://api-dev.save-tep.us",
+  "AWS_REGION": "ap-southeast-1",
+  "COGNITO_USER_POOL_ID": "ap-southeast-1_3ob6DVAln",
+  "COGNITO_USER_POOL_CLIENT_ID": "2dkdkbefs65ipd52egvfve23gu",
+  "COGNITO_ISSUER_URL": "https://cognito-idp.ap-southeast-1.amazonaws.com/ap-southeast-1_3ob6DVAln",
+  "TERMS_VERSION": "<DISPLAYED_TERMS_VERSION>",
+  "MINDEE_V2_API_KEY": "<PRIVATE_LOCAL_TEST_API_KEY>",
+  "MINDEE_EXPENSE_MODEL_ID": "<EXPENSE_MODEL_ID>",
+  "MINDEE_DEPOSIT_MODEL_ID": "<DEPOSIT_MODEL_ID>"
+}

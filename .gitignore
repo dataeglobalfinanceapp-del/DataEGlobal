@@ -17,6 +17,7 @@ migrate_working_dir/
 .env
 .env.*
 !.env.example
+.run/*.local.json
 
 # IntelliJ related
 *.iml

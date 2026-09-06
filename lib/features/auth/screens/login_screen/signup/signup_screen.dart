@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:savetep/core/config/app_environment.dart';
 import 'package:savetep/features/auth/screens/login_screen/shared/models/auth_flow_arguments.dart';
 import 'package:savetep/features/auth/screens/login_screen/shared/repositories/auth_repository.dart';
 import 'package:savetep/features/auth/screens/login_screen/shared/repositories/pending_account_profile_repository.dart';
 import 'package:savetep/features/auth/widgets/auth_widgets.dart';
+import 'package:savetep/features/auth/services/pending_terms_acceptance_service.dart';
 
 import 'models/signup_flow_result.dart';
 import 'controllers/signup_controller.dart';
@@ -25,6 +27,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   late SignUpController _controller;
   late bool _ownsController;
+  late final String? _termsVersion =
+      AppEnvironment.fromCompileTime().termsVersion;
 
   @override
   void initState() {
@@ -57,7 +61,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
         widget.controller ??
         SignUpController(
           signUp: _authRepository.signUp,
-          stageNewAccount: _profileRepository.stageNewAccount,
+          stageNewAccount:
+              ({required String email, required String fullName}) async {
+                await _profileRepository.stageNewAccount(
+                  email: email,
+                  fullName: fullName,
+                );
+                final String? termsVersion = _termsVersion;
+                if (termsVersion != null) {
+                  await PendingTermsAcceptanceService.stage(
+                    email: email,
+                    termsVersion: termsVersion,
+                  );
+                }
+              },
         );
   }
 
@@ -156,6 +173,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 onLogin: () =>
                     Navigator.pushReplacementNamed(context, '/login'),
                 onPickCountryCode: _pickCountryCode,
+                termsVersion: _termsVersion,
               ),
             ],
           ),
@@ -171,6 +189,7 @@ class _SignUpForm extends StatelessWidget {
   final VoidCallback onSubmit;
   final VoidCallback onLogin;
   final VoidCallback onPickCountryCode;
+  final String? termsVersion;
 
   const _SignUpForm({
     required this.controller,
@@ -178,6 +197,7 @@ class _SignUpForm extends StatelessWidget {
     required this.onSubmit,
     required this.onLogin,
     required this.onPickCountryCode,
+    required this.termsVersion,
   });
 
   @override
@@ -264,6 +284,7 @@ class _SignUpForm extends StatelessWidget {
           _TermsCheckbox(
             value: state.agreedToTerms,
             onChanged: controller.setAgreedToTerms,
+            termsVersion: termsVersion,
           ),
           const SizedBox(height: 20),
           AuthPrimaryButton(
@@ -286,8 +307,13 @@ class _SignUpForm extends StatelessWidget {
 class _TermsCheckbox extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
+  final String? termsVersion;
 
-  const _TermsCheckbox({required this.value, required this.onChanged});
+  const _TermsCheckbox({
+    required this.value,
+    required this.onChanged,
+    required this.termsVersion,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -302,11 +328,14 @@ class _TermsCheckbox extends StatelessWidget {
           visualDensity: VisualDensity.compact,
         ),
         const SizedBox(width: 8),
-        const Expanded(
+        Expanded(
           child: Padding(
-            padding: EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.only(top: 2),
             child: Text(
-              'I have read and agree to the terms and conditions',
+              termsVersion == null
+                  ? 'I have read and agree to the terms and conditions'
+                  : 'I have read and agree to the terms and conditions '
+                        '(version $termsVersion)',
               style: AuthTokens.bodySmall,
             ),
           ),

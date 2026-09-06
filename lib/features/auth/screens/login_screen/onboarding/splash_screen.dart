@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:savetep/features/auth/screens/login_screen/shared/models/auth_flow_destination.dart';
 import 'package:savetep/features/auth/screens/login_screen/shared/repositories/auth_repository.dart';
+import 'package:savetep/providers/api_provider.dart';
 import 'package:savetep/providers/business_profile_provider.dart';
 
 import 'controllers/splash_controller.dart';
@@ -26,8 +27,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       checkAuthSession: _authRepository.isSignedIn,
       loadBusinessSetupCompleted: () async {
         ref.invalidate(businessProfileProvider);
-        final profile = await ref.read(businessProfileProvider.future);
-        return profile.setupCompleted;
+        ref.invalidate(remoteUserBusinessContextProvider);
+        ref.invalidate(businessSetupStatusProvider);
+        return ref.read(businessSetupStatusProvider.future);
       },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {

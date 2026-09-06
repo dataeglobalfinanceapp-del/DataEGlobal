@@ -1,9 +1,14 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:savetep/core/api/access_token_provider.dart';
+import 'package:savetep/core/api/aws_api_client.dart';
+import 'package:savetep/features/auth/models/auth_sign_in_challenge.dart';
 import 'package:savetep/features/auth/screens/login_screen/shared/models/auth_flow_destination.dart';
 import 'package:savetep/features/auth/screens/login_screen/shared/validators/auth_form_validators.dart';
 
-typedef LoginRequest = Future<bool> Function(String email, String password);
+typedef LoginRequest =
+    Future<bool> Function(String usernameOrEmail, String password);
+typedef ConfirmLoginChallenge = Future<bool> Function(String response);
 typedef BusinessSetupStatusLoader = Future<bool> Function();
 
 class LoginFormState {
@@ -13,7 +18,9 @@ class LoginFormState {
   final bool obscurePassword;
   final List<String> errors;
   final String? profileError;
-  final bool emailInvalid;
+  final AuthSignInChallengeRequired? challenge;
+  final bool identifierInvalid;
+  final bool challengeInvalid;
   final bool passwordInvalid;
 
   const LoginFormState({
@@ -23,7 +30,9 @@ class LoginFormState {
     required this.obscurePassword,
     required this.errors,
     required this.profileError,
-    required this.emailInvalid,
+    required this.challenge,
+    required this.identifierInvalid,
+    required this.challengeInvalid,
     required this.passwordInvalid,
   });
 
@@ -34,7 +43,9 @@ class LoginFormState {
       obscurePassword = true,
       errors = const <String>[],
       profileError = null,
-      emailInvalid = false,
+      challenge = null,
+      identifierInvalid = false,
+      challengeInvalid = false,
       passwordInvalid = false;
 
   LoginFormState copyWith({
@@ -45,7 +56,10 @@ class LoginFormState {
     List<String>? errors,
     String? profileError,
     bool clearProfileError = false,
-    bool? emailInvalid,
+    AuthSignInChallengeRequired? challenge,
+    bool clearChallenge = false,
+    bool? identifierInvalid,
+    bool? challengeInvalid,
     bool? passwordInvalid,
   }) {
     return LoginFormState(
@@ -58,7 +72,9 @@ class LoginFormState {
       profileError: clearProfileError
           ? null
           : profileError ?? this.profileError,
-      emailInvalid: emailInvalid ?? this.emailInvalid,
+      challenge: clearChallenge ? null : challenge ?? this.challenge,
+      identifierInvalid: identifierInvalid ?? this.identifierInvalid,
+      challengeInvalid: challengeInvalid ?? this.challengeInvalid,
       passwordInvalid: passwordInvalid ?? this.passwordInvalid,
     );
   }
@@ -66,36 +82,57 @@ class LoginFormState {
 
 class LoginController extends ChangeNotifier {
   final LoginRequest _signIn;
+  final ConfirmLoginChallenge? _confirmSignIn;
   final BusinessSetupStatusLoader? _loadBusinessSetupCompleted;
 
-  final TextEditingController emailController = TextEditingController();
+  final TextEditingController identifierController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController challengeController = TextEditingController();
 
   LoginFormState _state = const LoginFormState.initial();
   bool _isDisposed = false;
 
   LoginController({
     required LoginRequest signIn,
+    ConfirmLoginChallenge? confirmSignIn,
     BusinessSetupStatusLoader? loadBusinessSetupCompleted,
   }) : _signIn = signIn,
+       _confirmSignIn = confirmSignIn,
        _loadBusinessSetupCompleted = loadBusinessSetupCompleted;
 
   LoginFormState get state => _state;
 
   bool validate() {
-    final String email = emailController.text.trim();
+    final AuthSignInChallengeRequired? challenge = _state.challenge;
+    if (challenge != null) {
+      final bool challengeOk =
+          challenge.canRespond && challengeController.text.trim().isNotEmpty;
+      final List<String> errors = <String>[
+        if (!challenge.canRespond) challenge.prompt,
+        if (challenge.canRespond && !challengeOk)
+          '${challenge.inputLabel.toLowerCase()} is required',
+      ];
+      _setState(
+        _state.copyWith(errors: errors, challengeInvalid: !challengeOk),
+      );
+      return errors.isEmpty;
+    }
+
+    final String usernameOrEmail = identifierController.text.trim();
     final String password = passwordController.text;
-    final bool emailOk = AuthFormValidators.isValidEmail(email);
+    final bool identifierOk = AuthFormValidators.isValidUsernameOrEmail(
+      usernameOrEmail,
+    );
     final bool passwordOk = AuthFormValidators.isValidLoginPassword(password);
     final List<String> errors = <String>[
-      if (!emailOk) 'A valid email is required',
+      if (!identifierOk) 'Username or email is required',
       if (!passwordOk) 'Password must be at least 8 characters',
     ];
 
     _setState(
       _state.copyWith(
         errors: errors,
-        emailInvalid: !emailOk,
+        identifierInvalid: !identifierOk,
         passwordInvalid: !passwordOk,
       ),
     );
@@ -112,10 +149,56 @@ class LoginController extends ChangeNotifier {
 
     _setState(_state.copyWith(isLoading: true, errors: const <String>[]));
     try {
+      if (_state.challenge != null) {
+        final ConfirmLoginChallenge? confirmSignIn = _confirmSignIn;
+        if (confirmSignIn == null) {
+          _setState(
+            _state.copyWith(
+              errors: const <String>[
+                'This sign-in challenge cannot be completed in this flow.',
+              ],
+            ),
+          );
+          return false;
+        }
+        final AuthSignInChallengeRequired challenge = _state.challenge!;
+        final String response = challengeController.text.trim();
+        final bool complete = await confirmSignIn(
+          challenge.type == AuthSignInChallengeType.mfaSelection
+              ? response.toUpperCase()
+              : response,
+        );
+        if (complete) {
+          challengeController.clear();
+          _setState(
+            _state.copyWith(clearChallenge: true, challengeInvalid: false),
+          );
+        }
+        return complete;
+      }
       return await _signIn(
-        emailController.text.trim(),
+        identifierController.text.trim(),
         passwordController.text,
       );
+    } on AuthSignInChallengeRequired catch (challenge) {
+      challengeController.clear();
+      if (challenge.canRespond) {
+        _setState(
+          _state.copyWith(
+            challenge: challenge,
+            errors: const <String>[],
+            challengeInvalid: false,
+          ),
+        );
+      } else {
+        _setState(
+          _state.copyWith(
+            errors: <String>[challenge.prompt],
+            clearChallenge: true,
+          ),
+        );
+      }
+      return false;
     } on Object catch (error) {
       _setState(_state.copyWith(errors: <String>[error.toString()]));
       return false;
@@ -141,8 +224,17 @@ class LoginController extends ChangeNotifier {
           ? AuthFlowDestination.home
           : AuthFlowDestination.businessSetup;
     } on Object catch (error) {
+      final bool authenticationFailed =
+          error is ApiAccessTokenException ||
+          (error is ApiHttpException &&
+              error.kind == ApiFailureKind.unauthenticated);
       _setState(
-        _state.copyWith(profileError: 'Could not load business setup: $error'),
+        _state.copyWith(
+          authenticationComplete: authenticationFailed ? false : null,
+          profileError: authenticationFailed
+              ? 'Your session expired. Sign in again.'
+              : 'Could not load business setup: $error',
+        ),
       );
       return null;
     } finally {
@@ -159,8 +251,9 @@ class LoginController extends ChangeNotifier {
   @override
   void dispose() {
     _isDisposed = true;
-    emailController.dispose();
+    identifierController.dispose();
     passwordController.dispose();
+    challengeController.dispose();
     super.dispose();
   }
 }

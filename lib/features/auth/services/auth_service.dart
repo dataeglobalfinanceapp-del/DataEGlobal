@@ -1,5 +1,7 @@
 import 'package:amplify_flutter/amplify_flutter.dart';
 
+import 'package:savetep/features/auth/models/auth_sign_in_challenge.dart';
+
 class AuthService {
   // ─────────────────────────────────────────────────────────────────────────
   // SESSION RESTORE
@@ -101,17 +103,37 @@ class AuthService {
   // Returns true when the user is fully signed in.
   // ─────────────────────────────────────────────────────────────────────────
 
-  static Future<bool> signIn(String email, String password) async {
+  static Future<bool> signIn(String usernameOrEmail, String password) async {
     try {
       final result = await Amplify.Auth.signIn(
-        username: email,
+        username: usernameOrEmail,
         password: password,
       );
-      return result.isSignedIn;
+      return _completeSignInOrThrow(result);
     } on AuthException catch (e) {
       safePrint('Sign in error: ${e.message}');
       rethrow;
     }
+  }
+
+  static Future<bool> confirmSignIn(String challengeResponse) async {
+    try {
+      final result = await Amplify.Auth.confirmSignIn(
+        confirmationValue: challengeResponse,
+      );
+      return _completeSignInOrThrow(result);
+    } on AuthException catch (e) {
+      safePrint('Confirm sign in error: ${e.message}');
+      rethrow;
+    }
+  }
+
+  static bool _completeSignInOrThrow(SignInResult result) {
+    if (result.isSignedIn) return true;
+    throw AuthSignInChallengeRequired.fromStep(
+      result.nextStep.signInStep.name,
+      destination: result.nextStep.codeDeliveryDetails?.destination,
+    );
   }
 
   // ─────────────────────────────────────────────────────────────────────────

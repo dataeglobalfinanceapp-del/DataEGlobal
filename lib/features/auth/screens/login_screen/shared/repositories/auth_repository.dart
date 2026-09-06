@@ -5,7 +5,9 @@ import '../models/auth_models.dart';
 abstract interface class AuthRepository {
   Future<bool> isSignedIn();
 
-  Future<bool> signIn(String email, String password);
+  Future<bool> signIn(String usernameOrEmail, String password);
+
+  Future<bool> confirmSignIn(String challengeResponse);
 
   Future<AuthSignUpAttempt> signUp({
     required String email,
@@ -33,8 +35,13 @@ class ServiceAuthRepository implements AuthRepository {
   Future<bool> isSignedIn() => AuthService.isSignedIn();
 
   @override
-  Future<bool> signIn(String email, String password) {
-    return AuthService.signIn(email, password);
+  Future<bool> signIn(String usernameOrEmail, String password) {
+    return AuthService.signIn(usernameOrEmail, password);
+  }
+
+  @override
+  Future<bool> confirmSignIn(String challengeResponse) {
+    return AuthService.confirmSignIn(challengeResponse);
   }
 
   @override

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:savetep/features/auth/models/auth_sign_in_challenge.dart';
 import 'package:savetep/features/auth/screens/login_screen/shared/models/auth_flow_destination.dart';
 import 'package:savetep/features/auth/screens/login_screen/shared/repositories/auth_repository.dart';
 import 'package:savetep/features/auth/widgets/auth_widgets.dart';
+import 'package:savetep/providers/api_provider.dart';
 import 'package:savetep/providers/business_profile_provider.dart';
 
 import 'controllers/login_controller.dart';
@@ -54,10 +56,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         widget.controller ??
         LoginController(
           signIn: _authRepository.signIn,
+          confirmSignIn: _authRepository.confirmSignIn,
           loadBusinessSetupCompleted: () async {
             ref.invalidate(businessProfileProvider);
-            final profile = await ref.read(businessProfileProvider.future);
-            return profile.setupCompleted;
+            ref.invalidate(remoteUserBusinessContextProvider);
+            ref.invalidate(businessSetupStatusProvider);
+            return ref.read(businessSetupStatusProvider.future);
           },
         );
   }
@@ -144,71 +148,105 @@ class _LoginForm extends StatelessWidget {
             AuthErrorBanner(errors: state.errors),
             const SizedBox(height: 16),
           ],
-          const AuthFieldLabel(text: 'EMAIL', required: true),
-          const SizedBox(height: 6),
-          AuthTextInput(
-            controller: controller.emailController,
-            hint: 'e.g: sunny@gmail.com',
-            invalid: state.emailInvalid,
-            keyboardType: TextInputType.emailAddress,
-            autocorrect: false,
-            autofillHints: const <String>[AutofillHints.email],
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 16),
-          const AuthFieldLabel(text: 'PASSWORD', required: true),
-          const SizedBox(height: 6),
-          AuthPasswordField(
-            controller: controller.passwordController,
-            obscureText: state.obscurePassword,
-            invalid: state.passwordInvalid,
-            onToggleVisibility: controller.togglePasswordVisibility,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => onSubmit(),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: onForgotPassword,
-            child: const Text('Forgot password?', style: AuthTokens.link),
-          ),
+          if (state.challenge
+              case final AuthSignInChallengeRequired challenge) ...<Widget>[
+            Text(challenge.prompt, textAlign: TextAlign.left),
+            const SizedBox(height: 16),
+            AuthFieldLabel(text: challenge.inputLabel, required: true),
+            const SizedBox(height: 6),
+            if (challenge.obscureInput)
+              AuthPasswordField(
+                controller: controller.challengeController,
+                obscureText: state.obscurePassword,
+                invalid: state.challengeInvalid,
+                onToggleVisibility: controller.togglePasswordVisibility,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => onSubmit(),
+              )
+            else
+              AuthTextInput(
+                controller: controller.challengeController,
+                hint: 'Enter response',
+                invalid: state.challengeInvalid,
+                autocorrect: false,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => onSubmit(),
+              ),
+            const SizedBox(height: 16),
+          ] else ...<Widget>[
+            const AuthFieldLabel(text: 'USERNAME OR EMAIL', required: true),
+            const SizedBox(height: 6),
+            AuthTextInput(
+              controller: controller.identifierController,
+              hint: 'e.g: demo-owner or sunny@gmail.com',
+              invalid: state.identifierInvalid,
+              keyboardType: TextInputType.text,
+              autocorrect: false,
+              autofillHints: const <String>[
+                AutofillHints.username,
+                AutofillHints.email,
+              ],
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 16),
+            const AuthFieldLabel(text: 'PASSWORD', required: true),
+            const SizedBox(height: 6),
+            AuthPasswordField(
+              controller: controller.passwordController,
+              obscureText: state.obscurePassword,
+              invalid: state.passwordInvalid,
+              onToggleVisibility: controller.togglePasswordVisibility,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => onSubmit(),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: onForgotPassword,
+              child: const Text('Forgot password?', style: AuthTokens.link),
+            ),
+          ],
           const SizedBox(height: 8),
           AuthPrimaryButton(
-            label: state.authenticationComplete ? 'Continue' : 'Login',
+            label: state.authenticationComplete || state.challenge != null
+                ? 'Continue'
+                : 'Login',
             isLoading: state.isLoading || state.isRoutingProfile,
             onPressed: onSubmit,
           ),
-          const SizedBox(height: 20),
-          const AuthOrDivider(),
-          const SizedBox(height: 16),
-          AuthSocialButton(
-            onPressed: () {},
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                AuthGoogleIcon(),
-                SizedBox(width: 12),
-                Text('Login with Google', style: AuthTokens.socialLabel),
-              ],
+          if (state.challenge == null) ...<Widget>[
+            const SizedBox(height: 20),
+            const AuthOrDivider(),
+            const SizedBox(height: 16),
+            AuthSocialButton(
+              onPressed: () {},
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  AuthGoogleIcon(),
+                  SizedBox(width: 12),
+                  Text('Login with Google', style: AuthTokens.socialLabel),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          AuthSocialButton(
-            onPressed: () {},
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Icon(Icons.apple, size: 22, color: AuthTokens.textStrong),
-                SizedBox(width: 12),
-                Text('Login with Apple', style: AuthTokens.socialLabel),
-              ],
+            const SizedBox(height: 12),
+            AuthSocialButton(
+              onPressed: () {},
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Icon(Icons.apple, size: 22, color: AuthTokens.textStrong),
+                  SizedBox(width: 12),
+                  Text('Login with Apple', style: AuthTokens.socialLabel),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          AuthAccountSwitchLink(
-            text: "Don't have an account. ",
-            actionLabel: 'Sign Up',
-            onPressed: onSignUp,
-          ),
+            const SizedBox(height: 20),
+            AuthAccountSwitchLink(
+              text: "Don't have an account. ",
+              actionLabel: 'Sign Up',
+              onPressed: onSignUp,
+            ),
+          ],
         ],
       ),
     );

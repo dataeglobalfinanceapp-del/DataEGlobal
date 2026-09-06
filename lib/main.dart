@@ -5,7 +5,8 @@ import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'amplify_outputs.dart';
+import 'core/config/amplify_auth_configuration.dart';
+import 'core/config/app_environment.dart';
 import 'features/auth/screens/login_screen/forgot_password/confirm_reset_screen.dart';
 import 'features/auth/screens/login_screen/forgot_password/forgot_password_screen.dart';
 import 'features/auth/screens/login_screen/login/login_screen.dart';
@@ -28,6 +29,7 @@ import 'features/auth/screens/reminder_screen/reminder_screen.dart';
 import 'features/auth/screens/profit_loss_screen/profit_loss_screen.dart';
 import 'features/auth/screens/user_settings/user_settings_screens.dart';
 import 'features/auth/widgets/bottom_nav_bar.dart';
+import 'providers/api_provider.dart';
 import 'theme/app_theme.dart';
 import 'widgets/test_clock_overlay.dart';
 
@@ -35,9 +37,15 @@ final GlobalKey<NavigatorState> _appNavigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
+    final AppEnvironment environment = AppEnvironment.fromCompileTime();
     if (kDebugMode) MindeeConfig.validate();
-    await _configureAmplify();
-    runApp(const ProviderScope(child: SaveTepApp()));
+    await _configureAmplify(environment);
+    runApp(
+      ProviderScope(
+        overrides: [appEnvironmentProvider.overrideWithValue(environment)],
+        child: const SaveTepApp(),
+      ),
+    );
   } on StateError catch (e) {
     runApp(
       ProviderScope(child: _StartupConfigurationErrorApp(message: e.message)),
@@ -63,7 +71,7 @@ class _StartupConfigurationErrorApp extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
-              'Local Mindee configuration error: $message',
+              'Startup configuration error: $message',
               textAlign: TextAlign.center,
             ),
           ),
@@ -73,10 +81,10 @@ class _StartupConfigurationErrorApp extends StatelessWidget {
   }
 }
 
-Future<void> _configureAmplify() async {
+Future<void> _configureAmplify(AppEnvironment environment) async {
   await Amplify.addPlugin(AmplifyAuthCognito());
-  await Amplify.configure(amplifyConfig);
-  safePrint('Amplify configured');
+  await Amplify.configure(buildAmplifyAuthConfiguration(environment));
+  safePrint('Amplify configured for ${environment.authEnvironment.value}');
 }
 
 class _AmplifyConfigurationErrorApp extends StatelessWidget {

@@ -1,290 +1,118 @@
-# Android AWS Cognito + Mindee Local Testing Guide
+# Android Singapore Cognito/API + Mindee Testing Guide
 
-## Quick startup - copy one block at a time
+## Normal daily startup
 
-### 1. Open the project and configure this PowerShell process
+The app now selects its existing Cognito environment from compile-time values. Singapore DEV is the API-connected development target; the legacy `us-west-2` pool remains available only as a rollback option.
+
+Do not run `ampx generate outputs`, `ampx sandbox`, or any AWS create/delete command during normal startup.
 
 ```powershell
 Set-Location 'E:\DataEglobal\Save_Tep'
 
-$awsRegion = 'us-west-2'
-$permanentBackendStackName = 'amplify-savetep-teres-sandbox-b788042c3d'
-
-$env:AWS_PROFILE = 'savetep-amplify'
-$env:AWS_REGION = $awsRegion
-
-Remove-Item Env:AWS_DEFAULT_REGION -ErrorAction SilentlyContinue
-Remove-Item Env:AWS_ACCESS_KEY_ID -ErrorAction SilentlyContinue
-Remove-Item Env:AWS_SECRET_ACCESS_KEY -ErrorAction SilentlyContinue
-Remove-Item Env:AWS_SESSION_TOKEN -ErrorAction SilentlyContinue
-```
-
-### 2. Load the existing AWS backend configuration
-
-```powershell
-npx.cmd ampx generate outputs --stack $permanentBackendStackName --profile savetep-amplify --format dart --out-dir lib
-
-if ($LASTEXITCODE -ne 0) {
-  throw 'Output generation failed. Do not run ampx sandbox.'
-}
-```
-
-### 3. Load Mindee credentials
-
-```powershell
-Get-Content '.env' | ForEach-Object {
-  $line = $_.Trim()
-  if ($line -and -not $line.StartsWith('#')) {
-    $parts = $line -split '=', 2
-    if ($parts.Count -eq 2) {
-      [Environment]::SetEnvironmentVariable(
-        $parts[0].Trim(),
-        $parts[1].Trim(),
-        'Process'
-      )
-    }
-  }
-}
-```
-
-### 4. Select Android and start Flutter
-
-```powershell
 flutter devices
 $androidDeviceId = Read-Host 'Android device ID'
 
 flutter run -d $androidDeviceId `
-  --dart-define=MINDEE_V2_API_KEY=$env:MINDEE_V2_API_KEY `
-  --dart-define=MINDEE_EXPENSE_MODEL_ID=$env:MINDEE_EXPENSE_MODEL_ID `
-  --dart-define=MINDEE_DEPOSIT_MODEL_ID=$env:MINDEE_DEPOSIT_MODEL_ID
+  --dart-define-from-file='.run/dev.local.json'
 ```
 
-This is the current source of truth for private local Android testing:
+At login, use a Cognito username or email. For the existing DEV account, enter `demo-owner` and type `<TEST_PASSWORD>` only in the app. Never put a password in the JSON file, command line, shell history, tests, documentation, or Git.
 
-- AWS Amplify Auth uses the existing permanent Cognito User Pool in
-  `us-west-2`.
-- The permanent User Pool is shared infrastructure. Local testing must never
-  create, recreate, or delete it.
-- Mindee V2 handles expense and deposit OCR directly from Flutter.
-- AWS Textract is no longer used.
-- No local OCR backend or service on port `3000` is required.
-- Direct Mindee credentials are for private local testing only. Never commit
-  them or distribute a build that contains them.
+Normal Flutter startup does not require an AWS CLI profile, AWS access key, or local backend process.
 
-The legacy files `E:\DataEglobal\ANDROID_MINDEE_TESTING_GUIDE.md` and
-`E:\DataEglobal\SaveTep_AWS_Testing_Shutdown_Startup_Procedure.md` are
-obsolete. Do not follow their older Region or OCR instructions.
+## One-time local configuration
 
-## One-time prerequisites
-
-- Project: `E:\DataEglobal\Save_Tep`
-- Working AWS CLI profile: `savetep-amplify`
-- Existing permanent Amplify backend stack:
-  `amplify-savetep-teres-sandbox-b788042c3d` in `us-west-2`
-- Flutter SDK, Android Studio, Android SDK, Node.js, and the AWS CLI installed
-- Node dependencies already installed with `npm.cmd ci`
-- A private Mindee V2 API key plus the current expense and deposit model IDs
-
-Never save a real password, API key, or private model ID in Git. Keep Cognito
-identifiers together only in the approved Amplify output files; do not copy
-them into this guide or hard-code them elsewhere in the app.
-
-## Startup behavior and AWS safety
-
-The Quick startup blocks are the complete normal startup procedure for this
-PC. The AWS profile, permanent pool, app client, test user, and stack mapping
-are already configured and do not need to be verified again.
-
-`ampx generate outputs` reads the existing deployed backend and writes only
-`lib\amplify_outputs.dart`. It does not deploy AWS resources. Never substitute
-`ampx sandbox`, `ampx sandbox delete`, `create-user-pool`, or
-`delete-user-pool` during startup or cleanup.
-
-## 1. Configure the local Mindee environment once
-
-Create an ignored `.env` file in the project root:
-
-```dotenv
-MINDEE_V2_API_KEY=<PRIVATE_LOCAL_TEST_API_KEY>
-MINDEE_EXPENSE_MODEL_ID=<EXPENSE_MODEL_ID>
-MINDEE_DEPOSIT_MODEL_ID=<DEPOSIT_MODEL_ID>
-```
-
-Load it into the PowerShell process that will run Flutter:
+Create the ignored launch file from the committed example:
 
 ```powershell
-Get-Content '.env' | ForEach-Object {
-  $line = $_.Trim()
-  if ($line -and -not $line.StartsWith('#')) {
-    $parts = $line -split '=', 2
-    if ($parts.Count -eq 2) {
-      [Environment]::SetEnvironmentVariable(
-        $parts[0].Trim(),
-        $parts[1].Trim(),
-        'Process'
-      )
-    }
-  }
-}
+Copy-Item '.run\dev.example.json' '.run\dev.local.json'
 ```
 
-Verify presence without printing the values:
+Edit `.run/dev.local.json` and replace these placeholders:
+
+- `<DISPLAYED_TERMS_VERSION>` with the exact terms version shown to users;
+- `<PRIVATE_LOCAL_TEST_API_KEY>` with the private debug-only Mindee key;
+- `<EXPENSE_MODEL_ID>` and `<DEPOSIT_MODEL_ID>` with the current private Mindee model IDs.
+
+The committed Singapore configuration already identifies:
+
+- Region `ap-southeast-1`;
+- API `https://api-dev.save-tep.us`;
+- User Pool `ap-southeast-1_3ob6DVAln`;
+- mobile app client `2dkdkbefs65ipd52egvfve23gu`.
+
+These identifiers are public configuration, not credentials. Never add `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, a Cognito password, or a bearer token to the launch file. Dart defines are compiled into the application.
+
+Do not pass the repository's complete `.env` file to Flutter. It may contain developer-only AWS variables that must never enter a mobile build.
+
+## Validate before device testing
 
 ```powershell
-[pscustomobject]@{
-  MindeeApiKeySet = -not [string]::IsNullOrWhiteSpace(
-    $env:MINDEE_V2_API_KEY
-  )
-  ExpenseModelIdSet = -not [string]::IsNullOrWhiteSpace(
-    $env:MINDEE_EXPENSE_MODEL_ID
-  )
-  DepositModelIdSet = -not [string]::IsNullOrWhiteSpace(
-    $env:MINDEE_DEPOSIT_MODEL_ID
-  )
-}
-```
-
-All three results must be `True`.
-
-## 2. Optional Flutter validation
-
-```powershell
-flutter pub get
 dart format .
 flutter analyze
-
-flutter test `
-  test\mindee_document_analysis_service_test.dart `
-  test\mindee_mappers_test.dart `
-  test\scan_expense_auto_screen_widget_test.dart `
-  test\scan_deposit_auto_screen_widget_test.dart
-
 flutter test
 ```
 
-Resolve relevant failures before device testing.
-
-## 3. Android launch details
-
-Start an Android emulator in Android Studio, or connect a physical phone with
-USB debugging enabled. Then run:
+Check the deployed API without authentication:
 
 ```powershell
-flutter devices
-
-flutter run -d '<ANDROID_DEVICE_ID>' `
-  --dart-define=MINDEE_V2_API_KEY=$env:MINDEE_V2_API_KEY `
-  --dart-define=MINDEE_EXPENSE_MODEL_ID=$env:MINDEE_EXPENSE_MODEL_ID `
-  --dart-define=MINDEE_DEPOSIT_MODEL_ID=$env:MINDEE_DEPOSIT_MODEL_ID
+$health = Invoke-RestMethod 'https://api-dev.save-tep.us/health'
+$health.status
 ```
 
-No backend URL or port argument is needed. Keep this build private because
-compile-time Dart definitions can be recovered from an application binary.
+Expected value: `ok`.
 
-## 4. Log in with Cognito
+## Authentication smoke test
 
-1. Open SaveTep on the Android device.
-2. Log in with the existing test email and password.
-3. Confirm that the app reaches its authenticated home screen.
+1. Launch the app with `.run/dev.local.json`.
+2. Enter `demo-owner` and `<TEST_PASSWORD>` in the UI.
+3. If Cognito requests an SMS, email, or TOTP code, enter it in the additional sign-in field.
+4. Confirm the app resolves `/me` and `/me/active-business` before entering authenticated screens.
+5. If no active business exists and the account has exactly one business, confirm the app selects it automatically.
+6. Leave the app open beyond the 15-minute access-token lifetime and confirm a later API read succeeds after session refresh.
+7. Sign out and confirm returning to the login screen does not show data from the prior account.
 
-If login unexpectedly fails, repeat Quick startup Steps 1 and 2 and rebuild the
-app. Do not create, replace, or delete any Cognito resource while
-troubleshooting.
+Request logs may contain only method, route template, status, duration, and a safe request ID. They must not contain passwords, access/ID tokens, query values, PII bodies, Mindee keys, or presigned URLs.
 
-## 5. Test expense Mindee scanning
+## Mindee expense test
 
-1. Open the automatic expense scan flow and allow camera access.
+Mindee continues to run directly from the Flutter debug build. This integration does not enable Textract.
+
+1. Open the automatic Expense scan flow and allow camera access.
 2. Capture a clear, complete receipt.
-3. Confirm the captured image remains visible during and after extraction.
-4. Confirm Mindee fills supplier, date/time, total amount, tips/gratuity,
-   purchase category, and card last four.
-5. Correct any uncertain values, confirm the expense, and save it.
-6. Confirm the Flutter console reports:
+3. Confirm the image remains visible while extraction runs.
+4. Confirm Mindee fills the supported supplier, date/time, total, tip, category, and card-last-four fields.
+5. Correct uncertain values and verify the reviewed values remain in the form.
 
-```text
-[ScanExpense] Scan extraction completed successfully.
-```
+Do not use the SaveTep scan-job persistence route until the backend publishes a Mindee-client/attachment flow that does not start backend OCR. Expense and receipt migration remains contract-gated.
 
-The expense model machine keys are:
+## Mindee deposit test
 
-```text
-supplier_name
-date
-time
-total_amount
-tips_gratuity
-purchase_category
-card_last4
-```
+1. Open Deposit and choose automatic extraction.
+2. Capture or select a clear deposit image.
+3. Confirm the amount/payment fields are populated and remain editable.
+4. Confirm the order number stays owned by the current Flutter form; the API does not document automatic sequencing.
+5. Correct uncertain values and verify the reviewed values remain in the form.
 
-## 6. Test deposit Mindee scanning
+Do not distribute an APK containing the Mindee key. Direct Mindee credentials are permitted only for private local debug testing.
 
-1. Open the automatic deposit scan flow and note the generated order number.
-2. Capture a clear, complete deposit image.
-3. Confirm the captured image remains visible during and after extraction.
-4. Confirm the generated order number is preserved; OCR must not replace it.
-5. Confirm Mindee fills total amount, credit/debit amount, card last four, cash
-   amount, gift-card amount, other amount, and transaction date.
-6. Correct any uncertain values, confirm the deposit, and save it.
-7. Confirm the Flutter console reports:
+## Legacy rollback test
 
-```text
-[ScanDeposit] Scan extraction completed successfully.
-```
-
-The deposit model machine keys are:
-
-```text
-total_amount
-credit_debit_amount
-card_last4
-cash_amount
-gift_card_amount
-other_amount
-transaction_date
-```
-
-## 7. Verify there is no local OCR request
-
-No process is required on port `3000`:
+The old pool is not deleted or regenerated. Copy `.run/legacy.example.json` to the ignored `.run/legacy.local.json`, replace only the Mindee placeholders, and run:
 
 ```powershell
-Get-NetTCPConnection `
-  -LocalPort 3000 `
-  -State Listen `
-  -ErrorAction SilentlyContinue
+flutter run -d '<ANDROID_DEVICE_ID>' `
+  --dart-define-from-file='.run/legacy.local.json'
 ```
 
-No output is expected. Android Studio's Network Inspector should show scan
-requests going directly to Mindee HTTPS endpoints under `api-v2.mindee.net`,
-with no request to a host-loopback address or port `3000`.
+Legacy mode keeps the current local repositories and does not construct the REST client. Switching pools signs users out and does not migrate Cognito passwords or subject IDs.
 
-## 8. Shutdown and cleanup
+## Safe shutdown
 
-1. Press `q` or `Ctrl+C` in the Flutter terminal.
-2. Stop the emulator or disconnect the physical phone.
-3. Clear local Mindee process variables:
+1. Stop `flutter run` with `q` or `Ctrl+C`.
+2. Close the emulator if desired.
+3. Remove any temporary AWS profile variables from the shell if they were used for separate read-only inspection.
 
-```powershell
-Remove-Item Env:MINDEE_V2_API_KEY -ErrorAction SilentlyContinue
-Remove-Item Env:MINDEE_EXPENSE_MODEL_ID -ErrorAction SilentlyContinue
-Remove-Item Env:MINDEE_DEPOSIT_MODEL_ID -ErrorAction SilentlyContinue
-```
+Do not delete Cognito, ECS, the load balancer, database, Redis, S3, Amplify, or API data as part of shutdown.
 
-4. Clear the local startup variables without changing AWS resources:
-
-```powershell
-Remove-Variable awsRegion -ErrorAction SilentlyContinue
-Remove-Variable permanentBackendStackName -ErrorAction SilentlyContinue
-Remove-Variable androidDeviceId -ErrorAction SilentlyContinue
-Remove-Item Env:AWS_PROFILE -ErrorAction SilentlyContinue
-Remove-Item Env:AWS_REGION -ErrorAction SilentlyContinue
-```
-
-The permanent `us-west-2` Cognito User Pool remains running between test
-sessions. Never run `ampx sandbox delete`, `delete-user-pool`, or a replacement
-deployment during normal cleanup. Pool maintenance belongs to the backend
-administrator and is not part of this guide.
-
-Delete the local `.env` file and revoke the private Mindee key only when the
-machine should no longer retain them.
+For architecture, mapping, migration, and contract gates, see `docs/integration/`.

@@ -8,6 +8,10 @@ class AuthFormValidators {
     return _emailPattern.hasMatch(value.trim());
   }
 
+  static bool isValidUsernameOrEmail(String value) {
+    return value.trim().isNotEmpty;
+  }
+
   static bool isValidLoginPassword(String value) {
     return value.length >= 8;
   }
